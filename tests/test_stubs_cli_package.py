@@ -13,16 +13,14 @@ from aksharkit import DataNotVerifiedError, dates, legacy
 from aksharkit._data import load_table, require_verified
 from aksharkit.cli import main
 
-# --- stubs: legacy fonts and dates must refuse, never guess -----------------
+# --- stubs: legacy fonts must refuse, never guess ---------------------------
 
 
-@pytest.mark.parametrize("name", ["font_preeti", "bs_calendar"])
-def test_data_tables_are_marked_unverified_and_empty(name: str) -> None:
-    table = load_table(name)
+def test_preeti_table_is_marked_unverified_and_empty() -> None:
+    table = load_table("font_preeti")
     assert table["status"] == "UNVERIFIED-EMPTY"
     assert table["sources"] == []
-    payload = table["mapping"] if name == "font_preeti" else table["years"]
-    assert payload == {}
+    assert table["mapping"] == {}
 
 
 def test_preeti_refuses_without_verified_data() -> None:
@@ -41,14 +39,57 @@ def test_unknown_font_is_a_value_error() -> None:
         legacy.to_unicode("x", "kantipur")
 
 
-def test_dates_refuse_without_verified_data() -> None:
-    for call in (
-        lambda: dates.bs_to_ad(2083, 8, 7),
-        lambda: dates.ad_to_bs(dt.date(2026, 11, 23)),
-        dates.load_calendar,
-    ):
-        with pytest.raises(DataNotVerifiedError, match="not available yet"):
-            call()
+def test_dates_refuse_if_the_table_is_ever_unverified(monkeypatch: pytest.MonkeyPatch) -> None:
+    draft = {**load_table("bs_calendar"), "status": "draft"}
+    monkeypatch.setattr(dates, "load_table", lambda name: draft)
+    dates._calendar.cache_clear()
+    try:
+        for call in (
+            lambda: dates.bs_to_ad(2083, 8, 7),
+            lambda: dates.ad_to_bs(dt.date(2026, 11, 23)),
+            dates.load_calendar,
+        ):
+            with pytest.raises(DataNotVerifiedError, match="not available yet"):
+                call()
+    finally:
+        monkeypatch.undo()
+        dates._calendar.cache_clear()
+    assert dates.bs_to_ad(2083, 8, 7) == dt.date(2026, 11, 23)
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"years": {"2000": [30] * 12}},
+        {"years": {"2000": [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30]}},
+        {"epoch": {"bs": [2001, 1, 1], "ad": "1943-04-14"}},
+    ],
+)
+def test_dates_reject_a_malformed_table(
+    change: dict[str, object], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    broken = {**load_table("bs_calendar"), **change}
+    monkeypatch.setattr(dates, "load_table", lambda name: broken)
+    dates._calendar.cache_clear()
+    try:
+        with pytest.raises(ValueError, match="BS calendar table"):
+            dates.load_calendar()
+    finally:
+        monkeypatch.undo()
+        dates._calendar.cache_clear()
+
+
+def test_dates_reject_a_table_with_a_missing_year(monkeypatch: pytest.MonkeyPatch) -> None:
+    table = load_table("bs_calendar")
+    years = {y: m for y, m in table["years"].items() if y != "2040"}
+    monkeypatch.setattr(dates, "load_table", lambda name: {**table, "years": years})
+    dates._calendar.cache_clear()
+    try:
+        with pytest.raises(ValueError, match="gap"):
+            dates.load_calendar()
+    finally:
+        monkeypatch.undo()
+        dates._calendar.cache_clear()
 
 
 def test_not_verified_error_is_a_not_implemented_error() -> None:
@@ -68,11 +109,6 @@ def test_require_verified_rules() -> None:
         )
     ok = {"status": "verified", "mapping": {"a": "b"}, "sources": ["x"]}
     assert require_verified(ok, "f", "mapping") == {"a": "b"}
-
-
-def test_month_names() -> None:
-    assert len(dates.BS_MONTHS) == 12
-    assert len(set(dates.BS_MONTHS)) == 12
 
 
 # --- packaging ---------------------------------------------------------------
@@ -144,7 +180,7 @@ def test_cli_bad_input_exits_2(argv: list[str], capsys: pytest.CaptureFixture[st
     assert captured.err.startswith("aksharkit: error:")
 
 
-@pytest.mark.parametrize("argv", [["convert", "preeti", "g]kfn"], ["date", "2083-08-07"]])
+@pytest.mark.parametrize("argv", [["convert", "preeti", "g]kfn"]])
 def test_cli_unavailable_features_exit_3(
     argv: list[str], capsys: pytest.CaptureFixture[str]
 ) -> None:

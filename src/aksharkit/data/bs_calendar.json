@@ -1,7 +1,234 @@
 {
-  "status": "UNVERIFIED-EMPTY",
-  "note": "Intentionally empty. BS month lengths cannot be computed; they must be copied from an official calendar source listed in 'sources' and cross-checked against known BS/AD date pairs. Format: {\"2081\": [31, 31, ...twelve month lengths...]}. See docs/sources.md.",
-  "sources": [],
-  "epoch": null,
-  "years": {}
+  "status": "verified",
+  "note": "Bikram Sambat month lengths, BS 2000-2083. Built on 2026-11-23 by comparing five published tables year by year (scripts/compare_bs_sources.py). All five agree exactly for every year except 2062, where one source differs in the first two months; that span is listed under 'disputed' and conversions inside it are refused unless explicitly allowed. Years after 2083 are left out because the sources disagree. See docs/sources.md.",
+  "verified_on": "2026-11-23",
+  "sources": [
+    {
+      "name": "amitgaru/nepali-datetime",
+      "url": "https://raw.githubusercontent.com/amitgaru/nepali-datetime/master/nepali_datetime/data/calendar_bs.csv",
+      "licence": "MIT per setup.py and PyPI; the repository's license.txt is detected by GitHub as Apache-2.0",
+      "commit": "83bb3b2ea623",
+      "fetched": "2026-11-23",
+      "covers": "1975-2100"
+    },
+    {
+      "name": "medic/bikram-sambat",
+      "url": "https://raw.githubusercontent.com/medic/bikram-sambat/master/test-data/daysInMonth.json",
+      "licence": "Apache-2.0",
+      "commit": "aeaa7b883323",
+      "fetched": "2026-11-23",
+      "covers": "1970-2090"
+    },
+    {
+      "name": "opensource-nepal/py-nepali",
+      "url": "https://raw.githubusercontent.com/opensource-nepal/py-nepali/main/nepali/date_converter.py",
+      "licence": "MIT",
+      "commit": "3ff19477150e",
+      "fetched": "2026-11-23",
+      "covers": "2000-2099"
+    },
+    {
+      "name": "subeshb1/Nepali-Date",
+      "url": "https://raw.githubusercontent.com/subeshb1/Nepali-Date/master/src/date-config.ts",
+      "licence": "MIT",
+      "commit": "f14e039965ec",
+      "fetched": "2026-11-23",
+      "covers": "2000-2090"
+    },
+    {
+      "name": "akakritagya/nepkit",
+      "url": "https://raw.githubusercontent.com/akakritagya/nepkit/main/src/nepkit/data/calendar.json",
+      "licence": "MIT",
+      "fetched": "2026-11-23",
+      "covers": "2000-2090",
+      "independence": "not independent: its DATA.md says the table was taken from medic/bikram-sambat and cross-checked against sbmdkl/nepali-date-converter"
+    }
+  ],
+  "epoch": {
+    "bs": [
+      2000,
+      1,
+      1
+    ],
+    "ad": "1943-04-14"
+  },
+  "disputed": [
+    {
+      "from": [
+        2062,
+        1,
+        31
+      ],
+      "to": [
+        2062,
+        2,
+        32
+      ],
+      "table_uses": "Baishakh 30, Jestha 32 (medic, py-nepali, subeshb1, nepkit)",
+      "alternative": "Baishakh 31, Jestha 31 (nepali-datetime)",
+      "effect": "AD 2005-05-14 to 2005-06-14 maps to a BS day that differs by one between the two versions"
+    }
+  ],
+  "anchors": [
+    {
+      "bs": [
+        2000,
+        1,
+        1
+      ],
+      "ad": "1943-04-14",
+      "source": "reference date stated in py-nepali (nepali/date_converter.py) and in nepkit's DATA.md"
+    },
+    {
+      "bs": [
+        2058,
+        2,
+        19
+      ],
+      "ad": "2001-06-01",
+      "source": "https://en.wikipedia.org/wiki/List_of_massacres_in_Nepal (royal massacre)"
+    },
+    {
+      "bs": [
+        2062,
+        1,
+        1
+      ],
+      "ad": "2005-04-14",
+      "source": "https://subedirabindra.com.np/tools/nepali-holidays/2062"
+    },
+    {
+      "bs": [
+        2062,
+        8,
+        29
+      ],
+      "ad": "2005-12-14",
+      "source": "https://en.wikipedia.org/wiki/List_of_massacres_in_Nepal (Nagarkot)"
+    },
+    {
+      "bs": [
+        2072,
+        6,
+        3
+      ],
+      "ad": "2015-09-20",
+      "source": "Constitution of Nepal, gazette date line, https://platform.who.int/docs/default-source/mca-documents/policy-documents/law/NPL-CC-46-01-LAW-2016-eng-Constitution-of-Nepal--English--with-1st-Amendment-2-0.pdf"
+    },
+    {
+      "bs": [
+        2072,
+        11,
+        16
+      ],
+      "ad": "2016-02-28",
+      "source": "Constitution of Nepal (First Amendment) date line, same document"
+    },
+    {
+      "bs": [
+        2083,
+        1,
+        1
+      ],
+      "ad": "2026-04-14",
+      "weekday": "Tuesday",
+      "source": "https://thehimalayantimes.com/nepal/nepal-rings-in-new-year-2083bs-president-vice-president-extend-greetings and https://my.nepalembassy.gov.np/pages/public-holidays--2083---2026-27-/"
+    },
+    {
+      "bs": [
+        2083,
+        8,
+        7
+      ],
+      "ad": "2026-11-23",
+      "weekday": "Monday",
+      "source": "https://www.bikrambhujel.com.np/p/nepali-date-converter-ad-to-bs-bs-to-ad.html (today's date as shown on 2026-11-23)"
+    }
+  ],
+  "years": {
+    "2000": [30, 32, 31, 32, 31, 30, 30, 30, 29, 30, 29, 31],
+    "2001": [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+    "2002": [31, 31, 32, 32, 31, 30, 30, 29, 30, 29, 30, 30],
+    "2003": [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 31],
+    "2004": [30, 32, 31, 32, 31, 30, 30, 30, 29, 30, 29, 31],
+    "2005": [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+    "2006": [31, 31, 32, 32, 31, 30, 30, 29, 30, 29, 30, 30],
+    "2007": [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 31],
+    "2008": [31, 31, 31, 32, 31, 31, 29, 30, 30, 29, 29, 31],
+    "2009": [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+    "2010": [31, 31, 32, 32, 31, 30, 30, 29, 30, 29, 30, 30],
+    "2011": [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 31],
+    "2012": [31, 31, 31, 32, 31, 31, 29, 30, 30, 29, 30, 30],
+    "2013": [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+    "2014": [31, 31, 32, 32, 31, 30, 30, 29, 30, 29, 30, 30],
+    "2015": [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 31],
+    "2016": [31, 31, 31, 32, 31, 31, 29, 30, 30, 29, 30, 30],
+    "2017": [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+    "2018": [31, 32, 31, 32, 31, 30, 30, 29, 30, 29, 30, 30],
+    "2019": [31, 32, 31, 32, 31, 30, 30, 30, 29, 30, 29, 31],
+    "2020": [31, 31, 31, 32, 31, 31, 30, 29, 30, 29, 30, 30],
+    "2021": [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+    "2022": [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 30],
+    "2023": [31, 32, 31, 32, 31, 30, 30, 30, 29, 30, 29, 31],
+    "2024": [31, 31, 31, 32, 31, 31, 30, 29, 30, 29, 30, 30],
+    "2025": [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+    "2026": [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 31],
+    "2027": [30, 32, 31, 32, 31, 30, 30, 30, 29, 30, 29, 31],
+    "2028": [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+    "2029": [31, 31, 32, 31, 32, 30, 30, 29, 30, 29, 30, 30],
+    "2030": [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 31],
+    "2031": [30, 32, 31, 32, 31, 30, 30, 30, 29, 30, 29, 31],
+    "2032": [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+    "2033": [31, 31, 32, 32, 31, 30, 30, 29, 30, 29, 30, 30],
+    "2034": [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 31],
+    "2035": [30, 32, 31, 32, 31, 31, 29, 30, 30, 29, 29, 31],
+    "2036": [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+    "2037": [31, 31, 32, 32, 31, 30, 30, 29, 30, 29, 30, 30],
+    "2038": [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 31],
+    "2039": [31, 31, 31, 32, 31, 31, 29, 30, 30, 29, 30, 30],
+    "2040": [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+    "2041": [31, 31, 32, 32, 31, 30, 30, 29, 30, 29, 30, 30],
+    "2042": [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 31],
+    "2043": [31, 31, 31, 32, 31, 31, 29, 30, 30, 29, 30, 30],
+    "2044": [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+    "2045": [31, 32, 31, 32, 31, 30, 30, 29, 30, 29, 30, 30],
+    "2046": [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 31],
+    "2047": [31, 31, 31, 32, 31, 31, 30, 29, 30, 29, 30, 30],
+    "2048": [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+    "2049": [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 30],
+    "2050": [31, 32, 31, 32, 31, 30, 30, 30, 29, 30, 29, 31],
+    "2051": [31, 31, 31, 32, 31, 31, 30, 29, 30, 29, 30, 30],
+    "2052": [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+    "2053": [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 30],
+    "2054": [31, 32, 31, 32, 31, 30, 30, 30, 29, 30, 29, 31],
+    "2055": [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+    "2056": [31, 31, 32, 31, 32, 30, 30, 29, 30, 29, 30, 30],
+    "2057": [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 31],
+    "2058": [30, 32, 31, 32, 31, 30, 30, 30, 29, 30, 29, 31],
+    "2059": [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+    "2060": [31, 31, 32, 32, 31, 30, 30, 29, 30, 29, 30, 30],
+    "2061": [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 31],
+    "2062": [30, 32, 31, 32, 31, 31, 29, 30, 29, 30, 29, 31],
+    "2063": [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+    "2064": [31, 31, 32, 32, 31, 30, 30, 29, 30, 29, 30, 30],
+    "2065": [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 31],
+    "2066": [31, 31, 31, 32, 31, 31, 29, 30, 30, 29, 29, 31],
+    "2067": [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+    "2068": [31, 31, 32, 32, 31, 30, 30, 29, 30, 29, 30, 30],
+    "2069": [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 31],
+    "2070": [31, 31, 31, 32, 31, 31, 29, 30, 30, 29, 30, 30],
+    "2071": [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+    "2072": [31, 32, 31, 32, 31, 30, 30, 29, 30, 29, 30, 30],
+    "2073": [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 31],
+    "2074": [31, 31, 31, 32, 31, 31, 30, 29, 30, 29, 30, 30],
+    "2075": [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+    "2076": [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 30],
+    "2077": [31, 32, 31, 32, 31, 30, 30, 30, 29, 30, 29, 31],
+    "2078": [31, 31, 31, 32, 31, 31, 30, 29, 30, 29, 30, 30],
+    "2079": [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+    "2080": [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 30],
+    "2081": [31, 32, 31, 32, 31, 30, 30, 30, 29, 30, 29, 31],
+    "2082": [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+    "2083": [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30]
+  }
 }

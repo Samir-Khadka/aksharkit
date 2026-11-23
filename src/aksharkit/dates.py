@@ -1,55 +1,330 @@
-"""Bikram Sambat (BS) and Gregorian (AD) date conversion. NOT IMPLEMENTED YET.
+"""Bikram Sambat (BS) and Gregorian (AD) date conversion.
 
-BS month lengths are published, not computed: each year's twelve lengths
-come from the official calendar. The table lives in ``data/bs_calendar.json``
-and is currently empty. It will not be guessed. Until it is filled from a
-trusted source and cross-checked against known date pairs, every function
-here raises :class:`aksharkit.DataNotVerifiedError`.
+BS month lengths are published, not computed. The table in
+``data/bs_calendar.json`` covers BS 2000-2083 (AD 1943-04-14 to 2027-04-13).
+It was built by comparing five published tables year by year; see
+``docs/sources.md``. Dates outside the table raise :class:`DateRangeError`.
+
+One span is disputed: the sources split on the lengths of Baishakh and
+Jestha 2062, so AD 2005-05-14 to 2005-06-14 has two possible BS readings one
+day apart. Conversions inside that span raise :class:`DisputedDateError`
+unless ``allow_disputed=True`` is passed, in which case the majority reading
+is used.
 """
 
 from __future__ import annotations
 
 import datetime as _dt
+import re
+from bisect import bisect_right
+from dataclasses import dataclass
+from functools import lru_cache
+from typing import NamedTuple
 
 from ._data import load_table, require_verified
+from .numerals import to_ascii_digits, to_devanagari_digits
 
-__all__ = ["BS_MONTHS", "ad_to_bs", "bs_to_ad", "load_calendar"]
+__all__ = [
+    "BS_MONTHS",
+    "BS_MONTHS_ROMAN",
+    "WEEKDAYS",
+    "WEEKDAYS_ROMAN",
+    "BSDate",
+    "DateRangeError",
+    "DisputedDateError",
+    "ad_to_bs",
+    "bs_to_ad",
+    "days_in_month",
+    "days_in_year",
+    "fiscal_year",
+    "format_bs",
+    "is_valid_bs",
+    "load_calendar",
+    "month_name",
+    "parse_bs",
+    "supported_range",
+    "today_bs",
+    "weekday_name",
+]
 
-#: Names of the twelve BS months, Baishakh first. (Names only; no lengths.)
+#: Names of the twelve BS months, Baishakh first.
 BS_MONTHS: tuple[str, ...] = (
     "वैशाख", "जेठ", "असार", "साउन", "भदौ", "असोज",
     "कात्तिक", "मंसिर", "पुस", "माघ", "फागुन", "चैत",
 )  # fmt: skip
 
+#: Romanised month names, in the same order.
+BS_MONTHS_ROMAN: tuple[str, ...] = (
+    "Baishakh", "Jestha", "Asar", "Shrawan", "Bhadra", "Asoj",
+    "Kartik", "Mangsir", "Poush", "Magh", "Falgun", "Chaitra",
+)  # fmt: skip
 
-def load_calendar() -> dict[int, tuple[int, ...]]:
-    """Return ``{bs_year: (twelve month lengths)}`` from the verified table.
+#: Weekday names, Sunday first (the Nepali week starts on Sunday).
+WEEKDAYS: tuple[str, ...] = (
+    "आइतबार", "सोमबार", "मङ्गलबार", "बुधबार", "बिहीबार", "शुक्रबार", "शनिबार",
+)  # fmt: skip
 
-    Raises :class:`aksharkit.DataNotVerifiedError` while the table is empty
-    or unverified.
-    """
+#: Romanised weekday names, Sunday first.
+WEEKDAYS_ROMAN: tuple[str, ...] = (
+    "Aaitabar", "Sombar", "Mangalbar", "Budhabar", "Bihibar", "Shukrabar", "Shanibar",
+)  # fmt: skip
+
+#: The fiscal year starts on 1 Shrawan, the fourth month.
+_FISCAL_START_MONTH = 4
+
+
+class DateRangeError(ValueError):
+    """The date is outside the verified table, or is not a real BS date."""
+
+
+class DisputedDateError(ValueError):
+    """The date falls in a span where the published tables disagree."""
+
+
+class BSDate(NamedTuple):
+    """A Bikram Sambat date. Compares and sorts like ``(year, month, day)``."""
+
+    year: int
+    month: int
+    day: int
+
+    def __str__(self) -> str:
+        return f"{self.year:04d}-{self.month:02d}-{self.day:02d}"
+
+
+@dataclass(frozen=True)
+class _Calendar:
+    months: dict[int, tuple[int, ...]]
+    first_year: int
+    last_year: int
+    epoch_ad: _dt.date
+    year_starts: tuple[int, ...]  # day offset of 1 Baishakh for each year, plus the end
+    disputed: tuple[tuple[BSDate, BSDate], ...]
+
+    @property
+    def last_ad(self) -> _dt.date:
+        return self.epoch_ad + _dt.timedelta(days=self.year_starts[-1] - 1)
+
+
+@lru_cache(maxsize=1)
+def _calendar() -> _Calendar:
     table = load_table("bs_calendar")
     years = require_verified(table, "BS/AD date conversion", "years")
-    calendar: dict[int, tuple[int, ...]] = {}
+    months: dict[int, tuple[int, ...]] = {}
     for year, lengths in years.items():
-        months = tuple(int(n) for n in lengths)
-        if len(months) != 12 or not all(29 <= n <= 32 for n in months):
+        row = tuple(int(n) for n in lengths)
+        if len(row) != 12 or not all(29 <= n <= 32 for n in row) or sum(row) not in (365, 366):
             raise ValueError(f"BS calendar table is malformed for year {year}")
-        calendar[int(year)] = months
-    return calendar
-
-
-def bs_to_ad(year: int, month: int, day: int) -> _dt.date:
-    """Convert a BS date to a Gregorian date. Not implemented yet."""
-    load_calendar()
-    raise NotImplementedError(  # pragma: no cover - reachable only with verified data
-        "BS to AD conversion is not implemented yet"
+        months[int(year)] = row
+    first, last = min(months), max(months)
+    if sorted(months) != list(range(first, last + 1)):
+        raise ValueError("BS calendar table has a gap between years")
+    epoch = table.get("epoch") or {}
+    if tuple(epoch.get("bs", ())) != (first, 1, 1):
+        raise ValueError("BS calendar table: the epoch must be 1 Baishakh of the first year")
+    starts = [0]
+    for year in range(first, last + 1):
+        starts.append(starts[-1] + sum(months[year]))
+    disputed = tuple(
+        (BSDate(*span["from"]), BSDate(*span["to"])) for span in table.get("disputed", [])
+    )
+    return _Calendar(
+        months=months,
+        first_year=first,
+        last_year=last,
+        epoch_ad=_dt.date.fromisoformat(epoch["ad"]),
+        year_starts=tuple(starts),
+        disputed=disputed,
     )
 
 
-def ad_to_bs(date: _dt.date) -> tuple[int, int, int]:
-    """Convert a Gregorian date to ``(bs_year, bs_month, bs_day)``. Not implemented yet."""
-    load_calendar()
-    raise NotImplementedError(  # pragma: no cover - reachable only with verified data
-        "AD to BS conversion is not implemented yet"
-    )
+def load_calendar() -> dict[int, tuple[int, ...]]:
+    """Return ``{bs_year: (twelve month lengths)}`` from the verified table."""
+    return dict(_calendar().months)
+
+
+def supported_range() -> tuple[_dt.date, _dt.date]:
+    """Return the first and last Gregorian dates that can be converted."""
+    cal = _calendar()
+    return cal.epoch_ad, cal.last_ad
+
+
+def _is_int(value: object) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def _check_year_month(year: int, month: int) -> _Calendar:
+    cal = _calendar()
+    for name, value in (("year", year), ("month", month)):
+        if not _is_int(value):
+            raise TypeError(f"BS {name} must be an int, not {type(value).__name__}")
+    if not cal.first_year <= year <= cal.last_year:
+        raise DateRangeError(
+            f"BS year {year} is outside the verified table ({cal.first_year} to {cal.last_year})"
+        )
+    if not 1 <= month <= 12:
+        raise DateRangeError(f"BS month must be 1 to 12, not {month}")
+    return cal
+
+
+def days_in_month(year: int, month: int) -> int:
+    """Number of days in a BS month."""
+    return _check_year_month(year, month).months[year][month - 1]
+
+
+def days_in_year(year: int) -> int:
+    """Number of days in a BS year (365 or 366)."""
+    return sum(_check_year_month(year, 1).months[year])
+
+
+def is_valid_bs(year: int, month: int, day: int) -> bool:
+    """True if the BS date exists in the verified table."""
+    try:
+        length = days_in_month(year, month)
+    except (DateRangeError, TypeError):
+        return False
+    return _is_int(day) and 1 <= day <= length
+
+
+def _require_valid(bs: BSDate) -> _Calendar:
+    cal = _check_year_month(bs.year, bs.month)
+    if not _is_int(bs.day):
+        raise TypeError(f"BS day must be an int, not {type(bs.day).__name__}")
+    length = cal.months[bs.year][bs.month - 1]
+    if not 1 <= bs.day <= length:
+        raise DateRangeError(
+            f"{BS_MONTHS_ROMAN[bs.month - 1]} {bs.year} has {length} days; day {bs.day} is invalid"
+        )
+    return cal
+
+
+def _check_disputed(cal: _Calendar, bs: BSDate, allow: bool) -> None:
+    if allow:
+        return
+    for start, end in cal.disputed:
+        if start <= bs <= end:
+            raise DisputedDateError(
+                f"BS {bs} falls in a span ({start} to {end}) where the published "
+                "calendars disagree by one day. Pass allow_disputed=True to use the "
+                "majority reading. See docs/sources.md."
+            )
+
+
+def bs_to_ad(year: int, month: int, day: int, *, allow_disputed: bool = False) -> _dt.date:
+    """Convert a BS date to a Gregorian date.
+
+    Raises :class:`DateRangeError` for a date outside the table or a day that
+    does not exist in that month, and :class:`DisputedDateError` inside the
+    disputed span of 2062 unless ``allow_disputed`` is true.
+    """
+    bs = BSDate(year, month, day)
+    cal = _require_valid(bs)
+    _check_disputed(cal, bs, allow_disputed)
+    row = cal.months[year]
+    offset = cal.year_starts[year - cal.first_year] + sum(row[: month - 1]) + day - 1
+    return cal.epoch_ad + _dt.timedelta(days=offset)
+
+
+def ad_to_bs(date: _dt.date, *, allow_disputed: bool = False) -> BSDate:
+    """Convert a Gregorian date (or datetime) to a :class:`BSDate`."""
+    if isinstance(date, _dt.datetime):
+        date = date.date()
+    if not isinstance(date, _dt.date):
+        raise TypeError(f"expected a datetime.date, not {type(date).__name__}")
+    cal = _calendar()
+    offset = (date - cal.epoch_ad).days
+    if not 0 <= offset < cal.year_starts[-1]:
+        raise DateRangeError(
+            f"AD {date.isoformat()} is outside the verified table "
+            f"({cal.epoch_ad.isoformat()} to {cal.last_ad.isoformat()})"
+        )
+    index = bisect_right(cal.year_starts, offset) - 1
+    year = cal.first_year + index
+    remaining = offset - cal.year_starts[index]
+    month = 1
+    for length in cal.months[year]:
+        if remaining < length:
+            break
+        remaining -= length
+        month += 1
+    bs = BSDate(year, month, remaining + 1)
+    _check_disputed(cal, bs, allow_disputed)
+    return bs
+
+
+def today_bs() -> BSDate:
+    """Today's BS date in Nepal Standard Time (UTC+05:45)."""
+    npt = _dt.timezone(_dt.timedelta(hours=5, minutes=45))
+    return ad_to_bs(_dt.datetime.now(npt).date())
+
+
+def month_name(month: int, *, roman: bool = False) -> str:
+    """Name of BS month ``month`` (1 = Baishakh)."""
+    if not _is_int(month) or not 1 <= month <= 12:
+        raise DateRangeError(f"BS month must be 1 to 12, not {month!r}")
+    return (BS_MONTHS_ROMAN if roman else BS_MONTHS)[month - 1]
+
+
+def weekday_name(date: _dt.date | BSDate, *, roman: bool = False) -> str:
+    """Weekday name for a Gregorian date or a :class:`BSDate`.
+
+    The weekday of a BS date inside the disputed span follows the majority
+    reading.
+    """
+    ad = bs_to_ad(*date, allow_disputed=True) if isinstance(date, BSDate) else date
+    index = (ad.weekday() + 1) % 7  # Python: Monday = 0; here Sunday = 0
+    return (WEEKDAYS_ROMAN if roman else WEEKDAYS)[index]
+
+
+_BS_PATTERN = re.compile(r"^\s*(\d{4})\s*[-/.]\s*(\d{1,2})\s*[-/.]\s*(\d{1,2})\s*$")
+
+
+def parse_bs(text: str) -> BSDate:
+    """Parse ``YYYY-MM-DD`` (also ``/`` or ``.``; Devanagari digits allowed).
+
+    The result is checked against the table, so a day that does not exist
+    raises :class:`DateRangeError`.
+    """
+    match = _BS_PATTERN.match(to_ascii_digits(text))
+    if match is None:
+        raise ValueError(f"not a BS date in YYYY-MM-DD form: {text!r}")
+    bs = BSDate(*(int(part) for part in match.groups()))
+    _require_valid(bs)
+    return bs
+
+
+def format_bs(
+    date: BSDate | tuple[int, int, int],
+    style: str = "iso",
+    *,
+    devanagari: bool = False,
+) -> str:
+    """Format a BS date.
+
+    ``style`` is ``"iso"`` (``2083-08-07``), ``"long"`` (``2083 Mangsir 7``) or
+    ``"full"`` (long plus the weekday). With ``devanagari=True`` the digits and
+    names are Nepali: ``२०८३ मंसिर ७, सोमबार``.
+    """
+    bs = BSDate(*date)
+    _require_valid(bs)
+    if style == "iso":
+        out = str(bs)
+    elif style in ("long", "full"):
+        out = f"{bs.year} {month_name(bs.month, roman=not devanagari)} {bs.day}"
+        if style == "full":
+            out += f", {weekday_name(bs, roman=not devanagari)}"
+    else:
+        raise ValueError(f"unknown style {style!r}; use 'iso', 'long' or 'full'")
+    return to_devanagari_digits(out) if devanagari else out
+
+
+def fiscal_year(date: BSDate | _dt.date, *, devanagari: bool = False) -> str:
+    """Nepal's fiscal year for a date, such as ``2083/84``.
+
+    The fiscal year starts on 1 Shrawan. A Gregorian date is converted first.
+    """
+    bs = date if isinstance(date, BSDate) else ad_to_bs(date, allow_disputed=True)
+    _require_valid(bs)
+    start = bs.year if bs.month >= _FISCAL_START_MONTH else bs.year - 1
+    out = f"{start}/{(start + 1) % 100:02d}"
+    return to_devanagari_digits(out) if devanagari else out

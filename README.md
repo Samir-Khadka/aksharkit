@@ -1,11 +1,11 @@
 # aksharkit
 
-> **Status: pre-release, local build (0.1.0.dev0).** Not yet published to PyPI.
-> "aksharkit" is a working name.
+> **Status: pre-release (0.2.0).** Not yet published to PyPI.
 
 A small, typed, dependency-free Python toolkit for everyday Nepali text
 chores: cleaning Unicode, converting and formatting numbers, spelling numbers
-in words, and splitting text into words and sentences.
+in words, splitting text into words and sentences, and converting dates
+between Bikram Sambat (BS) and AD.
 
 ## The problem
 
@@ -32,8 +32,9 @@ is the better choice today:
 | [nepali-datetime](https://github.com/amitgaru/nepali-datetime) | Bikram Sambat dates, `datetime`-style API |
 | [npttf2utf](https://github.com/trippygeese/npttf2utf) | Legacy font (Preeti and others) to Unicode |
 
-If you need BS dates or Preeti conversion **now**, use nepali-datetime or
-npttf2utf: aksharkit does not do either yet (see the status table).
+If you need Preeti conversion **now**, use npttf2utf or nepalikit: aksharkit
+does not do it yet. For BS dates outside BS 2000–2083, or for a full
+`datetime`-style API, use nepali-datetime.
 
 What aksharkit aims to add:
 
@@ -56,8 +57,8 @@ No accuracy comparison with other packages has been made. None is claimed.
 | `words` | Done, awaiting native-speaker review of spellings | 0 to 99,99,99,99,99,999; negatives, decimals, rupees and paisa |
 | `tokens` | Done | Word tokeniser with offsets, sentence splitter |
 | `stopwords` | Done, awaiting review | Short hand-written list |
+| `dates` (BS ↔ AD) | Done for BS 2000–2083 (14 April 1943 to 13 April 2027) | Five published tables compared; one month of 2062 is disputed and refused by default; names await review |
 | `legacy` (Preeti) | **Planned — raises `DataNotVerifiedError`** | Loader and API exist; glyph table is empty |
-| `dates` (BS ↔ AD) | **Planned — raises `DataNotVerifiedError`** | Loader and API exist; calendar table is empty |
 | Transliteration, spell check | Planned | Roadmap phase 5 |
 | JavaScript port, playground | Planned | Roadmap phases 2 and 6 |
 
@@ -88,9 +89,21 @@ ak.tokenize("नेपालको जनसंख्या २,९१,६४,�
 # ['नेपालको', 'जनसंख्या', '२,९१,६४,५७८', 'छ', '।']
 ak.sentences("डा. राम आए। मूल्य रु. 99.50 हो। ठिक छ?")
 # ['डा. राम आए।', 'मूल्य रु. 99.50 हो।', 'ठिक छ?']
+
+import datetime
+
+ak.ad_to_bs(datetime.date(2026, 11, 23))  # BSDate(year=2083, month=8, day=7)
+ak.bs_to_ad(2083, 8, 7)  # datetime.date(2026, 11, 23)
+ak.format_bs((2083, 8, 7), "full", devanagari=True)  # '२०८३ मंसिर ७, सोमबार'
+ak.fiscal_year(datetime.date(2026, 11, 23))  # '2083/84'
 ```
 
 Pass money and other exact values as strings or `Decimal`, not floats.
+
+Dates outside BS 2000–2083 raise `DateRangeError`. Dates from 14 May to
+14 June 2005 raise `DisputedDateError` unless you pass `allow_disputed=True`,
+because the published calendars disagree by one day there. Both are
+`ValueError`s. See [docs/sources.md](docs/sources.md) for how the table was checked.
 
 ## Command line
 
@@ -108,6 +121,14 @@ $ echo "राम घर गयो|" | aksharkit normalize
 $ aksharkit tokenize --sentences "के छ? ठिक छ।"
 के छ?
 ठिक छ।
+$ aksharkit date 2026-11-23
+2083-08-07
+$ aksharkit date --style full --devanagari 2026-11-23
+२०८३ मंसिर ७, सोमबार
+$ aksharkit date --to ad 2083-08-07
+2026-11-23
+$ aksharkit date --fiscal-year 2026-11-23
+2083/84
 $ aksharkit convert preeti 'g]kfn'
 aksharkit: Preeti conversion is not available yet: ...
 ```
@@ -125,9 +146,10 @@ Exit codes: `0` success, `2` bad input, `3` feature not available yet.
 ## Further reading
 
 - [docs/normalisation.md](docs/normalisation.md) — exactly what `normalize` changes
-- [docs/sources.md](docs/sources.md) — where the number words come from, spelling decisions, candidate data sources
+- [docs/sources.md](docs/sources.md) — where the number words and the calendar table come from, spelling decisions, Preeti source research
 - [docs/known-issues.md](docs/known-issues.md) — current limits
 - [ROADMAP.md](ROADMAP.md)
+- [CHANGELOG.md](CHANGELOG.md)
 
 ## Licence
 

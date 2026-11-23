@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import argparse
+import datetime as _dt
 import json
 import sys
 from collections.abc import Sequence
 
-from . import __version__, legacy
+from . import __version__, dates, legacy
 from ._errors import DataNotVerifiedError
 from .normalize import normalize
 from .numerals import format_number, to_ascii_digits, to_devanagari_digits
@@ -59,8 +60,20 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("font", choices=legacy.SUPPORTED_FONTS)
     p.add_argument("text", nargs="?")
 
-    p = sub.add_parser("date", help="BS/AD date conversion (not available yet)")
-    p.add_argument("date", nargs="?")
+    p = sub.add_parser(
+        "date",
+        help="convert a date between AD and BS (default: AD to BS; no DATE means today)",
+    )
+    p.add_argument("date", nargs="?", help="YYYY-MM-DD; '-' reads standard input")
+    p.add_argument("--to", choices=("bs", "ad"), default="bs", help="target calendar")
+    p.add_argument("--style", choices=("iso", "long", "full"), default="iso")
+    p.add_argument("--devanagari", action="store_true", help="Nepali digits and names")
+    p.add_argument("--fiscal-year", action="store_true", help="print the fiscal year instead")
+    p.add_argument(
+        "--allow-disputed",
+        action="store_true",
+        help="use the majority reading inside the disputed span of BS 2062",
+    )
     return parser
 
 
@@ -87,11 +100,38 @@ def _run(args: argparse.Namespace) -> str:
     if command == "convert":
         return legacy.to_unicode(_read(args.text), args.font)
     if command == "date":
-        from . import dates
-
-        dates.load_calendar()
-        raise NotImplementedError("date conversion is not implemented yet")
+        return _run_date(args)
     raise AssertionError(f"unhandled command {command!r}")  # pragma: no cover
+
+
+def _run_date(args: argparse.Namespace) -> str:
+    allow: bool = args.allow_disputed
+    if args.to == "ad":
+        if args.date is None:
+            raise ValueError("a BS date is required with --to ad")
+        bs = dates.parse_bs(_read(args.date))
+        if args.fiscal_year:
+            return dates.fiscal_year(bs, devanagari=args.devanagari)
+        ad = dates.bs_to_ad(*bs, allow_disputed=allow)
+        if args.style == "iso":
+            out = ad.isoformat()
+        else:
+            out = f"{ad.day} {ad.strftime('%B')} {ad.year}"
+            if args.style == "full":
+                out += f", {ad.strftime('%A')}"
+        return to_devanagari_digits(out) if args.devanagari and args.style == "iso" else out
+    if args.date is None:
+        bs = dates.today_bs()
+    else:
+        text = to_ascii_digits(_read(args.date)).strip()
+        try:
+            ad = _dt.date.fromisoformat(text)
+        except ValueError:
+            raise ValueError(f"not an AD date in YYYY-MM-DD form: {text!r}") from None
+        bs = dates.ad_to_bs(ad, allow_disputed=allow)
+    if args.fiscal_year:
+        return dates.fiscal_year(bs, devanagari=args.devanagari)
+    return dates.format_bs(bs, args.style, devanagari=args.devanagari)
 
 
 def main(argv: Sequence[str] | None = None) -> int:

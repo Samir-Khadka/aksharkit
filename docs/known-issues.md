@@ -3,9 +3,30 @@
 ## Not implemented
 
 - **Preeti / legacy fonts** (`aksharkit.legacy`): raises `DataNotVerifiedError`.
-  The glyph table is empty.
-- **BS ↔ AD dates** (`aksharkit.dates`): raises `DataNotVerifiedError`. The
-  calendar table is empty.
+  The glyph table is empty; no source with a clearly reusable licence and a
+  known origin has been confirmed (see `docs/sources.md`, section 4).
+
+## Dates (BS ↔ AD)
+
+- **Range:** BS 2000-01-01 to 2083-12-30 only (14 April 1943 to 13 April 2027).
+  Anything else raises `DateRangeError`. The range **ends in April 2027**:
+  the published tables disagree from BS 2084 onwards, so those years were
+  left out. A later release must extend it once the 2084 calendar is settled.
+- **Disputed month:** 31 Baishakh to 32 Jestha 2062 (14 May to 14 June 2005)
+  raises `DisputedDateError` unless `allow_disputed=True` is passed. Four of
+  the five tables say Baishakh 30 / Jestha 32, one says 31 / 31, and outside
+  evidence is split. With the flag, the majority reading is used and may be
+  one day off.
+- **No official source.** The table rests on five open-source projects'
+  published tables agreeing, plus eight date pairs from other pages. No
+  government or calendar-committee table was checked. Four of the five
+  projects are published separately, but they may share a common origin.
+- **Month and weekday names** were written from general knowledge and have not
+  been reviewed by a native speaker. Only one spelling of each is offered.
+- `parse_bs` reads numeric dates only (`2083-08-07`, `२०८३/८/७`), not month names.
+- No time-of-day, time-zone or `datetime`-style arithmetic. `today_bs()` uses
+  Nepal time (UTC+05:45).
+- Dates before BS 2000 and tithi (lunar day) are out of scope for now.
 
 ## Verification gaps
 
