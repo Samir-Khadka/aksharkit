@@ -1,0 +1,31 @@
+# virtual environments, whatever they are called
+.venv*/
+venv*/
+env/
+ENV/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.eggs/
+
+# tools
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.tmp/
+
+# editors and OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# secrets never belong here
+.env
+.env.*

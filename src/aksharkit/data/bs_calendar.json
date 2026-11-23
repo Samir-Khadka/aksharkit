@@ -1,0 +1,7 @@
+{
+  "status": "UNVERIFIED-EMPTY",
+  "note": "Intentionally empty. BS month lengths cannot be computed; they must be copied from an official calendar source listed in 'sources' and cross-checked against known BS/AD date pairs. Format: {\"2081\": [31, 31, ...twelve month lengths...]}. See docs/sources.md.",
+  "sources": [],
+  "epoch": null,
+  "years": {}
+}
