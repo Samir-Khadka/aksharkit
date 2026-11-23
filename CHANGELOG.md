@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.3.0 — 23 November 2026
+
+### Added
+
+- **Transliteration** (`aksharkit.translit`): `to_roman` and `to_devanagari`
+  with two schemes.
+  - `iast` — Roman letters with diacritics, IAST with ISO 15919 where IAST
+    has no letter. Reversible: converting back gives the original text
+    (conditions in `docs/transliteration.md`). Covers conjuncts, halant,
+    anusvara, candrabindu, visarga, avagraha, nukta letters, digits and danda.
+  - `simple` — plain ASCII as Nepali is typed in chat. Rule-based and
+    approximate; documented rules decide when the final inherent `a` is
+    dropped. Roman → Devanagari in this scheme is best effort only.
+- `aksharkit translit --to roman|devanagari --scheme iast|simple [--keep-digits]`.
+- `tests/golden/translit_words.tsv`: 109 hand-written words and place names
+  with their expected output; 37 are marked for native-speaker review.
+- **Browser playground** in `site/` (static, no build step, no framework, no
+  external fonts or trackers): Normalise, Numbers, Dates, Tokenise and
+  Transliterate tabs, with Preeti shown as coming soon. It runs this package
+  in the browser through Pyodide 0.29.5 (Python 3.13.2) from the jsDelivr CDN.
+- `scripts/build_site.py`, which assembles the site and packs `src/aksharkit`
+  into `pkg/aksharkit.zip` for the page to unpack.
+- `.github/workflows/pages.yml`, which builds and deploys the site to GitHub
+  Pages on a push to `main`.
+- Tests for the playground's Python entry points, the archive, the page's
+  HTML/JS/CSS consistency, and `site/app.js` run in Node against a fake DOM.
+
+### Not verified
+
+- The playground has **not been opened in a real browser**, and the Pages
+  workflow has not run. See `docs/known-issues.md`.
+
 ## 0.2.0 — 23 November 2026
 
 ### Added

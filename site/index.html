@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>aksharkit playground — Nepali text tools in your browser</title>
+  <meta name="description" content="Try aksharkit, a Python toolkit for Nepali text: Unicode normaliser, Nepali numbers, BS and AD dates, tokeniser and transliteration. It runs in your browser; nothing you type is sent anywhere.">
+  <meta name="theme-color" content="#4a2a8a">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%234a2a8a'/%3E%3Ctext x='32' y='45' font-size='38' text-anchor='middle' fill='%23f3e3b3' font-family='sans-serif'%3E%E0%A4%85%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to the tools</a>
+
+  <header class="masthead">
+    <div class="wrap">
+      <p class="eyebrow">Open source · MIT · Python</p>
+      <h1><span lang="ne" class="mark">अ</span> aksharkit <span class="sub">playground</span></h1>
+      <p class="lead">Everyday tools for Nepali text. This page runs the real Python library in your browser, so nothing you type leaves your device.</p>
+      <p id="status" class="status" role="status" aria-live="polite" data-state="loading">
+        <span class="dot" aria-hidden="true"></span>
+        <span id="status-text">Loading the Python runtime. The first visit downloads about 5 MB.</span>
+      </p>
+      <div id="load-error" class="notice error" role="alert" hidden>
+        <p><strong>The playground could not start.</strong> <span id="load-error-text"></span></p>
+        <p>It needs JavaScript, WebAssembly and a connection to cdn.jsdelivr.net for the Python runtime. You can still use the library itself: <code>pip install</code> from a checkout, then <code>aksharkit --help</code>.</p>
+        <button type="button" id="retry" class="button">Try again</button>
+      </div>
+      <noscript><p class="notice error">This playground needs JavaScript to run Python in the browser.</p></noscript>
+    </div>
+  </header>
+
+  <main id="main" class="wrap">
+    <div class="tabs" role="tablist" aria-label="Tools">
+      <button type="button" role="tab" id="tab-normalize" aria-controls="panel-normalize" aria-selected="true">Normalise</button>
+      <button type="button" role="tab" id="tab-numbers" aria-controls="panel-numbers" aria-selected="false" tabindex="-1">Numbers</button>
+      <button type="button" role="tab" id="tab-dates" aria-controls="panel-dates" aria-selected="false" tabindex="-1">Dates</button>
+      <button type="button" role="tab" id="tab-tokenize" aria-controls="panel-tokenize" aria-selected="false" tabindex="-1">Tokenise</button>
+      <button type="button" role="tab" id="tab-translit" aria-controls="panel-translit" aria-selected="false" tabindex="-1">Transliterate</button>
+      <button type="button" role="tab" id="tab-preeti" aria-controls="panel-preeti" aria-selected="false" tabindex="-1">Preeti <span class="soon">soon</span></button>
+    </div>
+
+    <section class="panel" role="tabpanel" id="panel-normalize" aria-labelledby="tab-normalize" tabindex="0">
+      <h2>Normalise</h2>
+      <p class="hint">Text that looks the same can be stored in different ways, which breaks search. This gives one canonical form: repaired vowels, tidy spaces, <span lang="ne">।</span> for a typed <code>|</code>.</p>
+      <label for="in-normalize">Text</label>
+      <textarea id="in-normalize" data-tool="normalize" data-field="text" rows="4" lang="ne" spellcheck="false">  राम   घर गयो|  अाज   पानी  पर्‍यो||</textarea>
+      <div class="options">
+        <label for="opt-joiners">Joiners (ZWJ, ZWNJ)</label>
+        <select id="opt-joiners" data-tool="normalize" data-field="joiners">
+          <option value="safe" selected>Keep only where they matter</option>
+          <option value="strip">Remove all</option>
+          <option value="keep">Keep all</option>
+        </select>
+        <label class="check"><input type="checkbox" id="opt-danda" data-tool="normalize" data-field="danda" checked> Repair <code>|</code> to <span lang="ne">।</span></label>
+      </div>
+      <p id="err-normalize" class="notice error" role="alert" hidden></p>
+      <div class="result">
+        <div class="result-head">
+          <h3 id="lbl-normalize-text">Result</h3>
+          <button type="button" class="copy" data-copy="normalize.text">Copy</button>
+        </div>
+        <output id="out-normalize-text" data-out="normalize.text" class="out big" lang="ne" aria-labelledby="lbl-normalize-text" aria-live="polite"></output>
+        <p id="out-normalize-note" data-out="normalize.note" class="note"></p>
+      </div>
+    </section>
+
+    <section class="panel" role="tabpanel" id="panel-numbers" aria-labelledby="tab-numbers" tabindex="0" hidden>
+      <h2>Numbers</h2>
+      <p class="hint">Nepali digits, lakh and crore grouping, and numbers spelt in words, including rupees and paisa for cheques.</p>
+      <label for="in-numbers">Number</label>
+      <input id="in-numbers" data-tool="numbers" data-field="text" type="text" inputmode="decimal" autocomplete="off" value="1250500.50">
+      <div class="options">
+        <label class="check"><input type="checkbox" id="opt-only" data-tool="numbers" data-field="only" checked> End the amount with <span lang="ne">मात्र</span> (only)</label>
+      </div>
+      <p id="err-numbers" class="notice error" role="alert" hidden></p>
+      <dl class="rows" aria-live="polite">
+        <div><dt>Nepali digits</dt><dd><output data-out="numbers.devanagari" class="out" lang="ne"></output></dd></div>
+        <div><dt>ASCII digits</dt><dd><output data-out="numbers.ascii" class="out"></output></dd></div>
+        <div><dt>Grouped</dt><dd><output data-out="numbers.grouped" class="out"></output></dd></div>
+        <div><dt>Grouped, Nepali digits</dt><dd><output data-out="numbers.grouped_devanagari" class="out" lang="ne"></output></dd></div>
+        <div><dt>In words</dt><dd><output data-out="numbers.words" class="out" lang="ne"></output> <button type="button" class="copy" data-copy="numbers.words">Copy</button></dd></div>
+        <div><dt>As money</dt><dd><output data-out="numbers.currency" class="out" lang="ne"></output> <button type="button" class="copy" data-copy="numbers.currency">Copy</button></dd></div>
+      </dl>
+      <p class="note">Spellings such as <span lang="ne">दस</span>/<span lang="ne">दश</span> are still under native-speaker review.</p>
+    </section>
+
+    <section class="panel" role="tabpanel" id="panel-dates" aria-labelledby="tab-dates" tabindex="0" hidden>
+      <h2>Dates</h2>
+      <p class="hint">Convert between Bikram Sambat (BS) and AD. The table covers BS 2000 to 2083 (<span id="range-ad">14 April 1943 to 13 April 2027</span>); outside it the library refuses instead of guessing.</p>
+      <fieldset class="options">
+        <legend>Direction</legend>
+        <label class="check"><input type="radio" name="date-direction" id="dir-ad2bs" data-tool="dates" data-field="direction" value="ad2bs" checked> AD to BS</label>
+        <label class="check"><input type="radio" name="date-direction" id="dir-bs2ad" data-tool="dates" data-field="direction" value="bs2ad"> BS to AD</label>
+      </fieldset>
+      <label for="in-dates">Date (YYYY-MM-DD, Nepali digits are fine)</label>
+      <div class="inline">
+        <input id="in-dates" data-tool="dates" data-field="text" type="text" inputmode="numeric" autocomplete="off" value="2026-11-23" placeholder="2026-11-23">
+        <button type="button" id="btn-today" class="button ghost">Today</button>
+      </div>
+      <div class="options">
+        <label class="check"><input type="checkbox" id="opt-disputed" data-tool="dates" data-field="allow_disputed"> Allow the disputed month of 2062 (majority reading)</label>
+      </div>
+      <p id="err-dates" class="notice error" role="alert" hidden></p>
+      <dl class="rows" aria-live="polite">
+        <div><dt>BS</dt><dd><output data-out="dates.bs_iso" class="out"></output> · <output data-out="dates.bs_iso_ne" class="out" lang="ne"></output></dd></div>
+        <div><dt>BS, in full</dt><dd><output data-out="dates.bs_long_ne" class="out" lang="ne"></output></dd></div>
+        <div><dt>BS, romanised</dt><dd><output data-out="dates.bs_long" class="out"></output></dd></div>
+        <div><dt>AD</dt><dd><output data-out="dates.ad_iso" class="out"></output> · <output data-out="dates.ad_long" class="out"></output></dd></div>
+        <div><dt>Fiscal year</dt><dd><output data-out="dates.fiscal_year" class="out"></output> · <output data-out="dates.fiscal_year_ne" class="out" lang="ne"></output></dd></div>
+      </dl>
+      <p class="note">Month and weekday spellings are still under native-speaker review.</p>
+    </section>
+
+    <section class="panel" role="tabpanel" id="panel-tokenize" aria-labelledby="tab-tokenize" tabindex="0" hidden>
+      <h2>Tokenise</h2>
+      <p class="hint">Split text into words and sentences. Nepali sentences end in <span lang="ne">।</span>, and a full stop inside <span lang="ne">डा.</span> or <span lang="ne">रु. 99.50</span> must not end one.</p>
+      <label for="in-tokenize">Text</label>
+      <textarea id="in-tokenize" data-tool="tokenize" data-field="text" rows="4" lang="ne" spellcheck="false">डा. राम आए। नेपालको जनसंख्या २,९१,६४,५७८ छ। मूल्य रु. 99.50 हो। ठिक छ?</textarea>
+      <p id="err-tokenize" class="notice error" role="alert" hidden></p>
+      <div class="result">
+        <h3 id="lbl-tokens">Tokens <span id="out-tokenize-count" data-out="tokenize.count" class="count"></span></h3>
+        <ul id="out-tokenize-tokens" class="chips" lang="ne" aria-labelledby="lbl-tokens"></ul>
+        <p class="note">Faded chips are stopwords; outlined chips are numbers and punctuation.</p>
+        <h3 id="lbl-sentences">Sentences</h3>
+        <ol id="out-tokenize-sentences" class="sentences" lang="ne" aria-labelledby="lbl-sentences"></ol>
+      </div>
+    </section>
+
+    <section class="panel" role="tabpanel" id="panel-translit" aria-labelledby="tab-translit" tabindex="0" hidden>
+      <h2>Transliterate</h2>
+      <p class="hint">Devanagari to Roman letters and back. <strong>IAST</strong> uses diacritics and is exact in both directions. <strong>Simple</strong> is plain ASCII, the way Nepali is typed in chat; it is rule-based and approximate.</p>
+      <fieldset class="options">
+        <legend>Direction</legend>
+        <label class="check"><input type="radio" name="translit-direction" id="tr-roman" data-tool="translit" data-field="direction" value="roman" checked> Devanagari to Roman</label>
+        <label class="check"><input type="radio" name="translit-direction" id="tr-devanagari" data-tool="translit" data-field="direction" value="devanagari"> Roman to Devanagari</label>
+      </fieldset>
+      <div class="options">
+        <label for="opt-scheme">Scheme</label>
+        <select id="opt-scheme" data-tool="translit" data-field="scheme">
+          <option value="iast" selected>IAST (exact, with diacritics)</option>
+          <option value="simple">Simple (plain ASCII, approximate)</option>
+        </select>
+      </div>
+      <label for="in-translit">Text</label>
+      <textarea id="in-translit" data-tool="translit" data-field="text" rows="4" spellcheck="false">नमस्ते, नेपाल राम्रो छ। धन्यवाद!</textarea>
+      <p id="err-translit" class="notice error" role="alert" hidden></p>
+      <div class="result">
+        <div class="result-head">
+          <h3 id="lbl-translit-text">Result</h3>
+          <button type="button" class="copy" data-copy="translit.text">Copy</button>
+        </div>
+        <output id="out-translit-text" data-out="translit.text" class="out big" aria-labelledby="lbl-translit-text" aria-live="polite"></output>
+        <p id="out-translit-note" data-out="translit.note" class="note"></p>
+      </div>
+    </section>
+
+    <section class="panel" role="tabpanel" id="panel-preeti" aria-labelledby="tab-preeti" tabindex="0" hidden>
+      <h2>Preeti to Unicode</h2>
+      <p class="notice soon-box"><strong>Coming soon — needs a verified mapping.</strong> A great deal of older Nepali text is stored in the Preeti font. aksharkit will not guess the key-to-letter table, and the tables published so far are either under licences an MIT project cannot copy or do not say where they came from.</p>
+      <p>What unblocks it: real Preeti text with the correct Unicode beside it, to test against. If you have some, please open an issue on <a href="https://github.com/Samir-Khadka/aksharkit">GitHub</a>.</p>
+    </section>
+  </main>
+
+  <footer class="wrap foot">
+    <p><span id="version">aksharkit</span> · <a href="https://github.com/Samir-Khadka/aksharkit">Source on GitHub</a> · MIT licence</p>
+    <p class="small">The Python runtime is <a href="https://pyodide.org/">Pyodide</a>, loaded from the jsDelivr CDN. No analytics, no cookies, no fonts from other sites.</p>
+  </footer>
+
+  <script src="app.js" defer></script>
+</body>
+</html>

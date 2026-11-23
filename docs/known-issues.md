@@ -6,6 +6,48 @@
   The glyph table is empty; no source with a clearly reusable licence and a
   known origin has been confirmed (see `docs/sources.md`, section 4).
 
+## Browser playground
+
+- **Never run in a real browser.** `site/app.js` has been syntax-checked and
+  run in Node against a fake DOM and a fake Pyodide that calls the real
+  Python code from the built archive. WebAssembly, the CDN download, the
+  real Pyodide API, layout, fonts, touch behaviour and screen readers have
+  not been tested.
+- **The Pages workflow has never run.** It needs GitHub Pages switched on
+  with "GitHub Actions" as the source; until then it fails.
+- It needs JavaScript, WebAssembly and a connection to `cdn.jsdelivr.net`.
+  The first visit downloads roughly 5 MB (Pyodide 0.29.5); there is no
+  offline mode.
+- Pyodide 0.29.5 runs Python 3.13.2. The package is tested on CPython
+  3.10–3.13, not inside Pyodide.
+- `pyodide.js` is loaded with a Subresource Integrity hash; the files it
+  then fetches (`pyodide.asm.js`, `pyodide.asm.wasm`, `python_stdlib.zip`)
+  are not hash-checked by the page. There is no Content-Security-Policy.
+- The "Today" button and `today_bs()` stop working after 13 April 2027,
+  when the calendar table ends.
+- The Preeti tab is a notice only.
+
+## Transliteration
+
+- **`simple` is approximate in both directions.** Devanagari → `simple`
+  merges long and short vowels, dental and retroflex stops, and श/ष. It
+  keeps the inherent `a` in the middle of words (सरकार → `sarakar`) and does
+  not reproduce customary spellings (काठमाडौँ → `kathamadaun`, विराटनगर →
+  `viratnagar`). व is always `v`, or `w` after a consonant.
+- **`simple` → Devanagari is a guess.** `a` is always अ, `i`/`u` always
+  short, `t`/`d`/`n` always dental, `sh` always श; no halant is added at the
+  end of a word; anusvara, candrabindu and visarga are never produced. Only
+  32 of the 109 test words survive a `simple` round trip.
+- The rules for dropping the final `a` are hand-written and unreviewed; 37
+  test spellings are marked for native-speaker review.
+- `iast` departs from ISO 15919 for ड़/ढ़ (`ṙ`/`ṙh`) and ख़ (`x`) to stay
+  reversible. The round trip needs input without Latin letters, ASCII
+  digits (or `digits=False`), `|`, a doubled single danda, or an apostrophe
+  directly after a Devanagari letter.
+- Devanagari characters outside the table (ऑ, ऍ, ॅ, ॉ, ऌ, ऩ, ऱ, ॰) are passed
+  through unchanged in both schemes.
+- No other schemes (ITRANS, Harvard-Kyoto) and no dictionary of names.
+
 ## Dates (BS ↔ AD)
 
 - **Range:** BS 2000-01-01 to 2083-12-30 only (14 April 1943 to 13 April 2027).

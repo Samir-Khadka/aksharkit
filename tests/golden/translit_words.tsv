@@ -1,0 +1,113 @@
+# Hand-written expectations for aksharkit.translit. Tab-separated.
+# Columns: devanagari, iast, simple, review, note
+# "review" is "yes" where the simple spelling is a judgement call that a
+# native speaker should confirm; the iast column follows fixed rules.
+नेपाल	nepāla	nepal	no	
+नेपाली	nepālī	nepali	no	
+नमस्ते	namaste	namaste	no	
+नमस्कार	namaskāra	namaskar	no	
+राम्रो	rāmro	ramro	no	
+मेरो	mero	mero	no	
+घर	ghara	ghar	no	
+मन	mana	man	no	
+दिन	dina	din	no	
+एक	eka	ek	no	
+पानी	pānī	pani	no	
+खाना	khānā	khana	no	
+साथी	sāthī	sathi	no	
+दिदी	didī	didi	no	
+भाइ	bhāi	bhai	no	
+आमा	āmā	ama	yes	long ā written "a": ama or aama?
+नाम	nāma	nam	yes	long ā written "a": nam or naam?
+काम	kāma	kam	yes	long ā written "a": kam or kaam?
+भात	bhāta	bhat	yes	long ā written "a": bhat or bhaat?
+आज	āja	aja	yes	final a kept (word list): aja or aaja?
+तर	tara	tara	no	final a kept (word list)
+तिर	tira	tira	no	final a kept (word list)
+बाट	bāṭa	bata	no	final a kept (word list)
+सँग	sam̐ga	sanga	yes	candrabindu written "n": sanga or saga?
+म	ma	ma	no	one-syllable word keeps its a
+छ	cha	chha	yes	छ written "chh": chha or cha?
+छैन	chaina	chhaina	no	negative verb keeps final a
+होइन	hoina	hoina	no	negative verb keeps final a
+हुन्छ	huncha	hunchha	no	final a kept after a conjunct
+गर्छ	garcha	garchha	no	final a kept after a conjunct
+आउँछ	āum̐cha	aunchha	yes	candrabindu written "n": aunchha or auchha?
+गरेर	garera	garera	no	-era ending keeps final a
+भएर	bhaera	bhaera	no	-era ending keeps final a
+मित्र	mitra	mitra	no	final a kept after a conjunct
+बन्द	banda	banda	no	final a kept after a conjunct
+सम्बन्ध	sambandha	sambandha	no	
+कृष्ण	kṛṣṇa	krishna	no	
+ऋषि	ṛṣi	rishi	no	
+ज्ञान	jñāna	gyan	no	ज्ञ written "gy"
+लक्ष्मी	lakṣmī	lakshmi	no	क्ष written "ksh"
+शिक्षक	śikṣaka	shikshak	no	
+विद्यार्थी	vidyārthī	vidyarthi	yes	व written "v": vidyarthi or bidyarthi?
+धन्यवाद	dhanyavāda	dhanyavad	yes	व written "v": dhanyavad, dhanyabad or dhanyawad?
+स्वागत	svāgata	swagat	no	व after a consonant written "w"
+ईश्वर	īśvara	ishwar	no	व after a consonant written "w"
+स्वयं	svayaṃ	swayam	no	final anusvara after inherent a written "m"
+संसार	saṃsāra	sansar	no	
+संविधान	saṃvidhāna	sanvidhan	yes	anusvara before व: sanvidhan or sambidhan?
+संस्कृति	saṃskṛti	sanskriti	no	
+सिंह	siṃha	sinha	yes	sinha or singh?
+गङ्गा	gaṅgā	ganga	no	
+रङ	raṅa	rang	no	
+पञ्च	pañca	pancha	no	
+गाउँ	gāum̐	gaun	yes	candrabindu written "n": gaun or gau?
+पाँच	pām̐ca	panch	no	
+यहाँ	yahām̐	yahan	yes	candrabindu written "n": yahan or yaha?
+तपाईं	tapāīṃ	tapain	yes	tapain or tapai?
+दुःख	duḥkha	dukha	yes	visarga silent, final a kept: dukha or dukh?
+सुख	sukha	sukh	yes	final a dropped by rule: sukh or sukha?
+शुभ	śubha	shubh	yes	final a dropped by rule: shubh or shubha?
+शिव	śiva	shiv	yes	final a dropped by rule: shiv or shiva?
+देवी	devī	devi	no	
+हावा	hāvā	hava	yes	व written "v": hava or hawa?
+विकास	vikāsa	vikas	yes	व written "v": vikas or bikas?
+विदेश	videśa	videsh	yes	व written "v": videsh or bidesh?
+समय	samaya	samaya	yes	final a kept after य: samaya or samay?
+विजय	vijaya	vijaya	yes	vijaya, vijay or bijay?
+हिमालय	himālaya	himalaya	no	final a kept after य
+विद्यालय	vidyālaya	vidyalaya	no	final a kept after य
+राष्ट्रिय	rāṣṭriya	rashtriya	yes	ष्ट written "sht": rashtriya or rastriya?
+सरकार	sarakāra	sarakar	yes	middle a kept: sarakar or sarkar?
+तरकारी	tarakārī	tarakari	yes	middle a kept: tarakari or tarkari?
+जनता	janatā	janata	no	
+हिमाल	himāla	himal	no	
+पहाड	pahāḍa	pahad	no	
+तराई	tarāī	tarai	no	
+काठमाडौँ	kāṭhamāḍaum̐	kathamadaun	yes	customary spelling is Kathmandu; the rules cannot produce it
+पोखरा	pokharā	pokhara	no	
+ललितपुर	lalitapura	lalitpur	no	-pur treated as a compound ending
+भक्तपुर	bhaktapura	bhaktapur	no	-pur treated as a compound ending
+जनकपुर	janakapura	janakpur	no	-pur treated as a compound ending
+भरतपुर	bharatapura	bharatpur	no	-pur treated as a compound ending
+विराटनगर	virāṭanagara	viratnagar	yes	व written "v": customary spelling is Biratnagar
+महेन्द्रनगर	mahendranagara	mahendranagar	no	
+नेपालगञ्ज	nepālagañja	nepalganj	yes	customary spelling is Nepalgunj
+वीरगञ्ज	vīragañja	virganj	yes	customary spelling is Birgunj
+धनगढी	dhanagaḍhī	dhangadhi	no	-gadhi treated as a compound ending
+इटहरी	iṭaharī	itahari	no	
+लुम्बिनी	lumbinī	lumbini	no	
+मुस्ताङ	mustāṅa	mustang	no	
+गोरखा	gorakhā	gorakha	yes	middle a kept: customary spelling is Gorkha
+चितवन	citavana	chitavan	yes	customary spelling is Chitwan
+बुटवल	buṭavala	butaval	yes	customary spelling is Butwal
+सगरमाथा	sagaramāthā	sagaramatha	yes	middle a kept: customary spelling is Sagarmatha
+बागमती	bāgamatī	bagamati	yes	middle a kept: customary spelling is Bagmati
+लमजुङ	lamajuṅa	lamajung	yes	middle a kept: customary spelling is Lamjung
+कर्णाली	karṇālī	karnali	no	
+गण्डकी	gaṇḍakī	gandaki	no	
+कोशी	kośī	koshi	no	
+अन्नपूर्णा	annapūrṇā	annapurna	no	
+पशुपतिनाथ	paśupatinātha	pashupatinath	no	
+सोलुखुम्बु	solukhumbu	solukhumbu	no	
+हुन्	hun	hun	no	explicit halant
+छन्	chan	chhan	no	explicit halant
+क़ानून	qānūna	qanun	no	nukta letter
+ज़रूर	zarūra	zarur	no	nukta letter
+फ़ोन	fona	fon	no	nukta letter
+लड़का	laṙakā	laraka	no	ड़ is "ṙ" in iast (not ISO "ṛ")
+पढ़ाई	paṙhāī	parhai	no	ढ़ is "ṙh" in iast

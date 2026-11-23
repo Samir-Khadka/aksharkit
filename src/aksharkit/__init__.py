@@ -1,7 +1,8 @@
 """aksharkit: typed, zero-dependency building blocks for Nepali text.
 
-Implemented: Unicode normalisation, numerals, number words, tokenisation and
-Bikram Sambat dates (BS 2000-2083).
+Implemented: Unicode normalisation, numerals, number words, tokenisation,
+Bikram Sambat dates (BS 2000-2083) and transliteration (a reversible
+IAST-style scheme and an approximate plain-ASCII one).
 Stubbed (raises :class:`DataNotVerifiedError`): legacy-font conversion, until
 its glyph table is verified.
 """
@@ -24,9 +25,10 @@ from .normalize import normalize
 from .numerals import format_number, parse_number, to_ascii_digits, to_devanagari_digits
 from .stopwords import STOPWORDS, is_stopword, remove_stopwords
 from .tokens import Token, sentences, tokenize, tokenize_spans
+from .translit import to_devanagari, to_roman
 from .words import currency_to_words, integer_to_words, number_to_words
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 __all__ = [
     "STOPWORDS",
@@ -51,7 +53,9 @@ __all__ = [
     "remove_stopwords",
     "sentences",
     "to_ascii_digits",
+    "to_devanagari",
     "to_devanagari_digits",
+    "to_roman",
     "today_bs",
     "tokenize",
     "tokenize_spans",

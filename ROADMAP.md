@@ -7,10 +7,10 @@ targets, not promises.
 | --- | --- | --- | --- |
 | 0. Setup | 1 | Package skeleton, licence, CI workflow, lint and type checks | Done; CI runs on Python 3.10 to 3.13 |
 | 1. Basics | 2–3 | Normaliser, numerals, number to words, tokeniser, sentence splitter, stopwords | Done (v0.1); spellings await native-speaker review |
-| 2. Preeti converter + playground | 4–5 | Preeti → Unicode with a verified glyph table and a public test set; browser playground | Not started — sources researched (v0.2), table still empty |
+| 2. Preeti converter + playground | 4–5 | Preeti → Unicode with a verified glyph table and a public test set; browser playground | Playground built (v0.3), not yet deployed or run in a real browser. Preeti: sources researched (v0.2), table still empty |
 | 3. Dates | 6–7 | BS ↔ AD conversion from a verified calendar table; formatting | Done for BS 2000–2083 (v0.2); 2084 onwards and one disputed month of 2062 are open |
 | 4. First PyPI release | 8 | Documentation pass, first PyPI release | Not started |
-| 5. Transliteration + spell check | 9–12 | Romanised ↔ Devanagari; basic spell checking | Not started |
+| 5. Transliteration + spell check | 9–12 | Romanised ↔ Devanagari; basic spell checking | Transliteration done (v0.3): `iast` exact, `simple` approximate, spellings await review. Spell check not started |
 | 6. JavaScript port + more fonts | 13–16 | npm package sharing the same golden tests; Kantipur, Himali, Sagarmatha and others | Not started |
 | 7. "Awesome Nepali NLP" list | 8 onwards | A companion list of Nepali language tools and datasets | Not started |
 
@@ -21,6 +21,22 @@ targets, not promises.
    (section 4) is to compare two MIT-licensed tables and keep what agrees,
    after asking their authors where the tables came from. npttf2utf (GPL-3.0),
    2utf8 and npm `preeti` (both non-commercial) cannot be copied.
+
+## Still open for the playground
+
+1. Turn GitHub Pages on for the repository (Settings → Pages → Source:
+   GitHub Actions); until then the Pages workflow fails.
+2. Open the deployed page in real browsers (desktop and a phone) and check
+   every tab, the loading state and the error state.
+3. Decide whether to add a Content-Security-Policy once it has been seen
+   working.
+
+## Still open for transliteration
+
+1. Native-speaker review of the 37 `simple` spellings marked in
+   `tests/golden/translit_words.tsv`.
+2. A list of customary spellings for place names (Kathmandu, Biratnagar).
+3. Whether `simple` should drop the inherent `a` in the middle of words.
 
 ## Still open for dates
 

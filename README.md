@@ -1,11 +1,21 @@
 # aksharkit
 
-> **Status: pre-release (0.2.0).** Not yet published to PyPI.
+> **Status: pre-release (0.3.0).** Not yet published to PyPI.
 
 A small, typed, dependency-free Python toolkit for everyday Nepali text
 chores: cleaning Unicode, converting and formatting numbers, spelling numbers
-in words, splitting text into words and sentences, and converting dates
-between Bikram Sambat (BS) and AD.
+in words, splitting text into words and sentences, converting dates between
+Bikram Sambat (BS) and AD, and writing Devanagari in Roman letters and back.
+
+## Try it in your browser
+
+**<https://samir-khadka.github.io/aksharkit/>** — *not live yet: the link
+starts working after the first GitHub Pages deploy.*
+
+The playground runs this Python package inside your browser (through
+[Pyodide](https://pyodide.org/)), so what you see is what the library does
+and nothing you type is sent anywhere. It has not yet been tested in a real
+browser; see [docs/known-issues.md](docs/known-issues.md).
 
 ## The problem
 
@@ -44,7 +54,9 @@ What aksharkit aims to add:
   and a table of awkward sentence splits are pinned in the test suite.
 - **Refusing rather than guessing** — features whose data has not been
   verified raise a clear error instead of returning something plausible.
-- **Planned:** a JavaScript port and a browser playground (see the roadmap).
+- **A browser playground** that runs the package itself, so it cannot drift
+  from the library.
+- **Planned:** a JavaScript port (see the roadmap).
 
 No accuracy comparison with other packages has been made. None is claimed.
 
@@ -58,9 +70,11 @@ No accuracy comparison with other packages has been made. None is claimed.
 | `tokens` | Done | Word tokeniser with offsets, sentence splitter |
 | `stopwords` | Done, awaiting review | Short hand-written list |
 | `dates` (BS ↔ AD) | Done for BS 2000–2083 (14 April 1943 to 13 April 2027) | Five published tables compared; one month of 2062 is disputed and refused by default; names await review |
+| `translit` | Done; `simple` spellings await native-speaker review | `iast`: exact and reversible. `simple`: plain ASCII, rule-based and approximate, especially Roman → Devanagari |
 | `legacy` (Preeti) | **Planned — raises `DataNotVerifiedError`** | Loader and API exist; glyph table is empty |
-| Transliteration, spell check | Planned | Roadmap phase 5 |
-| JavaScript port, playground | Planned | Roadmap phases 2 and 6 |
+| Browser playground (`site/`) | Built; **not yet deployed or run in a real browser** | Normalise, Numbers, Dates, Tokenise, Transliterate; Preeti shown as coming soon |
+| Spell check | Planned | Roadmap phase 5 |
+| JavaScript port | Planned | Roadmap phase 6 |
 
 ## Quick start
 
@@ -96,9 +110,21 @@ ak.ad_to_bs(datetime.date(2026, 11, 23))  # BSDate(year=2083, month=8, day=7)
 ak.bs_to_ad(2083, 8, 7)  # datetime.date(2026, 11, 23)
 ak.format_bs((2083, 8, 7), "full", devanagari=True)  # '२०८३ मंसिर ७, सोमबार'
 ak.fiscal_year(datetime.date(2026, 11, 23))  # '2083/84'
+
+ak.to_roman("नेपाल राम्रो छ।")  # 'nepāla rāmro cha|'   (iast: exact)
+ak.to_devanagari("nepāla rāmro cha|")  # 'नेपाल राम्रो छ।'
+ak.to_roman("नेपाल राम्रो छ।", "simple")  # 'nepal ramro chha.'   (approximate)
+ak.to_devanagari("mero ghar", "simple")  # 'मेरो घर'   (best effort)
 ```
 
 Pass money and other exact values as strings or `Decimal`, not floats.
+
+**Transliteration has two schemes.** `iast` uses diacritics and converts
+back to exactly the text you started with. `simple` is plain ASCII, the way
+Nepali is typed in chat; it is rule-based and approximate. It does not
+reproduce customary spellings (काठमाडौँ gives `kathamadaun`, not Kathmandu),
+and reading it back is a guess: `nepal` becomes नेपल, because a single `a`
+is always the short vowel. See [docs/transliteration.md](docs/transliteration.md).
 
 Dates outside BS 2000–2083 raise `DateRangeError`. Dates from 14 May to
 14 June 2005 raise `DisputedDateError` unless you pass `allow_disputed=True`,
@@ -129,6 +155,12 @@ $ aksharkit date --to ad 2083-08-07
 2026-11-23
 $ aksharkit date --fiscal-year 2026-11-23
 2083/84
+$ aksharkit translit "नेपाल राम्रो छ।"
+nepāla rāmro cha|
+$ aksharkit translit --scheme simple "नेपाल राम्रो छ।"
+nepal ramro chha.
+$ aksharkit translit --to devanagari "nepāla rāmro cha|"
+नेपाल राम्रो छ।
 $ aksharkit convert preeti 'g]kfn'
 aksharkit: Preeti conversion is not available yet: ...
 ```
@@ -143,9 +175,22 @@ Exit codes: `0` success, `2` bad input, `3` feature not available yet.
 .venv/bin/mypy
 ```
 
+To look at the playground locally:
+
+```bash
+python scripts/build_site.py --out _site
+python -m http.server --directory _site   # then open http://localhost:8000
+```
+
+`build_site.py` copies `site/` and packs `src/aksharkit` into
+`_site/pkg/aksharkit.zip`, which the page unpacks inside Pyodide. The same
+script runs in `.github/workflows/pages.yml`. If Node.js is installed,
+`pytest` also drives `site/app.js` against a fake DOM (`tests/js/`).
+
 ## Further reading
 
 - [docs/normalisation.md](docs/normalisation.md) — exactly what `normalize` changes
+- [docs/transliteration.md](docs/transliteration.md) — both schemes, the exact rules, what `simple` gets wrong, spellings awaiting review
 - [docs/sources.md](docs/sources.md) — where the number words and the calendar table come from, spelling decisions, Preeti source research
 - [docs/known-issues.md](docs/known-issues.md) — current limits
 - [ROADMAP.md](ROADMAP.md)

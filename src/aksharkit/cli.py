@@ -13,6 +13,7 @@ from ._errors import DataNotVerifiedError
 from .normalize import normalize
 from .numerals import format_number, to_ascii_digits, to_devanagari_digits
 from .tokens import sentences, tokenize
+from .translit import SCHEMES, to_devanagari, to_roman
 from .words import currency_to_words, number_to_words
 
 __all__ = ["build_parser", "main"]
@@ -61,6 +62,15 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("text", nargs="?")
 
     p = sub.add_parser(
+        "translit",
+        help="Devanagari to Roman letters and back (iast is exact, simple is approximate)",
+    )
+    p.add_argument("text", nargs="?")
+    p.add_argument("--to", choices=("roman", "devanagari"), default="roman")
+    p.add_argument("--scheme", choices=SCHEMES, default="iast")
+    p.add_argument("--keep-digits", action="store_true", help="leave digits as they are")
+
+    p = sub.add_parser(
         "date",
         help="convert a date between AD and BS (default: AD to BS; no DATE means today)",
     )
@@ -99,6 +109,9 @@ def _run(args: argparse.Namespace) -> str:
         return "\n".join(items)
     if command == "convert":
         return legacy.to_unicode(_read(args.text), args.font)
+    if command == "translit":
+        convert = to_roman if args.to == "roman" else to_devanagari
+        return convert(_read(args.text), args.scheme, digits=not args.keep_digits)
     if command == "date":
         return _run_date(args)
     raise AssertionError(f"unhandled command {command!r}")  # pragma: no cover
