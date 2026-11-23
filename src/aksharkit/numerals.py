@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import re
 from decimal import Decimal, InvalidOperation
-from typing import Union
 
 __all__ = [
     "Number",
@@ -16,7 +15,7 @@ __all__ = [
     "to_devanagari_digits",
 ]
 
-Number = Union[int, float, Decimal, str]
+Number = int | float | Decimal | str
 
 _ASCII = "0123456789"
 _DEVANAGARI = "०१२३४५६७८९"

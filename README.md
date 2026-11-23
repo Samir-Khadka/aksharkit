@@ -63,7 +63,7 @@ No accuracy comparison with other packages has been made. None is claimed.
 
 ## Quick start
 
-Requires Python 3.9 or newer. Until there is a release, install from a checkout:
+Requires Python 3.10 or newer. Until there is a release, install from a checkout:
 
 ```bash
 python -m venv .venv

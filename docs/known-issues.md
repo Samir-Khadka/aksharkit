@@ -13,10 +13,7 @@
   dictionary, and has not yet been reviewed by a native speaker. Several
   spellings are choices between accepted variants (see `docs/sources.md`).
 - The stopword list is short, hand-written and unreviewed.
-- Tests were run on Python 3.12 only. 3.9, 3.10, 3.11 and 3.13 are declared
-  and listed in the CI workflow, but the workflow has never run.
-- `mypy` 2.x no longer accepts `python_version = "3.9"`, so type checking
-  runs against the interpreter in use, not 3.9.
+- CI runs the tests on Python 3.10 to 3.13. Python 3.9 was dropped: it is end-of-life and GitHub's current runners no longer provide it.
 - No comparison with other Nepali packages has been made.
 
 ## Normaliser
