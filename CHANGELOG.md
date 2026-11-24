@@ -1,5 +1,73 @@
 # Changelog
 
+## 0.6.0 — 24 November 2026
+
+Pushed and deployed to the playground on 24 November 2026. Not released on PyPI.
+
+### Added
+
+- **Preeti to Unicode, experimental** (`aksharkit.legacy`):
+  `convert_preeti(text)` returns a `PreetiResult` with `.text`, `.unmapped`
+  (each an `UnmappedChar` with the character and its offset in the input),
+  `.complete` and `.unmapped_chars`; `preeti_to_unicode(text)` returns just
+  the text. Both are exported from `aksharkit`. A character with no agreed
+  letter is left unchanged and reported, never guessed.
+- **A key table** in `data/font_preeti.json`, labelled *experimental —
+  mapping agreed by at least 2 of 3 permissively-licensed table families
+  (4 projects), not yet checked against real Preeti documents or by a native
+  reader*. It was written by comparing the Preeti tables of four MIT-licensed
+  projects (nepali-unicoder and nepalikit, counted as one family because they
+  share a rule list; preeti-unicode-converter; nepali-keyboard). Of 136 keys
+  compared: 122 agreed by two or more families; 4 agreed by two or more
+  families with one table differing (`B`, `^`, `¡`, `¿` — used by default,
+  off with `strict=True`); 5 in one family only (off unless
+  `include_unconfirmed=True`); 5 with no agreement (never used). Plus 5
+  two-key sequences with two or more families behind them.
+- **Reordering in aksharkit's own code**: short i moved after its consonant
+  cluster, reph moved before its cluster, the `m` stroke (फ, झ, ऊ, क्र, क्त),
+  half form + bar = full letter, sign order, then `normalize`.
+- `aksharkit convert preeti [TEXT] [--report] [--include-unconfirmed]
+  [--strict] [--quiet]`. Unmapped characters are named on standard error and
+  the exit code stays 0.
+- Playground: the Preeti tab is on, with the experimental notice, a list of
+  characters left unchanged, the two tier switches, examples, a copy button
+  and a shareable address. The input box uses the system's monospace font;
+  the page does not load the Preeti font.
+- `scripts/compare_preeti_sources.py` (report, `--check`, `--write`) and
+  `scripts/preeti_sources.json` (what each project states for each key, with
+  attribution). `NOTICE` with the four MIT copyright notices, shipped with
+  the package.
+- `docs/preeti.md`; `tests/golden/preeti_samples.tsv`, empty, with
+  instructions for real samples.
+
+### Changed
+
+- `legacy.preeti_to_unicode`, `legacy.to_unicode` and `legacy.load_font_map`
+  no longer raise `DataNotVerifiedError`. `aksharkit convert preeti` no
+  longer exits with code 3.
+- `legacy.unicode_to_preeti` now raises `NotImplementedError` ("not
+  implemented") rather than `DataNotVerifiedError`.
+- `docs/sources.md` section 4, known issues, ROADMAP and README updated.
+
+### Not verified
+
+- **No real Preeti document has been converted.** Every Preeti sample in the
+  tests was typed by the builder from the table itself: those tests show
+  self-consistency only.
+- **No native reader has reviewed the key table or any output.** Nobody
+  opened the Preeti font to see what each key draws.
+- **Where the four source tables came from is unknown.** None of the
+  projects says, and their authors have not been asked. Whether any descends
+  from the GPL or non-commercial tables (which were not opened) is an open
+  question. For 16 keys the only two tables with the key are nepalikit and
+  nepali-keyboard, whose keys overlap almost entirely.
+- The four `majority` keys rest on the judgement that the one differing
+  table has a slip.
+- The reordering rules have not been tried on real typing.
+- **The Preeti tab has not been opened in any browser**, on any device, and
+  not with real Pyodide; it is covered by the Node tests only.
+- Unicode → Preeti is not implemented.
+
 ## 0.5.0 — 24 November 2026
 
 Pushed and deployed to the playground on 24 November 2026. Not released on PyPI.

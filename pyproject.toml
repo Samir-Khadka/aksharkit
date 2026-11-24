@@ -4,14 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aksharkit"
-version = "0.5.0"
-description = "Typed, zero-dependency building blocks for Nepali text: normalisation, akshara segmentation, sorting, numerals, number words, tokenisation, Bikram Sambat dates, transliteration."
+version = "0.6.0"
+description = "Typed, zero-dependency building blocks for Nepali text: normalisation, akshara segmentation, sorting, numerals, number words, tokenisation, Bikram Sambat dates, transliteration, experimental Preeti to Unicode."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
-license-files = ["LICENSE"]
+license-files = ["LICENSE", "NOTICE"]
 authors = [{ name = "Samir Khadka" }]
-keywords = ["nepali", "devanagari", "nlp", "unicode", "akshara", "syllable", "collation", "numerals", "tokenizer", "bikram-sambat", "calendar", "transliteration"]
+keywords = ["nepali", "devanagari", "nlp", "unicode", "akshara", "syllable", "collation", "numerals", "tokenizer", "bikram-sambat", "calendar", "transliteration", "preeti"]
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
     "Intended Audience :: Developers",
@@ -54,4 +54,4 @@ ignore = ["RUF001", "RUF002", "RUF003"]
 
 [tool.mypy]
 strict = true
-files = ["src", "tests", "site/playground.py", "scripts/build_site.py"]
+files = ["src", "tests", "site/playground.py", "scripts/build_site.py", "scripts/compare_preeti_sources.py"]

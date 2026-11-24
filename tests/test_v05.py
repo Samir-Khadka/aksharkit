@@ -435,5 +435,5 @@ def test_cli_reads_standard_input(
     assert run(capsys, "aksharas", "-", "--count") == (0, "3", "")
 
 
-def test_version_is_0_5_0() -> None:
-    assert aksharkit.__version__ == "0.5.0"
+def test_version_is_0_5_or_later() -> None:
+    assert tuple(int(part) for part in aksharkit.__version__.split(".")[:2]) >= (0, 5)

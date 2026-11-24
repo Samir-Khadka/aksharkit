@@ -1,7 +1,1139 @@
 {
-  "status": "UNVERIFIED-EMPTY",
+  "status": "experimental",
   "font": "Preeti",
-  "note": "Intentionally empty. Do not fill from memory or by guessing. Each entry must come from a source listed in 'sources' whose licence allows reuse, and be checked against real Preeti documents. See docs/sources.md.",
-  "sources": [],
-  "mapping": {}
+  "label": "experimental — mapping agreed by at least 2 of 3 permissively-licensed table families (4 projects), not yet checked against real Preeti documents or by a native reader",
+  "note": "Made by scripts/compare_preeti_sources.py from scripts/preeti_sources.json. Families: A = nepali-unicoder + nepalikit (same rule list, counted once), B = preeti-unicode-converter, C = nepali-keyboard. 'mapping' needs two families and no dissent; 'majority' has two families and one dissenting table; 'unconfirmed' has one family only and is off by default; 'disputed' is never used. 'm' and '{' are strokes handled in code. See docs/preeti.md.",
+  "sources": [
+    {
+      "name": "nepali-unicoder",
+      "family": "A",
+      "url": "https://github.com/realsanjeev/nepali_unicoder",
+      "commit": "3bb1e3b144d70175b9df99c8f9f02a73093821a1",
+      "licence": "MIT",
+      "copyright": "Copyright (c) 2025 RealSanjeev"
+    },
+    {
+      "name": "nepalikit",
+      "family": "A",
+      "url": "https://github.com/prabhashj07/nepalikit",
+      "commit": "089831f8b15689dbeae1544a644d363911af9905",
+      "licence": "MIT",
+      "copyright": "Copyright (c) 2024 Prabhash Kumar Jha"
+    },
+    {
+      "name": "preeti-unicode-converter",
+      "family": "B",
+      "url": "https://github.com/diwaskunwar/preeti-unicode-converter",
+      "commit": "9e137b981562a68747038d647e7a8a757ba5bd7b",
+      "licence": "MIT",
+      "copyright": "Copyright (c) 2024 Diwas Kunwar"
+    },
+    {
+      "name": "nepali-keyboard",
+      "family": "C",
+      "url": "https://github.com/prabin194/nepali-keyboard",
+      "commit": "65a01d40cbbb80646eb138437ae30f0d2c884d17",
+      "licence": "MIT",
+      "copyright": "Copyright (c) 2026 Prabin Paudel"
+    }
+  ],
+  "read_on": "2026-11-24",
+  "mapping": {
+    "!": {
+      "to": "१",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "\"": {
+      "to": "ू",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "#": {
+      "to": "३",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "$": {
+      "to": "४",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "%": {
+      "to": "५",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "&": {
+      "to": "७",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "'": {
+      "to": "ु",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "(": {
+      "to": "९",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    ")": {
+      "to": "०",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "*": {
+      "to": "८",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "+": {
+      "to": "ं",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    ",": {
+      "to": ",",
+      "families": [
+        "A",
+        "B"
+      ]
+    },
+    "-": {
+      "to": "(",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    ".": {
+      "to": "।",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "/": {
+      "to": "र",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "0": {
+      "to": "ण्",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "1": {
+      "to": "ज्ञ",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "2": {
+      "to": "द्द",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "3": {
+      "to": "घ",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "4": {
+      "to": "द्ध",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "5": {
+      "to": "छ",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "6": {
+      "to": "ट",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "7": {
+      "to": "ठ",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "8": {
+      "to": "ड",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "9": {
+      "to": "ढ",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    ":": {
+      "to": "स्",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    ";": {
+      "to": "स",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "<": {
+      "to": "?",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "=": {
+      "to": ".",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    ">": {
+      "to": "श्र",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "?": {
+      "to": "रु",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "@": {
+      "to": "२",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "A": {
+      "to": "ब्",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "C": {
+      "to": "ऋ",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "D": {
+      "to": "म्",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "E": {
+      "to": "भ्",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "F": {
+      "to": "ँ",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "G": {
+      "to": "न्",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "H": {
+      "to": "ज्",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "I": {
+      "to": "क्ष्",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "J": {
+      "to": "व्",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "K": {
+      "to": "प्",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "L": {
+      "to": "ी",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "M": {
+      "to": "ः",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "N": {
+      "to": "ल्",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "O": {
+      "to": "इ",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "P": {
+      "to": "ए",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "Q": {
+      "to": "त्त",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "R": {
+      "to": "च्",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "S": {
+      "to": "क्",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "T": {
+      "to": "त्",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "U": {
+      "to": "ग्",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "V": {
+      "to": "ख्",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "W": {
+      "to": "ध्",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "X": {
+      "to": "ह्",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "Y": {
+      "to": "थ्",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "Z": {
+      "to": "श्",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "[": {
+      "to": "ृ",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "\\": {
+      "to": "्",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "]": {
+      "to": "े",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "_": {
+      "to": ")",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "`": {
+      "to": "ञ",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "a": {
+      "to": "ब",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "b": {
+      "to": "द",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "c": {
+      "to": "अ",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "d": {
+      "to": "म",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "e": {
+      "to": "भ",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "f": {
+      "to": "ा",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "g": {
+      "to": "न",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "h": {
+      "to": "ज",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "i": {
+      "to": "ष्",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "j": {
+      "to": "व",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "k": {
+      "to": "प",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "l": {
+      "to": "ि",
+      "families": [
+        "A",
+        "B"
+      ]
+    },
+    "n": {
+      "to": "ल",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "o": {
+      "to": "य",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "p": {
+      "to": "उ",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "q": {
+      "to": "त्र",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "r": {
+      "to": "च",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "s": {
+      "to": "क",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "t": {
+      "to": "त",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "u": {
+      "to": "ग",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "v": {
+      "to": "ख",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "w": {
+      "to": "ध",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "x": {
+      "to": "ह",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "y": {
+      "to": "थ",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "z": {
+      "to": "श",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "|": {
+      "to": "्र",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "}": {
+      "to": "ै",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "~": {
+      "to": "ञ्",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "¢": {
+      "to": "द्घ",
+      "families": [
+        "A",
+        "C"
+      ]
+    },
+    "£": {
+      "to": "घ्",
+      "families": [
+        "A",
+        "C"
+      ]
+    },
+    "§": {
+      "to": "ट्ट",
+      "families": [
+        "A",
+        "C"
+      ]
+    },
+    "ª": {
+      "to": "ङ",
+      "families": [
+        "A",
+        "C"
+      ]
+    },
+    "«": {
+      "to": "्र",
+      "families": [
+        "A",
+        "B"
+      ]
+    },
+    "±": {
+      "to": "+",
+      "families": [
+        "A",
+        "C"
+      ]
+    },
+    "´": {
+      "to": "झ",
+      "families": [
+        "A",
+        "C"
+      ]
+    },
+    "¶": {
+      "to": "ठ्ठ",
+      "families": [
+        "A",
+        "C"
+      ]
+    },
+    "»": {
+      "to": "्र",
+      "families": [
+        "A",
+        "B"
+      ]
+    },
+    "Å": {
+      "to": "हृ",
+      "families": [
+        "A",
+        "C"
+      ]
+    },
+    "Æ": {
+      "to": "”",
+      "families": [
+        "A",
+        "C"
+      ]
+    },
+    "Ë": {
+      "to": "ङ्ग",
+      "families": [
+        "A",
+        "C"
+      ]
+    },
+    "Í": {
+      "to": "ङ्क",
+      "families": [
+        "A",
+        "C"
+      ]
+    },
+    "Î": {
+      "to": "ङ्ख",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "Ö": {
+      "to": "=",
+      "families": [
+        "A",
+        "C"
+      ]
+    },
+    "Ø": {
+      "to": "्य",
+      "families": [
+        "A",
+        "C"
+      ]
+    },
+    "Ù": {
+      "to": ";",
+      "families": [
+        "A",
+        "C"
+      ]
+    },
+    "Û": {
+      "to": "!",
+      "families": [
+        "A",
+        "C"
+      ]
+    },
+    "Ü": {
+      "to": "%",
+      "families": [
+        "A",
+        "C"
+      ]
+    },
+    "ß": {
+      "to": "द्म",
+      "families": [
+        "A",
+        "C"
+      ]
+    },
+    "å": {
+      "to": "द्व",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "æ": {
+      "to": "“",
+      "families": [
+        "A",
+        "C"
+      ]
+    },
+    "ç": {
+      "to": "ॐ",
+      "families": [
+        "A",
+        "C"
+      ]
+    },
+    "÷": {
+      "to": "/",
+      "families": [
+        "A",
+        "B"
+      ]
+    },
+    "ˆ": {
+      "to": "फ्",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "˜": {
+      "to": "ऽ",
+      "families": [
+        "A",
+        "C"
+      ]
+    },
+    "„": {
+      "to": "ध्र",
+      "families": [
+        "A",
+        "C"
+      ]
+    },
+    "•": {
+      "to": "ड्ड",
+      "families": [
+        "A",
+        "C"
+      ]
+    },
+    "…": {
+      "to": "‘",
+      "families": [
+        "A",
+        "C"
+      ]
+    },
+    "‰": {
+      "to": "झ्",
+      "families": [
+        "A",
+        "C"
+      ]
+    },
+    "‹": {
+      "to": "ङ्घ",
+      "families": [
+        "A",
+        "C"
+      ]
+    },
+    "›": {
+      "to": "द्र",
+      "families": [
+        "A",
+        "C"
+      ]
+    }
+  },
+  "majority": {
+    "B": {
+      "to": "द्य",
+      "families": [
+        "A",
+        "C"
+      ],
+      "dissent": {
+        "preeti-unicode-converter": "ध"
+      }
+    },
+    "^": {
+      "to": "६",
+      "families": [
+        "B",
+        "C"
+      ],
+      "dissent": {
+        "nepalikit": "०"
+      }
+    },
+    "¡": {
+      "to": "ज्ञ्",
+      "families": [
+        "A",
+        "C"
+      ],
+      "dissent": {
+        "preeti-unicode-converter": "्र"
+      }
+    },
+    "¿": {
+      "to": "रू",
+      "families": [
+        "A",
+        "C"
+      ],
+      "dissent": {
+        "preeti-unicode-converter": "्र"
+      }
+    }
+  },
+  "unconfirmed": {
+    "¤": {
+      "to": "झ्",
+      "families": [
+        "A"
+      ]
+    },
+    "©": {
+      "to": "र",
+      "families": [
+        "A"
+      ]
+    },
+    "Ò": {
+      "to": "¨",
+      "families": [
+        "A"
+      ]
+    },
+    "×": {
+      "to": "×",
+      "families": [
+        "A"
+      ]
+    },
+    "‘": {
+      "to": "ॅ",
+      "families": [
+        "A"
+      ]
+    }
+  },
+  "disputed": {
+    "¥": {
+      "nepali-unicoder": "र्",
+      "nepalikit": "र्‍"
+    },
+    "°": {
+      "nepalikit": "ङ्ढ",
+      "preeti-unicode-converter": "्र",
+      "nepali-keyboard": "ड्ढ"
+    },
+    "Ì": {
+      "nepalikit": "न्न",
+      "nepali-keyboard": "त्र"
+    },
+    "Ú": {
+      "nepali-unicoder": ":",
+      "nepalikit": "’",
+      "nepali-keyboard": "’"
+    },
+    "Ý": {
+      "nepalikit": "ट्ट्",
+      "nepali-keyboard": "ट्ठ"
+    }
+  },
+  "sequences": {
+    "km": {
+      "to": "फ",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "qm": {
+      "to": "क्र",
+      "families": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "Qm": {
+      "to": "क्त",
+      "families": [
+        "A",
+        "C"
+      ]
+    },
+    "em": {
+      "to": "झ",
+      "families": [
+        "A",
+        "C"
+      ]
+    },
+    "pm": {
+      "to": "ऊ",
+      "families": [
+        "A",
+        "C"
+      ]
+    }
+  },
+  "unconfirmed_sequences": {
+    "8Þ": {
+      "to": "ड़",
+      "families": [
+        "C"
+      ]
+    },
+    "9Þ": {
+      "to": "ढ़",
+      "families": [
+        "C"
+      ]
+    }
+  }
 }

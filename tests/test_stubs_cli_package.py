@@ -13,25 +13,19 @@ from aksharkit import DataNotVerifiedError, dates, legacy
 from aksharkit._data import load_table, require_verified
 from aksharkit.cli import main
 
-# --- stubs: legacy fonts must refuse, never guess ---------------------------
+# --- legacy fonts: Preeti is experimental, the reverse direction is absent --
 
 
-def test_preeti_table_is_marked_unverified_and_empty() -> None:
+def test_preeti_table_is_experimental_and_names_its_sources() -> None:
     table = load_table("font_preeti")
-    assert table["status"] == "UNVERIFIED-EMPTY"
-    assert table["sources"] == []
-    assert table["mapping"] == {}
+    assert table["status"] == "experimental"
+    assert len(table["sources"]) == 4
+    assert table["mapping"]
 
 
-def test_preeti_refuses_without_verified_data() -> None:
-    for call in (
-        lambda: legacy.preeti_to_unicode("g]kfn"),
-        lambda: legacy.unicode_to_preeti("नेपाल"),
-        lambda: legacy.to_unicode("g]kfn", "Preeti"),
-        lambda: legacy.load_font_map("preeti"),
-    ):
-        with pytest.raises(DataNotVerifiedError, match="not available yet"):
-            call()
+def test_unicode_to_preeti_is_not_implemented() -> None:
+    with pytest.raises(NotImplementedError, match="not implemented"):
+        legacy.unicode_to_preeti("नेपाल")
 
 
 def test_unknown_font_is_a_value_error() -> None:
@@ -178,16 +172,6 @@ def test_cli_bad_input_exits_2(argv: list[str], capsys: pytest.CaptureFixture[st
     captured = capsys.readouterr()
     assert captured.out == ""
     assert captured.err.startswith("aksharkit: error:")
-
-
-@pytest.mark.parametrize("argv", [["convert", "preeti", "g]kfn"]])
-def test_cli_unavailable_features_exit_3(
-    argv: list[str], capsys: pytest.CaptureFixture[str]
-) -> None:
-    assert main(argv) == 3
-    captured = capsys.readouterr()
-    assert captured.out == ""
-    assert "not available yet" in captured.err
 
 
 def test_cli_version_and_usage(capsys: pytest.CaptureFixture[str]) -> None:

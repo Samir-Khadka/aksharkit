@@ -98,9 +98,35 @@ def build_parser() -> argparse.ArgumentParser:
         help="file क्ष, त्र, ज्ञ under क, त, ज instead of after ह",
     )
 
-    p = sub.add_parser("convert", help="legacy font to Unicode (not available yet)")
+    p = sub.add_parser(
+        "convert",
+        help="Preeti legacy-font text to Unicode (experimental, unchecked key table)",
+        description=(
+            "Convert text typed in the Preeti font to Unicode. Status: "
+            + legacy.PREETI_LABEL
+            + ". Characters with no agreed entry are left unchanged and named on "
+            "standard error; the exit code stays 0. Put options after TEXT; use - for "
+            "TEXT to read standard input."
+        ),
+    )
     p.add_argument("font", choices=legacy.SUPPORTED_FONTS)
     p.add_argument("text", nargs="?")
+    p.add_argument(
+        "--report",
+        action="store_true",
+        help="list every unmapped character and its position on standard error",
+    )
+    p.add_argument(
+        "--include-unconfirmed",
+        action="store_true",
+        help="also use entries that only one table family has",
+    )
+    p.add_argument(
+        "--strict",
+        action="store_true",
+        help="leave out entries where two families agree but another table differs",
+    )
+    p.add_argument("--quiet", action="store_true", help="do not print the experimental notice")
 
     p = sub.add_parser(
         "translit",
@@ -191,13 +217,40 @@ def _run(args: argparse.Namespace) -> str:
         )
         return "\n".join(ordered)
     if command == "convert":
-        return legacy.to_unicode(_read(args.text), args.font)
+        return _run_convert(args)
     if command == "translit":
         convert = to_roman if args.to == "roman" else to_devanagari
         return convert(_read(args.text), args.scheme, digits=not args.keep_digits)
     if command == "date":
         return _run_date(args)
     raise AssertionError(f"unhandled command {command!r}")  # pragma: no cover
+
+
+def _run_convert(args: argparse.Namespace) -> str:
+    """Convert Preeti text; warnings go to standard error, the text is returned."""
+    result = legacy.convert_preeti(
+        _read(args.text), include_unconfirmed=args.include_unconfirmed, strict=args.strict
+    )
+    if not args.quiet:
+        print(f"aksharkit: note: Preeti conversion is {legacy.PREETI_LABEL}", file=sys.stderr)
+    if result.unmapped:
+        shown = " ".join(_describe_char(ch) for ch in result.unmapped_chars)
+        print(
+            f"aksharkit: warning: {len(result.unmapped)} character(s) had no agreed "
+            f"Preeti entry and were left unchanged: {shown}",
+            file=sys.stderr,
+        )
+        if args.report:
+            for item in result.unmapped:
+                print(f"  position {item.offset}: {_describe_char(item.char)}", file=sys.stderr)
+    elif args.report:
+        print("aksharkit: every character had an agreed Preeti entry", file=sys.stderr)
+    return result.text
+
+
+def _describe_char(ch: str) -> str:
+    shown = ch if ch.isprintable() else "?"
+    return f"{shown} (U+{ord(ch):04X})"
 
 
 def _run_aksharas(args: argparse.Namespace) -> str:

@@ -369,7 +369,7 @@ test("boot loads the pinned Pyodide, unpacks the archive and fills every tab", a
   assert.equal(page.log.unpack.format, "zip");
   assert.ok(page.log.python.some((code) => code.includes(page.log.unpack.extractDir) && code.includes("sys.path")));
   assert.equal(page.log.imported, "aksharkit_playground");
-  assert.deepEqual(page.log.calls, ["info", "normalize", "aksharas", "numbers", "words", "dates", "calendar", "datemath", "tokenize", "sort", "detect", "translit"]);
+  assert.deepEqual(page.log.calls, ["info", "normalize", "aksharas", "numbers", "words", "dates", "calendar", "datemath", "tokenize", "sort", "detect", "translit", "preeti"]);
   assert.deepEqual(page.log.address, [], "loading the page must not rewrite the address");
 
   assert.equal(page.out("normalize.text"), "राम घर गयो। आज पानी पर्\u200dयो॥");
@@ -532,7 +532,7 @@ test("today button, copy buttons and tabs", async () => {
   assert.ok(page.$("tab-calendar").focused);
   assert.equal(page.log.address.at(-1), "#calendar?text=2083-08&devanagari=1&allow_disputed=0");
   page.$("tab-calendar").dispatch("keydown", { key: "End" });
-  assert.equal(page.log.address.at(-1), "#preeti");
+  assert.equal(page.log.address.at(-1), "#preeti?text=" + encodeURIComponent(page.$("in-preeti").value) + "&unconfirmed=0&strict=0");
   assert.deepEqual(visible(), ["panel-preeti"]);
   page.$("tab-preeti").dispatch("keydown", { key: "ArrowRight" });
   assert.deepEqual(visible(), ["panel-normalize"]);
@@ -540,7 +540,8 @@ test("today button, copy buttons and tabs", async () => {
   assert.deepEqual(visible(), ["panel-preeti"]);
   page.$("tab-preeti").dispatch("keydown", { key: "Home" });
   assert.deepEqual(visible(), ["panel-normalize"]);
-  assert.match(page.$("panel-preeti").textContent, /Coming soon — needs a verified mapping/);
+  assert.match(page.$("panel-preeti").textContent, /Experimental\./);
+  assert.match(page.$("panel-preeti").textContent, /not yet been checked against real Preeti documents/);
 });
 
 test("every result has a working copy button", async () => {
@@ -847,14 +848,76 @@ test("the address follows the tab on screen, even with an edit still pending", a
 
   // The same with an example button on a tab that is no longer on screen.
   page.$("tab-preeti").dispatch("click");
-  assert.equal(page.log.address.at(-1), "#preeti");
+  assert.equal(page.log.address.at(-1), "#preeti?text=" + encodeURIComponent(page.$("in-preeti").value) + "&unconfirmed=0&strict=0");
   page.$("in-words").value = "दुई";
   page.$("in-words").dispatch("input");
   await settle(400);
-  assert.equal(page.log.address.at(-1), "#preeti");
+  assert.equal(page.log.address.at(-1), "#preeti?text=" + encodeURIComponent(page.$("in-preeti").value) + "&unconfirmed=0&strict=0");
   assert.equal(page.out("words.number"), "2");
 
   // Going back shows the edited value in the address.
   page.$("tab-numbers").dispatch("click");
   assert.equal(page.log.address.at(-1), "#numbers?text=42&only=1&ordinal=5");
+});
+
+test("Preeti converts, names what it left alone, and says it is experimental", async () => {
+  const page = await ready();
+  assert.equal(page.out("preeti.text"), "नेपाल राम्रो देश हो ।");
+  assert.equal(page.out("preeti.unmapped"), "Every character had an agreed letter.");
+  assert.match(page.out("preeti.note"), /^Table: experimental — mapping agreed by at least 2 of 3 /);
+  assert.match(page.out("preeti.note"), /not yet checked against real Preeti documents or by a native reader/);
+  assert.match(page.out("preeti.note"), /126 keys in use\.$/);
+
+  const field = page.$("in-preeti");
+  field.value = "sfo{qmd ¥ Ý ¥";
+  field.dispatch("input");
+  await settle(400);
+  assert.equal(page.out("preeti.text"), "कार्यक्रम ¥ Ý ¥");
+  assert.equal(page.out("preeti.unmapped"), "Left unchanged, no agreed letter (3): ¥ (U+00A5) ×2, Ý (U+00DD) ×1");
+
+  // The two switches change which keys are used.
+  field.value = "ljBfno ‘";
+  field.dispatch("input");
+  await settle(400);
+  assert.equal(page.out("preeti.text"), "विद्यालय ‘");
+  page.$("opt-preeti-unconfirmed").checked = true;
+  page.$("opt-preeti-unconfirmed").dispatch("change");
+  await settle(400);
+  assert.equal(page.out("preeti.text"), "विद्यालय ॅ");
+  assert.match(page.out("preeti.note"), /131 keys in use\.$/);
+  page.$("opt-preeti-strict").checked = true;
+  page.$("opt-preeti-strict").dispatch("change");
+  await settle(400);
+  assert.equal(page.out("preeti.text"), "विBालय ॅ");
+  assert.match(page.out("preeti.unmapped"), /B \(U\+0042\) ×1/);
+
+  // Empty input: nothing to say.
+  field.value = "";
+  field.dispatch("input");
+  await settle(400);
+  assert.equal(page.out("preeti.text"), "");
+  assert.equal(page.out("preeti.unmapped"), "");
+});
+
+test("Preeti: copy button, examples and a shared link", async () => {
+  const page = await ready({ hash: "#preeti?text=" + encodeURIComponent("lzIff / :jf:Yo") + "&unconfirmed=0&strict=0" });
+  const panels = page.doc.all((n) => n.attrs.role === "tabpanel");
+  assert.deepEqual(panels.filter((p) => !p.hidden).map((p) => p.id), ["panel-preeti"]);
+  assert.equal(page.$("in-preeti").value, "lzIff / :jf:Yo");
+  assert.equal(page.out("preeti.text"), "शिक्षा र स्वास्थ्य");
+
+  const copy = page.doc.all((n) => n.attrs["data-copy"] === "preeti.text")[0];
+  copy.dispatch("click");
+  await settle();
+  assert.equal(page.log.copied, "शिक्षा र स्वास्थ्य");
+
+  const examples = page.doc.all((n) => n.attrs["data-example"] === "in-preeti");
+  assert.equal(examples.length, 4);
+  examples[1].dispatch("click");
+  await settle(400);
+  assert.equal(page.out("preeti.text"), "कार्यक्रम २०८३ साल");
+  assert.match(page.log.address.at(-1), /^#preeti\?text=/);
+
+  // The input is shown in a plain system font, and no Preeti font is loaded.
+  assert.match(page.$("in-preeti").attrs.class, /plain-input/);
 });

@@ -686,3 +686,15 @@ code {
     align-items: baseline;
   }
 }
+
+/* ---- Preeti: the input is legacy-font keystrokes, shown in a plain system font ---- */
+
+.plain-input,
+.example.plain {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+.label-note {
+  color: var(--ink-soft);
+  font-weight: 400;
+}

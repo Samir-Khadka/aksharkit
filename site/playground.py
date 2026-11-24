@@ -18,7 +18,7 @@ from collections.abc import Callable
 from typing import Any
 
 import aksharkit as ak
-from aksharkit import dates
+from aksharkit import dates, legacy
 
 __all__ = ["TOOLS", "run"]
 
@@ -186,6 +186,33 @@ def _translit(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _preeti(payload: dict[str, Any]) -> dict[str, Any]:
+    include_unconfirmed = bool(payload.get("unconfirmed", False))
+    strict = bool(payload.get("strict", False))
+    result = ak.convert_preeti(
+        str(payload.get("text", "")), include_unconfirmed=include_unconfirmed, strict=strict
+    )
+    counts: dict[str, int] = {}
+    for item in result.unmapped:
+        counts[item.char] = counts.get(item.char, 0) + 1
+    return {
+        "text": result.text,
+        "unmapped": [
+            {
+                "char": ch if ch.isprintable() else "?",
+                "code": f"U+{ord(ch):04X}",
+                "count": count,
+            }
+            for ch, count in counts.items()
+        ],
+        "unmapped_count": len(result.unmapped),
+        "label": legacy.PREETI_LABEL,
+        "entries": len(
+            legacy.load_font_map(include_unconfirmed=include_unconfirmed, strict=strict)
+        ),
+    }
+
+
 def _words(payload: dict[str, Any]) -> dict[str, Any]:
     text = str(payload.get("text", "")).strip()
     if not text:
@@ -296,6 +323,7 @@ TOOLS: dict[str, Callable[[dict[str, Any]], dict[str, Any]]] = {
     "sort": _sort,
     "detect": _detect,
     "translit": _translit,
+    "preeti": _preeti,
 }
 
 

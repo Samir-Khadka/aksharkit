@@ -2,9 +2,37 @@
 
 ## Not implemented
 
-- **Preeti / legacy fonts** (`aksharkit.legacy`): raises `DataNotVerifiedError`.
-  The glyph table is empty; no source with a clearly reusable licence and a
-  known origin has been confirmed (see `docs/sources.md`, section 4).
+- **Unicode → Preeti** (`legacy.unicode_to_preeti`): raises
+  `NotImplementedError`. Left out because it could not be done reliably.
+- **Legacy fonts other than Preeti** (Kantipur, Himali, Sagarmatha, …).
+
+## Preeti to Unicode (experimental, added in 0.6)
+
+- **The key table has not been checked against any real Preeti document, and
+  no native reader has reviewed it or its output.** It holds what the Preeti
+  tables of four MIT-licensed projects (three families) agree on. Nobody
+  opened the font to see what each key draws. A mistake shared by those
+  tables is a mistake here.
+- **Every Preeti sample in the tests was typed by the builder from the table
+  itself.** They show self-consistency only. `tests/golden/preeti_samples.tsv`
+  is empty and waiting for real text.
+- **Where the four tables came from is unknown.** None says, and their
+  authors have not been asked. Two of the four share one rule list and are
+  counted once. For 16 keys (`¢ ± ´ Å Ö Ø Û Ü ß ç ˜ „ • … ‹ ›`) the only two
+  tables that have the key are nepalikit and nepali-keyboard, whose keys
+  overlap almost entirely, so that agreement is weak. See `docs/preeti.md`.
+- Four keys (`B` द्य, `^` ६, `¡` ज्ञ्, `¿` रू) are used although one table
+  gives something else. `strict=True` / `--strict` leaves them out.
+- Five keys with no agreement (`¥ ° Ì Ú Ý`) are never converted, and five
+  more that only one family has (`¤ © Ò × ‘`) are off by default. They are
+  left as they are and reported.
+- It cannot tell Preeti from English: an English word in the input is
+  converted as if it were Preeti.
+- The reordering rules (short i, reph, the `m` stroke, half forms) were
+  written from how Devanagari is stored, and have not been tried on real
+  typing. Overstrikes, repeated signs and unusual key orders may come out
+  wrong without any warning, because every key in them is a known key.
+- A stray `m` or `{` with no letter to attach to is reported as unmapped.
 
 ## Browser playground
 
@@ -19,11 +47,10 @@
   with Pyodide replaced by a stub. **It has not been tried on a real phone**;
   touch behaviour, other browsers, the error state and screen readers are
   untested too.
-- **Version 0.5.0 has not been opened in any browser.** The Aksharas and
-  Sort tabs, the ordinal and date-pattern rows and the address fix below are
-  covered only by the Node tests, which drive `app.js` against a fake DOM
-  with the Python glue run by CPython. Their layout has not been looked at
-  on any screen, at any width.
+- **Version 0.5.0 was checked once, in one desktop browser, on 24 November
+  2026.** The Aksharas and Sort tabs, the ordinal and date-pattern rows and
+  the address fix below all behaved as expected there. Nothing narrower than
+  a desktop window was looked at.
 - The address fix in 0.5 (an edit still waiting to run no longer puts the
   previous tab back in the address after a tab click) was worked out from
   the code and reproduced in the Node tests. It has not been confirmed in
@@ -43,7 +70,10 @@
   are not hash-checked by the page. There is no Content-Security-Policy.
 - The "Today" button and `today_bs()` stop working after 13 April 2027,
   when the calendar table ends.
-- The Preeti tab is a notice only.
+- **The Preeti tab (0.6) has not been opened in any browser.** It is covered
+  by the Node tests only. Its input box uses the system's monospace font;
+  the page does not load the Preeti font, so pasted Preeti text looks like
+  Latin letters.
 
 ## Transliteration
 
@@ -123,7 +153,8 @@
 - `र्इ` typed for `ई` is repaired from 0.5. The rule assumes `र्` directly
   before an independent `इ` is never intended; this was not checked against
   a corpus. Other vowels typed the same way (`र्ई`, `र्उ`) are not touched.
-- A legacy-style short-i sign typed before its consonant is not reordered.
+- A legacy-style short-i sign typed before its consonant is not reordered by
+  `normalize`. (The Preeti converter does its own reordering first.)
 - NFC decomposes `क़ ख़ ग़ ज़ ड़ ढ़ फ़ य़` (U+0958–095F) into letter + nukta. This is
   correct Unicode behaviour, but string lengths change.
 - `|` becomes `।` only directly after Devanagari text (optionally one space)

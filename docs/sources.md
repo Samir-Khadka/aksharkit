@@ -81,11 +81,40 @@ virama. The list of split-vowel repairs was written from the Devanagari code
 chart's "do not use" sequences as recalled; it was not re-checked against the
 chart text during this build.
 
-## 4. Preeti glyph table — research only, table still empty
+## 4. Preeti key table — experimental, compared but not checked against documents
 
-`src/aksharkit/data/font_preeti.json` is still empty on purpose. On
-23 November 2026 the candidates below were looked at: licence files and
-READMEs were read as text; **no mapping table was opened, copied or compared**.
+From 0.6 `src/aksharkit/data/font_preeti.json` holds a table, labelled
+**experimental — mapping agreed by at least 2 of 3 permissively-licensed
+table families (4 projects), not yet checked against real Preeti documents
+or by a native reader**. The full account, with the agreement counts, the
+keys where tables differ and the reordering rules, is in
+[preeti.md](preeti.md). In short:
+
+- On 24 November 2026 the Preeti tables of four MIT-licensed projects were
+  read as text at pinned commits: nepali-unicoder, nepalikit,
+  preeti-unicode-converter and nepali-keyboard. nepali-unicoder and nepalikit
+  share one rule list and count as one family, so there are three families.
+- 136 single keys were compared. 122 are agreed by two or more families with
+  no table differing; 4 are agreed by two or more families with one table
+  differing (used by default, off with `strict`); 5 appear in one family only
+  (off by default); 5 have no agreement and are never used.
+- The table was written from that comparison. No project's file, code or
+  rule list was copied; the reordering code is aksharkit's own. The values
+  each project states are kept, with attribution, in
+  `scripts/preeti_sources.json`, and `scripts/compare_preeti_sources.py`
+  repeats the comparison. The four copyright notices are in `NOTICE`.
+- nepali-converter (nepalibhasha/nepali-fonts) was **excluded**: the header
+  of its Preeti map names npttf2utf (GPL-3.0) as a reference.
+- npttf2utf, foss-np/2utf8, npm `preeti` and sapradhan/nep-ttf2utf were not
+  opened. The three small npm packages were not read beyond their registry
+  metadata.
+
+**Still open:** none of the four projects says where its table came from, and
+their authors have not been asked. Whether any of them descends from the GPL
+or non-commercial tables is therefore unknown. No real Preeti text has been
+converted and no native reader has reviewed the table.
+
+### Candidates as first recorded (23 November 2026, licences and READMEs only)
 
 | Candidate | Licence (read 23 Nov 2026) | States where its table came from? | Usable in an MIT package? |
 | --- | --- | --- | --- |
@@ -120,24 +149,18 @@ Other findings:
   independently or carried over from those. That question was not answered,
   so none of them counts as "clearly MIT-compatible" yet.
 
-### Recommendation
+### What was recommended, and where it stands
 
-Do not copy any one package's table. Use the same method as the calendar:
-
-1. Samir (or another Preeti typist) supplies real Preeti text with the correct
-   Unicode beside it — a few pages of his own typing is enough to start. This
-   becomes the golden test set, with its origin written down.
-2. Read the single-key facts (which key shows which letter) from at least two
-   MIT-licensed tables — nepali-unicoder and preeti-unicode-converter are the
-   first two to try — keep only the entries where they agree, and list the
-   rest for a native speaker to settle. Before doing this, ask both authors
-   (a GitHub issue each) where their tables came from.
-3. Write the reordering rules (short i before the consonant, reph after it,
-   half forms) in aksharkit's own code, driven by the golden tests.
-4. Mark the table "unreviewed by native speaker" until Samir has read through it.
-
-Steps 1 and 2 need Samir: the sample text, and his agreement to open the
-issues.
+1. Real Preeti text with the correct Unicode beside it, as the golden test
+   set. **Not done** — needs Samir or another Preeti typist. The empty file
+   `tests/golden/preeti_samples.tsv` is waiting for it.
+2. Compare at least two MIT-licensed tables and keep what agrees. **Done in
+   0.6** with three families. Asking the authors where their tables came
+   from (a GitHub issue each) is **not done**; it needs Samir's agreement.
+3. Reordering rules in aksharkit's own code. **Done in 0.6**, but driven by
+   self-made samples, not by golden tests, because step 1 is still open.
+4. Mark the table unreviewed until a native reader has read it. **Done**: it
+   is labelled experimental everywhere it is shown.
 
 ## 5. Bikram Sambat calendar table — verified for BS 2000–2083
 

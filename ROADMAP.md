@@ -7,20 +7,28 @@ targets, not promises.
 | --- | --- | --- | --- |
 | 0. Setup | 1 | Package skeleton, licence, CI workflow, lint and type checks | Done; CI runs on Python 3.10 to 3.13 |
 | 1. Basics | 2–3 | Normaliser, numerals, number to words, tokeniser, sentence splitter, stopwords | Done (v0.1); words → number and script detection added in v0.4; akshara segmentation, alphabetical order and ordinals 1–100 added in v0.5; spellings and sort order await native-speaker review |
-| 2. Preeti converter + playground | 4–5 | Preeti → Unicode with a verified glyph table and a public test set; browser playground | Playground built (v0.3), live and checked once in a desktop browser (24 Nov 2026); v0.4 adds four tabs, copy buttons, examples and shareable links, deployed 24 Nov 2026 and checked once in a desktop browser the same day, phone untested; v0.5 adds Aksharas and Sort tabs, not yet opened in any browser. Preeti: sources researched (v0.2), table still empty |
+| 2. Preeti converter + playground | 4–5 | Preeti → Unicode with a verified glyph table and a public test set; browser playground | Playground built (v0.3), live and checked once in a desktop browser (24 Nov 2026); v0.4 adds four tabs, copy buttons, examples and shareable links, deployed 24 Nov 2026 and checked once in a desktop browser the same day, phone untested; v0.5 adds Aksharas and Sort tabs, not yet opened in any browser. Preeti: **experimental converter in v0.6** — key table from what three families of MIT-licensed tables agree on, own reordering code, playground tab on; not checked against real Preeti documents or by a native reader, and the public test set is still empty |
 | 3. Dates | 6–7 | BS ↔ AD conversion from a verified calendar table; formatting | Done for BS 2000–2083 (v0.2); date arithmetic, age and month grid added in v0.4; format patterns and month-name parsing added in v0.5; 2084 onwards and one disputed month of 2062 are open |
 | 4. First PyPI release | 8 | Documentation pass, first PyPI release | Not started |
 | 5. Transliteration + spell check | 9–12 | Romanised ↔ Devanagari; basic spell checking | Transliteration done (v0.3): `iast` exact, `simple` approximate, spellings await review. Spell check not started |
 | 6. JavaScript port + more fonts | 13–16 | npm package sharing the same golden tests; Kantipur, Himali, Sagarmatha and others | Not started |
 | 7. "Awesome Nepali NLP" list | 8 onwards | A companion list of Nepali language tools and datasets | Not started |
 
-## Before phase 2 can start
+## Still open for Preeti (before it stops being "experimental")
 
-1. Real Preeti text with the correct Unicode beside it, to test against.
-2. A glyph table whose origin is known. The plan in `docs/sources.md`
-   (section 4) is to compare two MIT-licensed tables and keep what agrees,
-   after asking their authors where the tables came from. npttf2utf (GPL-3.0),
-   2utf8 and npm `preeti` (both non-commercial) cannot be copied.
+1. Real Preeti text with the correct Unicode beside it, in
+   `tests/golden/preeti_samples.tsv`. Nothing replaces this.
+2. A native reader going through the 126 keys in `docs/preeti.md` and the
+   output of a few real pages.
+3. Asking the four table authors where their tables came from (an issue
+   each). Not done; nothing has been sent to anyone.
+4. Settling the 5 disputed and 5 one-family keys, ideally by looking at what
+   the font draws for each.
+5. The Preeti tab opened in a real browser and on a phone.
+6. Unicode → Preeti, and other legacy fonts, only after the above.
+
+npttf2utf (GPL-3.0), 2utf8 and npm `preeti` (both non-commercial) cannot be
+copied and were not opened.
 
 ## Still open for the playground
 

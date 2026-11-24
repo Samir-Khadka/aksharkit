@@ -50,7 +50,7 @@ APP = (SITE / "app.js").read_text("utf-8")
 STYLE = (SITE / "style.css").read_text("utf-8")
 
 
-#: The tools the page calls, in tab order. Preeti has a tab but no tool.
+#: The tools the page calls, in tab order.
 PAGE_TOOLS = [
     "normalize",
     "aksharas",
@@ -63,6 +63,7 @@ PAGE_TOOLS = [
     "sort",
     "detect",
     "translit",
+    "preeti",
 ]
 
 
@@ -578,12 +579,12 @@ def test_tabs_and_panels_are_wired_for_assistive_technology() -> None:
     panels = re.findall(
         r'<section class="panel" role="tabpanel" id="([^"]+)" aria-labelledby="([^"]+)"', INDEX
     )
-    assert [t[0] for t in tabs] == [f"tab-{tool}" for tool in PAGE_TOOLS] + ["tab-preeti"]
+    assert [t[0] for t in tabs] == [f"tab-{tool}" for tool in PAGE_TOOLS]
     assert [(panel, tab) for tab, panel in tabs] == panels
     assert INDEX.count('aria-selected="true"') == 1
     assert INDEX.count('role="tablist"') == 1
     assert INDEX.count("<section") - INDEX.count('" hidden>\n      <h2>') == 1  # one panel visible
-    assert "Coming soon — needs a verified mapping" in INDEX
+    assert "Coming soon" not in INDEX
 
 
 def test_every_form_control_has_a_label() -> None:
@@ -742,8 +743,8 @@ def test_phone_layout_rules() -> None:
 
 
 def test_preeti_help_wanted_link() -> None:
-    link = '<a class="button ghost link" href="https://github.com/Samir-Khadka/aksharkit/issues">'
-    assert link + "Preeti: help wanted</a>" in INDEX
+    link = '<a href="https://github.com/Samir-Khadka/aksharkit/issues">'
+    assert INDEX.count(link + "Preeti: help wanted</a>") == 2
     assert INDEX.count("https://github.com/Samir-Khadka/aksharkit/issues") == 2
 
 
@@ -846,3 +847,53 @@ def test_app_js_in_node(built: Path) -> None:
         env={**os.environ, "AKSHARKIT_SITE": str(built), "AKSHARKIT_PYTHON": sys.executable},
     )
     assert done.returncode == 0, done.stdout[-4000:] + done.stderr[-2000:]
+
+
+# --- Preeti tab: experimental, honest about what it left alone ---------------
+
+
+def test_preeti_tool_converts_and_reports() -> None:
+    out = result("preeti", text="g]kfn /fd|f] b]z xf] .")
+    assert out["text"] == "नेपाल राम्रो देश हो ।"
+    assert out["unmapped"] == [] and out["unmapped_count"] == 0
+    assert out["label"] == aksharkit.legacy.PREETI_LABEL
+    assert out["entries"] == 126
+
+    out = result("preeti", text="s ¥ Ý ¥ \x07")
+    assert out["text"] == "क ¥ Ý ¥ \x07"
+    assert out["unmapped_count"] == 4
+    assert out["unmapped"] == [
+        {"char": "¥", "code": "U+00A5", "count": 2},
+        {"char": "Ý", "code": "U+00DD", "count": 1},
+        {"char": "?", "code": "U+0007", "count": 1},
+    ]
+
+
+def test_preeti_tool_switches() -> None:
+    assert result("preeti", text="ljBfno ‘")["text"] == "विद्यालय ‘"
+    assert result("preeti", text="ljBfno ‘", unconfirmed=True)["text"] == "विद्यालय ॅ"
+    assert result("preeti", text="ljBfno ‘", unconfirmed=True)["entries"] == 131
+    strict = result("preeti", text="ljBfno", strict=True)
+    assert strict["text"] == "विBालय" and strict["entries"] == 122
+    assert result("preeti")["text"] == ""
+
+
+def test_preeti_panel_is_labelled_experimental_and_uses_no_preeti_font() -> None:
+    start = INDEX.index('id="panel-preeti"')
+    panel = INDEX[start : INDEX.index("</section>", start)]
+    assert "<strong>Experimental.</strong>" in panel
+    assert "not yet been checked against real Preeti documents or by a native reader" in panel
+    assert "never guessed" in panel
+    assert 'data-copy="preeti.text"' in panel
+    assert 'data-out="preeti.unmapped"' in panel
+    assert (
+        '<textarea id="in-preeti" data-tool="preeti" data-field="text" class="plain-input"' in panel
+    )
+    box = re.search(r"<textarea[^>]*>", panel)
+    assert box is not None and 'lang="ne"' not in box.group(0)
+    assert "This page does not load the Preeti font" in panel
+    assert '>Preeti <span class="soon">experimental</span></button>' in INDEX
+    for text in (INDEX, STYLE, APP):
+        assert "@font-face" not in text
+        assert not re.search(r"font-family:[^;]*preeti", text, re.IGNORECASE)
+    assert ".plain-input" in STYLE and "ui-monospace" in STYLE

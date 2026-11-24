@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/Samir-Khadka/aksharkit/actions/workflows/ci.yml/badge.svg)](https://github.com/Samir-Khadka/aksharkit/actions/workflows/ci.yml)
 
-> **Status: pre-release (0.5.0).** Not yet published to PyPI.
+> **Status: pre-release (0.6.0).** Not yet published to PyPI.
 
 A small, typed, dependency-free Python toolkit for everyday Nepali text
 chores: cleaning Unicode, splitting text into aksharas (written syllables),
@@ -17,12 +17,13 @@ in Roman letters and back.
 - **Zero runtime dependencies.** Standard library only.
 - **Typed.** Ships `py.typed`; the source, tests and playground glue pass
   `mypy --strict`.
-- **Tested.** 2,217 pytest tests passed on the last local run
-  (24 November 2026, Python 3.12), plus 17 Node tests of the playground
+- **Tested.** 2,632 pytest tests passed on the last local run
+  (24 November 2026, Python 3.12), plus 19 Node tests of the playground
   script. CI runs the suite on Python 3.10 to 3.13.
 - **Refuses rather than guesses.** Dates outside the checked calendar table,
-  a disputed month, unreadable number words and the unverified Preeti table
-  all raise a clear error.
+  a disputed month and unreadable number words raise a clear error. The
+  experimental Preeti converter leaves any key it has no agreed letter for
+  unchanged and reports it.
 - **Try before installing.** The [playground](https://samir-khadka.com.np/aksharkit/)
   runs the package itself in your browser.
 
@@ -36,9 +37,9 @@ and nothing you type is sent anywhere. Each result has a copy button, each
 tab has examples to tap, and "Copy a link to this result" puts what you typed
 in the address after `#`, which browsers do not send to the server.
 
-The 0.3.0 and 0.4.0 pages were each checked once in a desktop browser on
-24 November 2026. The parts added in 0.5.0 (Aksharas, Sort, ordinals, date
-patterns) have not been opened in a browser yet. Real phones and screen
+The 0.3.0, 0.4.0 and 0.5.0 pages were each checked once in a desktop browser
+on 24 November 2026. The Preeti tab added in 0.6.0 has not been opened in a
+browser yet. Real phones and screen
 readers are untested for every version, see
 [docs/known-issues.md](docs/known-issues.md).
 
@@ -67,8 +68,9 @@ is the better choice today:
 | [nepali-datetime](https://github.com/amitgaru/nepali-datetime) | Bikram Sambat dates, `datetime`-style API |
 | [npttf2utf](https://github.com/trippygeese/npttf2utf) | Legacy font (Preeti and others) to Unicode |
 
-If you need Preeti conversion **now**, use npttf2utf or nepalikit: aksharkit
-does not do it yet. For BS dates outside BS 2000–2083, or for a full
+aksharkit's Preeti conversion is **experimental**: its key table has not been
+checked against real Preeti documents. For work that matters today, use
+npttf2utf or nepalikit, or check aksharkit's output by eye. For BS dates outside BS 2000–2083, or for a full
 `datetime`-style API, use nepali-datetime.
 
 What aksharkit aims to add:
@@ -103,8 +105,8 @@ No accuracy comparison with other packages has been made. None is claimed.
 | `dates` patterns and month names | Done (0.5), same range and guards | `format_bs(date, "%-d %B %Y")`; `parse_bs("२०८३ मंसिर ८")`. Only the package's own month spellings are read |
 | `dates` arithmetic | Done (0.4), same range and guards | `add_days`, `add_months`, `days_between`, `difference`, `age`, `month_calendar`, `format_month_calendar` |
 | `translit` | Done; `simple` spellings await native-speaker review | `iast`: exact and reversible. `simple`: plain ASCII, rule-based and approximate, especially Roman → Devanagari |
-| `legacy` (Preeti) | **Planned — raises `DataNotVerifiedError`** | Loader and API exist; glyph table is empty |
-| Browser playground (`site/`) | 0.4.0 is live and was checked once in a desktop browser on 24 Nov 2026, phone untested; the 0.5 additions have not been opened in a browser | 0.4 added Words to number, Calendar, Date maths and Detect tabs, copy buttons, examples and shareable links; 0.5 adds Aksharas and Sort tabs, ordinals and date patterns; Preeti shown as coming soon |
+| `legacy` (Preeti → Unicode) | **Experimental (0.6)** — not checked against real Preeti documents or by a native reader | 126 keys agreed by at least 2 of 3 families of MIT-licensed tables; own reordering rules; unmapped characters reported, never guessed. Unicode → Preeti is not implemented. See [docs/preeti.md](docs/preeti.md) |
+| Browser playground (`site/`) | 0.5.0 is live and was checked once in a desktop browser on 24 Nov 2026, phone untested | 0.4 added Words to number, Calendar, Date maths and Detect tabs, copy buttons, examples and shareable links; 0.5 adds Aksharas and Sort tabs, ordinals and date patterns; 0.6 turns the Preeti tab on (experimental), not yet opened in a browser |
 | Spell check | Planned | Roadmap phase 5 |
 | JavaScript port | Planned | Roadmap phase 6 |
 
@@ -229,6 +231,24 @@ Dates outside BS 2000–2083 raise `DateRangeError`. Dates from 14 May to
 because the published calendars disagree by one day there. Both are
 `ValueError`s. See [docs/sources.md](docs/sources.md) for how the table was checked.
 
+**Preeti to Unicode is experimental.** Its key table is what at least 2 of 3
+families of MIT-licensed tables agree on; it has not been checked against
+real Preeti documents or by a native reader.
+
+```python
+from aksharkit import convert_preeti, preeti_to_unicode
+
+preeti_to_unicode("g]kfn")  # 'नेपाल'
+result = convert_preeti("sfo{qmd ¥")  # ¥ has no agreed letter
+result.text  # 'कार्यक्रम ¥'
+result.unmapped  # (UnmappedChar(char='¥', offset=8),)
+```
+
+Characters with no agreed letter are left as they are and listed in
+`result.unmapped`, never guessed. If you have real Preeti text with the
+correct Unicode beside it, `tests/golden/preeti_samples.tsv` is where it
+goes. Details: [docs/preeti.md](docs/preeti.md).
+
 ## Command line
 
 ```console
@@ -307,9 +327,17 @@ $ aksharkit translit --scheme simple "नेपाल राम्रो छ।"
 nepal ramro chha.
 $ aksharkit translit --to devanagari "nepāla rāmro cha|"
 नेपाल राम्रो छ।
-$ aksharkit convert preeti 'g]kfn'
-aksharkit: Preeti conversion is not available yet: ...
+$ aksharkit convert preeti 'g]kfn' --quiet
+नेपाल
+$ aksharkit convert preeti 'sfo{qmd ¥' --quiet --report
+कार्यक्रम ¥
+aksharkit: warning: 1 character(s) had no agreed Preeti entry and were left unchanged: ¥ (U+00A5)
+  position 8: ¥ (U+00A5)
 ```
+
+`convert preeti` is experimental: without `--quiet` it says so on standard
+error every time. The warning lines above also go to standard error, and the
+exit code stays 0.
 
 Words to number is its own command, `aksharkit number`, rather than
 `words --reverse`: its input is text, and it takes `--devanagari` and
@@ -347,11 +375,14 @@ script runs in `.github/workflows/pages.yml`. If Node.js is installed,
 - [docs/aksharas.md](docs/aksharas.md) — the akshara rules and their limits
 - [docs/sorting.md](docs/sorting.md) — the sort order, choice by choice
 - [docs/transliteration.md](docs/transliteration.md) — both schemes, the exact rules, what `simple` gets wrong, spellings awaiting review
-- [docs/sources.md](docs/sources.md) — where the number words and the calendar table come from, spelling decisions, the 100 ordinal forms for review, Preeti source research
+- [docs/preeti.md](docs/preeti.md) — the experimental Preeti converter: sources and licences, what agreed and what did not, the reordering rules, what is not checked
+- [docs/sources.md](docs/sources.md) — where the number words and the calendar table come from, spelling decisions, the 100 ordinal forms for review, Preeti candidates
 - [docs/known-issues.md](docs/known-issues.md) — current limits
 - [ROADMAP.md](ROADMAP.md)
 - [CHANGELOG.md](CHANGELOG.md)
 
 ## Licence
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE). The Preeti key table was compiled by comparing
+the tables of four MIT-licensed projects; their copyright notices are in
+[NOTICE](NOTICE).

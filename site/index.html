@@ -43,7 +43,7 @@
       <button type="button" role="tab" id="tab-sort" aria-controls="panel-sort" aria-selected="false" tabindex="-1">Sort</button>
       <button type="button" role="tab" id="tab-detect" aria-controls="panel-detect" aria-selected="false" tabindex="-1">Detect script</button>
       <button type="button" role="tab" id="tab-translit" aria-controls="panel-translit" aria-selected="false" tabindex="-1">Transliterate</button>
-      <button type="button" role="tab" id="tab-preeti" aria-controls="panel-preeti" aria-selected="false" tabindex="-1">Preeti <span class="soon">soon</span></button>
+      <button type="button" role="tab" id="tab-preeti" aria-controls="panel-preeti" aria-selected="false" tabindex="-1">Preeti <span class="soon">experimental</span></button>
     </div>
 
     <section class="panel" role="tabpanel" id="panel-normalize" aria-labelledby="tab-normalize" tabindex="0">
@@ -343,10 +343,26 @@
 
     <section class="panel" role="tabpanel" id="panel-preeti" aria-labelledby="tab-preeti" tabindex="0" hidden>
       <h2>Preeti to Unicode</h2>
-      <p class="notice soon-box"><strong>Coming soon — needs a verified mapping.</strong> A great deal of older Nepali text is stored in the Preeti font. aksharkit will not guess the key-to-letter table, and the tables published so far are either under licences an MIT project cannot copy or do not say where they came from.</p>
-      <p>What unblocks it: real Preeti text with the correct Unicode beside it, to test against.</p>
-      <p><a class="button ghost link" href="https://github.com/Samir-Khadka/aksharkit/issues">Preeti: help wanted</a></p>
-      <p class="note">The link opens the project's issues page on GitHub. If you have Preeti text and its Unicode version, or know where a glyph table came from, please say so there.</p>
+      <p class="hint">A great deal of older Nepali text was typed in the Preeti font, where the file really holds Latin letters such as <code>g]kfn</code> that only look like <span lang="ne">नेपाल</span> when that font is installed. Paste such text here to get real Unicode.</p>
+      <p class="notice" id="preeti-status"><strong>Experimental.</strong> The key table is the part on which separately published, permissively-licensed tables agree. It has <strong>not yet been checked against real Preeti documents or by a native reader</strong>, so read the result before you rely on it. Keys with no agreed letter are left as they are and listed below, never guessed.</p>
+      <label for="in-preeti">Preeti text <span class="label-note">(shown in an ordinary font, so it looks like Latin letters — that is expected)</span></label>
+      <textarea id="in-preeti" data-tool="preeti" data-field="text" class="plain-input" rows="4" spellcheck="false" autocapitalize="off" autocomplete="off">g]kfn /fd|f] b]z xf] .</textarea>
+      <p class="examples"><span class="examples-label">Try:</span> <button type="button" class="example plain" data-example="in-preeti" data-value="ljBfno / lzIff">ljBfno / lzIff</button> <button type="button" class="example plain" data-example="in-preeti" data-value="sfo{qmd @)*# ;fn">sfo{qmd @)*# ;fn</button> <button type="button" class="example plain" data-example="in-preeti" data-value="k|wfgdGqL sf7df8f}+df x'g'x'G5 .">k|wfgdGqL sf7df8f}+df x'g'x'G5 .</button> <button type="button" class="example plain" data-example="in-preeti" data-value="g]kfn ¥ Ý">g]kfn ¥ Ý</button></p>
+      <div class="options">
+        <label class="check"><input type="checkbox" id="opt-preeti-unconfirmed" data-tool="preeti" data-field="unconfirmed"> Also use keys only one table has</label>
+        <label class="check"><input type="checkbox" id="opt-preeti-strict" data-tool="preeti" data-field="strict"> Leave out keys where one table differs</label>
+      </div>
+      <p id="err-preeti" class="notice error" role="alert" hidden></p>
+      <div class="result">
+        <div class="result-head">
+          <h3 id="lbl-preeti-text">Unicode</h3>
+          <button type="button" class="copy" data-copy="preeti.text" aria-label="Copy result">Copy</button>
+        </div>
+        <output id="out-preeti-text" data-out="preeti.text" class="out big" lang="ne" aria-labelledby="lbl-preeti-text" aria-live="polite"></output>
+        <p id="out-preeti-unmapped" data-out="preeti.unmapped" class="note" aria-live="polite"></p>
+        <p id="out-preeti-note" data-out="preeti.note" class="note"></p>
+      </div>
+      <p class="note">This page does not load the Preeti font. Have Preeti text with the correct Unicode beside it? That is what would turn this from experimental into checked: <a href="https://github.com/Samir-Khadka/aksharkit/issues">Preeti: help wanted</a> (opens the project's issues page on GitHub).</p>
     </section>
 
     <p class="share">

@@ -25,7 +25,7 @@ const ASSET_QUERY = (function () {
   }
 })();
 const PACKAGE_DIR = "/home/pyodide/aksharkit_pkg";
-const TOOLS = ["normalize", "aksharas", "numbers", "words", "dates", "calendar", "datemath", "tokenize", "sort", "detect", "translit"];
+const TOOLS = ["normalize", "aksharas", "numbers", "words", "dates", "calendar", "datemath", "tokenize", "sort", "detect", "translit", "preeti"];
 const MAX_LINK_LENGTH = 1800; // longer inputs are left out of the shareable link
 const DEBOUNCE_MS = 150;
 
@@ -373,6 +373,25 @@ const RENDER = {
         ? "Simple scheme: approximate. It cannot tell t from ṭ, d from ḍ, s from ś or ṣ, or short vowels from long ones."
         : "IAST scheme: converting this back gives the original text."
     );
+  },
+  preeti: function (r) {
+    setOut("preeti.text", r.text);
+    setOut(
+      "preeti.unmapped",
+      r.unmapped.length
+        ? "Left unchanged, no agreed letter (" +
+            r.unmapped_count +
+            "): " +
+            r.unmapped
+              .map(function (u) {
+                return u.char + " (" + u.code + ") ×" + u.count;
+              })
+              .join(", ")
+        : r.text
+          ? "Every character had an agreed letter."
+          : ""
+    );
+    setOut("preeti.note", "Table: " + r.label + ". " + r.entries + " keys in use.");
   },
 };
 

@@ -1,0 +1,21 @@
+# Real Preeti samples for aksharkit. EMPTY ON PURPOSE until a Preeti typist fills it.
+#
+# What goes here: text that was really typed in the Preeti font (copied from an
+# old document, not made by a converter), with the correct Unicode beside it.
+# One sample per line, three columns separated by a TAB:
+#
+#   preeti<TAB>unicode<TAB>where it came from
+#
+# - preeti: the raw characters as stored, exactly as they look with a normal
+#   font (for example g]kfn). Do not retype them from the Unicode side.
+# - unicode: the same words in correct Unicode Devanagari (for example नेपाल),
+#   typed or checked by someone who reads Nepali.
+# - where it came from: a few words, e.g. "my 2019 college notice, line 3".
+#
+# Lines starting with # and blank lines are ignored. Every line here becomes a
+# test: aksharkit must turn column 1 into column 2 exactly. A failing line is
+# useful: it shows a key or an ordering rule the converter has wrong.
+#
+# Until this file has real lines, the Preeti converter stays "experimental":
+# its key table is agreed between other converters' tables, not checked
+# against documents.

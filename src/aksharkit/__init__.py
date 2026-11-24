@@ -5,8 +5,9 @@ alphabetical sorting, numerals, number words in both directions, ordinals,
 tokenisation, script detection, Bikram Sambat dates with formatting, parsing
 and arithmetic (BS 2000-2083) and transliteration (a reversible IAST-style
 scheme and an approximate plain-ASCII one).
-Stubbed (raises :class:`DataNotVerifiedError`): legacy-font conversion, until
-its glyph table is verified.
+Experimental: Preeti legacy-font text to Unicode. Its key table is agreed
+between permissively-licensed tables but has not been checked against real
+Preeti documents; characters with no agreed entry are reported, not guessed.
 """
 
 from __future__ import annotations
@@ -42,6 +43,7 @@ from .detect import (
     script_shares,
     token_scripts,
 )
+from .legacy import PreetiResult, UnmappedChar, convert_preeti, preeti_to_unicode
 from .normalize import normalize
 from .numerals import format_number, parse_number, to_ascii_digits, to_devanagari_digits
 from .stopwords import STOPWORDS, is_stopword, remove_stopwords
@@ -55,7 +57,7 @@ from .words import (
     parse_words,
 )
 
-__version__ = "0.5.0"
+__version__ = "0.6.0"
 
 __all__ = [
     "STOPWORDS",
@@ -65,7 +67,9 @@ __all__ = [
     "DataNotVerifiedError",
     "DateRangeError",
     "DisputedDateError",
+    "PreetiResult",
     "Token",
+    "UnmappedChar",
     "__version__",
     "ad_to_bs",
     "add_days",
@@ -75,6 +79,7 @@ __all__ = [
     "akshara_spans",
     "aksharas",
     "bs_to_ad",
+    "convert_preeti",
     "currency_to_words",
     "days_between",
     "days_in_month",
@@ -94,6 +99,7 @@ __all__ = [
     "parse_bs",
     "parse_number",
     "parse_words",
+    "preeti_to_unicode",
     "remove_stopwords",
     "romanised_nepali_score",
     "script_counts",
