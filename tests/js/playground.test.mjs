@@ -931,7 +931,7 @@ test("Preeti: copy button, examples and a shared link", async () => {
   await settle();
   assert.equal(page.log.copied, "शिक्षा र स्वास्थ्य");
 
-  const examples = page.doc.all((n) => n.attrs["data-example"] === "in-preeti");
+  const examples = page.doc.all((n) => n.attrs["data-example"] === "in-preeti" && !n.attrs["data-to"]);
   assert.equal(examples.length, 4);
   examples[1].dispatch("click");
   await settle(400);
@@ -1023,21 +1023,35 @@ test("Preeti: the other direction, from a link, with its own labels", async () =
   assert.equal(page.$("out-preeti-text").attrs.lang, "zxx");
   assert.equal(page.$("in-preeti").attrs.lang, "ne");
   assert.doesNotMatch(page.$("in-preeti").attrs.class, /plain-input/);
-  assert.ok(page.$("opt-preeti-unconfirmed").disabled);
+  // Since 0.8 the single-table keys can be used in this direction too, and
+  // the font box is off: the keys always go with the font named Preeti.
+  assert.ok(!page.$("opt-preeti-unconfirmed").disabled);
+  assert.ok(page.$("opt-preeti-font").disabled);
+  assert.ok(!page.$("note-preeti-reverse").hidden);
+  assert.match(page.$("note-preeti-reverse").textContent, /only after you paste them into a document and set that text in the Preeti font/);
+  assert.ok(page.$("examples-preeti").hidden);
+  assert.ok(!page.$("examples-preeti-reverse").hidden);
+  // English is not a failure and is not highlighted; the word that cannot be written is.
   assert.deepEqual(
     page.$("out-preeti-text").all((n) => n.tagName === "mark").map((m) => m.textContent),
-    ["a", "b", "c", "क्ा"]
+    ["क्ा"]
   );
   assert.equal(
     page.out("preeti.unmapped"),
-    "Left as they are, no Preeti key (3): a (U+0061) ×1, b (U+0062) ×1, c (U+0063) ×1. Left in Unicode because the keys would not read back as the same text (1): क्ा."
+    "Left in Unicode, highlighted (1): क्ा. Words whose keys would not read back as the same text: 1. Not Nepali, left as written (1): abc — in the Preeti font these would show as other letters, so give them another font."
   );
-  assert.match(page.out("preeti.confidence"), /converted back and gave the same text/);
+  assert.match(page.out("preeti.confidence"), /^2 of 3 Nepali words written as Preeti keys \(66\.7%\)\. Each of them was converted back and gave the same text\./);
+  assert.match(page.out("preeti.confidence"), /experimental table/);
+  assert.doesNotMatch(page.$("panel-preeti").textContent + page.out("preeti.confidence"), /perfect|verified/i);
 
   // An example is Preeti text, so it switches the direction back.
   page.doc.all((n) => n.attrs["data-example"] === "in-preeti")[0].dispatch("click");
   await settle(400);
   assert.equal(page.$("opt-preeti-to").value, "unicode");
+  assert.ok(page.$("note-preeti-reverse").hidden);
+  assert.ok(!page.$("examples-preeti").hidden);
+  assert.ok(page.$("examples-preeti-reverse").hidden);
+  assert.ok(!page.$("opt-preeti-font").disabled);
   assert.equal(page.out("preeti.text"), "विद्यालय र शिक्षा");
   assert.equal(page.$("lbl-preeti-text").textContent, "Unicode");
   assert.equal(page.$("out-preeti-text").attrs.lang, "ne");
@@ -1176,4 +1190,99 @@ test("Preeti: long text waits for the Convert button", async () => {
   assert.ok(page.$("btn-preeti-convert").hidden);
   assert.equal(page.out("preeti.size"), "");
   assert.equal(page.out("preeti.text"), "कर्म");
+});
+
+/* ---- Preeti 0.8: Unicode to Preeti with examples, files and a coverage line ---- */
+
+// A Unicode Word file: Nepali, English, a number and a word with no key.
+function makeUnicodeDocx() {
+  const code = `
+import io, sys, zipfile
+ns = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+body = ('<w:p><w:r><w:t xml:space="preserve">Report: </w:t></w:r>'
+        '<w:r><w:t xml:space="preserve">\u0928\u0947\u092a\u093e\u0932 2026 \u092d\u0930\u094d\u200d\u092f\u093e\u0919</w:t></w:r></w:p>'
+        '<w:p><w:r><w:rPr><w:b/><w:bCs/></w:rPr><w:t>\u0915\u093e\u0930\u094d\u092f\u0915\u094d\u0930\u092e</w:t></w:r></w:p>')
+buffer = io.BytesIO()
+with zipfile.ZipFile(buffer, "w") as z:
+    z.writestr("[Content_Types].xml", '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"/>')
+    z.writestr("word/document.xml", '<w:document xmlns:w="' + ns + '"><w:body>' + body + '</w:body></w:document>')
+sys.stdout.buffer.write(buffer.getvalue())
+`;
+  const done = spawnSync(PYTHON, ["-c", code]);
+  assert.equal(done.status, 0, String(done.stderr));
+  return done.stdout;
+}
+
+test("Preeti 0.8: reverse examples switch the direction and show the coverage line", async () => {
+  const page = await ready({ hash: "#preeti" });
+  const reverse = page.doc.all((n) => n.attrs["data-example"] === "in-preeti" && n.attrs["data-to"] === "preeti");
+  assert.equal(reverse.length, 5);
+  reverse[1].dispatch("click");
+  await settle(400);
+  assert.equal(page.$("opt-preeti-to").value, "preeti");
+  assert.equal(page.$("in-preeti").value, "कार्यक्रम २०८३ साल");
+  assert.equal(page.out("preeti.text"), "sfo{qmd @)*# ;fn");
+  assert.equal(page.out("preeti.unmapped"), "Every Nepali word was written as Preeti keys.");
+  assert.match(page.out("preeti.confidence"), /^3 of 3 Nepali words written as Preeti keys \(100%\)\./);
+  assert.match(page.log.address.at(-1), /^#preeti\?to=preeti&text=/);
+
+  // Mixed text: the English word and the ASCII number stay; the hyphen has no key.
+  reverse[4].dispatch("click");
+  await settle(400);
+  assert.equal(page.out("preeti.text"), "btf{ g+= 245, sf7df8f}+-#, Nepal");
+  assert.deepEqual(
+    page.$("out-preeti-text").all((n) => n.tagName === "mark").map((m) => m.textContent),
+    ["-"]
+  );
+  assert.match(page.out("preeti.unmapped"), /^Left in Unicode, highlighted \(1\): -\. Characters with no Preeti key \(1\): - \(U\+002D\) ×1\. Not Nepali, left as written \(2\): 245,, Nepal/);
+
+  // The single-table keys are an option in this direction too.
+  await page.edit("in-preeti", (el) => (el.value = "पढ़"));
+  assert.equal(page.out("preeti.text"), "पढ़");
+  page.$("opt-preeti-unconfirmed").checked = true;
+  page.$("opt-preeti-unconfirmed").dispatch("change");
+  await settle(400);
+  assert.equal(page.out("preeti.text"), "k9Þ");
+});
+
+test("Preeti 0.8: a Unicode text file becomes Preeti keys, downloads, and stays out of the address", async () => {
+  const page = await ready({ hash: "#preeti" });
+  page.$("opt-preeti-to").value = "preeti";
+  page.$("opt-preeti-to").dispatch("change");
+  await settle(400);
+  await openFile(page, fileOf("nibedan.txt", Buffer.from("नेपाल सरकार\r\nगृह मन्त्रालय ।\n", "utf-8")));
+  assert.equal(page.out("preeti.text"), "g]kfn ;/sf/\r\nu[x dGqfno .\n");
+  assert.equal(page.log.address.at(-1), "#preeti?to=preeti&unconfirmed=0&strict=0");
+  for (const address of page.log.address) {
+    assert.doesNotMatch(address, /%E0%A4|dGqfno|sf%2F/, "file text in the address: " + address);
+  }
+  page.$("btn-preeti-download").dispatch("click");
+  assert.equal(page.log.downloads.at(-1).name, "nibedan-preeti.txt");
+  assert.equal(await page.log.blobs.at(-1).text(), "g]kfn ;/sf/\r\nu[x dGqfno .\n");
+});
+
+test("Preeti 0.8: a Unicode Word file is written as Preeti keys and downloaded as a new file", async () => {
+  const page = await ready({ hash: "#preeti" });
+  page.$("opt-preeti-to").value = "preeti";
+  page.$("opt-preeti-to").dispatch("change");
+  await settle(400);
+  await openFile(page, fileOf("Suchana.docx", makeUnicodeDocx()));
+  assert.equal(page.log.calls.at(-1), "preeti_docx");
+  assert.ok(page.$("err-preeti").hidden, page.$("err-preeti").textContent);
+  assert.equal(
+    page.out("preeti.file"),
+    "Suchana.docx: 2 stretch(es) of Nepali text written as Preeti keys and set to the font named Preeti (1 of them cut up because they also held other text); 1 left as they were. Press Download result for the new file. It reads as Nepali only where the Preeti font is installed."
+  );
+  assert.equal(page.out("preeti.unmapped"), "Left in Unicode, in the font they had (1): भर्\u200dयाङ.");
+  assert.match(page.out("preeti.confidence"), /^2 of 3 Nepali words written as Preeti keys \(66\.7%\)\./);
+  assert.equal(page.log.address.at(-1), "#preeti?to=preeti&unconfirmed=0&strict=0");
+
+  page.$("btn-preeti-download").dispatch("click");
+  assert.equal(page.log.downloads.at(-1).name, "Suchana-preeti.docx");
+  const xml = readDocx(Buffer.from(await page.log.blobs.at(-1).arrayBuffer()));
+  assert.match(xml, /<w:t xml:space="preserve">Report: <\/w:t>/);
+  assert.match(xml, /<w:rFonts w:ascii="Preeti" w:hAnsi="Preeti" w:cs="Preeti"\/><\/w:rPr><w:t xml:space="preserve">g\]kfn <\/w:t>/);
+  assert.match(xml, /<w:r><w:t xml:space="preserve">2026 भर्\u200dयाङ<\/w:t><\/w:r>/);
+  assert.match(xml, /<w:b\/><w:bCs\/><\/w:rPr><w:t xml:space="preserve">sfo\{qmd<\/w:t>/);
+  assert.doesNotMatch(xml, /fonts\/|embed/i, "no font is put into the file");
 });

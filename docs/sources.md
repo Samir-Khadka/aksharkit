@@ -92,7 +92,14 @@ keys where tables differ and the reordering rules, is in
 consulted no new source: its Word-file handling, protection rules and
 Unicode → Preeti direction are aksharkit's own code on top of the same table,
 and the reverse direction is derived from the table, not from another
-converter. In short:
+converter. Version 0.8 again changed no entry of the table. Its new encoding
+rules are aksharkit's own. One thing was added from outside: 14 short
+example pairs (a Preeti string and the Unicode beside it) that two public
+converter pages show to their visitors, copied on 24 November 2026 into
+`tests/golden/preeti_crosscheck.tsv` with the page address on each line and
+used only as a test. No code and no table was taken from those pages, and
+their licences were not established. The pairs are worked examples, not
+ground truth. In short:
 
 - On 24 November 2026 the Preeti tables of four MIT-licensed projects were
   read as text at pinned commits: nepali-unicoder, nepalikit,

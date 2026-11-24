@@ -45,8 +45,11 @@ from .detect import (
     token_scripts,
 )
 from .legacy import (
+    ForeignSpan,
     PreetiEncodeResult,
+    PreetiEncodeStats,
     PreetiResult,
+    PreetiSegment,
     PreetiStats,
     UnmappedChar,
     convert_preeti,
@@ -54,7 +57,15 @@ from .legacy import (
     preeti_to_unicode,
     unicode_to_preeti,
 )
-from .legacy_docx import DocxReport, convert_docx, convert_docx_bytes
+from .legacy_docx import (
+    DocxEncodeReport,
+    DocxLeft,
+    DocxReport,
+    convert_docx,
+    convert_docx_bytes,
+    encode_docx,
+    encode_docx_bytes,
+)
 from .normalize import normalize
 from .numerals import format_number, parse_number, to_ascii_digits, to_devanagari_digits
 from .stopwords import STOPWORDS, is_stopword, remove_stopwords
@@ -68,7 +79,7 @@ from .words import (
     parse_words,
 )
 
-__version__ = "0.7.0"
+__version__ = "0.8.0"
 
 __all__ = [
     "STOPWORDS",
@@ -78,9 +89,14 @@ __all__ = [
     "DataNotVerifiedError",
     "DateRangeError",
     "DisputedDateError",
+    "DocxEncodeReport",
+    "DocxLeft",
     "DocxReport",
+    "ForeignSpan",
     "PreetiEncodeResult",
+    "PreetiEncodeStats",
     "PreetiResult",
+    "PreetiSegment",
     "PreetiStats",
     "Token",
     "UnmappedChar",
@@ -101,6 +117,8 @@ __all__ = [
     "days_in_month",
     "detect_script",
     "difference",
+    "encode_docx",
+    "encode_docx_bytes",
     "encode_preeti",
     "fiscal_year",
     "format_bs",

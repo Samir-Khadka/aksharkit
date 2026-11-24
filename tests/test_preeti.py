@@ -216,6 +216,11 @@ def test_each_default_key_gives_its_letter(key: str) -> None:
     want = (AGREED.get(key) or MAJORITY[key])["to"]
     assert legacy.load_font_map()[key] == want
     result = convert_preeti(key, normalise=False)
+    if key == "M":
+        # Since 0.8 a visarga with no letter before it is read as a colon.
+        assert result == PreetiResult(":", ())
+        assert convert_preeti("s" + key, normalise=False).text == "क" + want
+        return
     assert result == PreetiResult(want, ())
 
 
@@ -635,8 +640,8 @@ def test_sources_file_is_valid_and_attributed() -> None:
     assert all(len(key) == 1 for table in data["tables"].values() for key in table)
 
 
-def test_version_is_0_7_0() -> None:
-    assert aksharkit.__version__ == "0.7.0"
+def test_version_is_0_8_0() -> None:
+    assert aksharkit.__version__ == "0.8.0"
     pyproject = (ROOT / "pyproject.toml").read_text("utf-8")
-    assert 'version = "0.7.0"' in pyproject
+    assert 'version = "0.8.0"' in pyproject
     assert 'license-files = ["LICENSE", "NOTICE"]' in pyproject

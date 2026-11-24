@@ -181,7 +181,7 @@ def test_mixed_document_converts_only_preeti_runs() -> None:
     assert runs_of(part(data, "word/header1.xml")) == [("सरकारी कार्यालय", "Kalimati")]
     assert runs_of(part(data, "word/footer1.xml")) == [("Page ", "Calibri"), ("पृष्ठ", "Kalimati")]
     assert runs_of(part(data, "word/footnotes.xml")) == [
-        ("स्रोत ः ", "Kalimati"),
+        ("स्रोत : ", "Kalimati"),  # since 0.8: a visarga after a space is a colon
         ("Census 2021", "Calibri"),
     ]
     assert runs_of(part(data, "word/endnotes.xml")) == [("अन्त्य", "Kalimati")]
@@ -780,8 +780,10 @@ def test_cli_docx_errors(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> 
     assert code == 2 and "the output file is the input file" in err
     code, _, err = cli([*base, "-o", str(source), "--force"], capsys)
     assert code == 2 and "the output file is the input file" in err
-    code, _, err = cli([*base, "-o", str(tmp_path / "o.docx"), "--to", "preeti"], capsys)
-    assert code == 2 and "plain text only" in err
+    code, _, err = cli(
+        [*base, "-o", str(tmp_path / "o.docx"), "--to", "preeti", "--source-font", "X"], capsys
+    )
+    assert code == 2 and "--source-font has no meaning" in err
     code, _, err = cli([*base, "-o", str(tmp_path / "o.docx"), "--markers", "[", "]"], capsys)
     assert code == 2 and "apply to plain text" in err
     old = tmp_path / "old.doc"

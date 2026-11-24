@@ -127,7 +127,8 @@ def build_parser() -> argparse.ArgumentParser:
         "--docx",
         action="append",
         metavar="FILE",
-        help="convert the Preeti runs of a Word .docx file; needs -o or --out-dir",
+        help="convert the Preeti runs of a Word .docx file (with --to preeti: write its "
+        "Devanagari text as Preeti keys); needs -o or --out-dir",
     )
     p.add_argument("-o", "--output", metavar="FILE", help="write the result to FILE")
     p.add_argument(
@@ -172,10 +173,25 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--font",
         dest="docx_font",
-        default=legacy_docx.DEFAULT_DOCX_FONT,
+        default=None,
         metavar="NAME",
         help="font name to put on converted .docx runs "
-        f"(default {legacy_docx.DEFAULT_DOCX_FONT}; the font is not supplied)",
+        f"(default {legacy_docx.DEFAULT_DOCX_FONT}, or {legacy_docx.DEFAULT_PREETI_FONT} "
+        "with --to preeti; the font is not supplied)",
+    )
+    p.add_argument(
+        "--digits",
+        choices=legacy.DIGIT_MODES,
+        default="keep",
+        help="with --to preeti: keep ASCII digits as they are (default), or first rewrite "
+        "ASCII numbers on Nepali lines in Devanagari digits, which have keys",
+    )
+    p.add_argument(
+        "--mark-kept",
+        nargs=2,
+        metavar=("OPEN", "CLOSE"),
+        help="with --to preeti on plain text: put OPEN and CLOSE round everything left as "
+        "it was, so that converting back with --markers OPEN CLOSE gives the same text",
     )
     p.add_argument(
         "--source-font",
@@ -202,7 +218,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--include-unconfirmed",
         action="store_true",
-        help="also use entries that only one table family has",
+        help="also use entries that only one table family has (both directions)",
     )
     p.add_argument(
         "--strict",
@@ -410,24 +426,43 @@ def _warn_text(result: legacy.PreetiResult | legacy.PreetiEncodeResult, report: 
             if report:
                 for span in result.skipped:
                     print(f"  line {span.line}, column {span.column}: {span.text}", file=sys.stderr)
+        if result.foreign and not result.mark_kept:
+            print(
+                f"aksharkit: note: {len(result.foreign)} stretch(es) with no Devanagari "
+                "(English words, ASCII numbers) were left as they were; in the Preeti font "
+                "they would show as other letters. Use --mark-kept to mark them",
+                file=sys.stderr,
+            )
         if report:
+            for alien in result.foreign:
+                print(
+                    f"  line {alien.line}, column {alien.column}: left alone: {alien.text}",
+                    file=sys.stderr,
+                )
             if result.complete:
                 print(
-                    "aksharkit: every character was written as Preeti keys that convert "
+                    "aksharkit: every Nepali word was written as Preeti keys that convert "
                     "back to the same text",
                     file=sys.stderr,
                 )
-            print(
-                f"aksharkit: summary: {result.encoded} character(s) written as keys, "
-                f"{len(result.unmapped)} with no key, {len(result.skipped)} word(s) skipped, "
-                f"{len(result.protected)} stretch(es) protected",
-                file=sys.stderr,
-            )
+            _encode_summary(result.stats, len(result.protected))
         return
     if report:
         if not result.unmapped:
             print("aksharkit: every character had an agreed Preeti entry", file=sys.stderr)
         _summary(result.stats, len(result.protected))
+
+
+def _encode_summary(stats: legacy.PreetiEncodeStats, protected_spans: int | None = None) -> None:
+    line = (
+        f"aksharkit: summary: {stats.words_encoded} of {stats.words} Nepali word(s) written "
+        f"as keys ({_percent(stats.words_encoded, stats.words)}); {stats.encoded} character(s) "
+        f"written as keys, {stats.unmapped} left with no key, {stats.skipped} in words that "
+        f"did not read back, {stats.foreign} not Devanagari and left alone"
+    )
+    if protected_spans is not None:
+        line += f"; {protected_spans} stretch(es) protected"
+    print(line, file=sys.stderr)
 
 
 def _summary(stats: legacy.PreetiStats, protected_spans: int | None = None) -> None:
@@ -450,13 +485,14 @@ def _convert_text(
 ) -> legacy.PreetiResult | legacy.PreetiEncodeResult:
     markers = (args.markers[0], args.markers[1]) if args.markers else None
     if args.to == "preeti":
-        if args.include_unconfirmed:
-            raise ValueError("--include-unconfirmed has no meaning with --to preeti")
         return legacy.encode_preeti(
             text,
             strict=args.strict,
+            include_unconfirmed=args.include_unconfirmed,
             keep_links=not args.no_keep_links,
             markers=markers,
+            digits=args.digits,
+            mark_kept=(args.mark_kept[0], args.mark_kept[1]) if args.mark_kept else None,
             **_keep_options(args),
         )
     return legacy.convert_preeti(
@@ -469,7 +505,63 @@ def _convert_text(
     )
 
 
-def _convert_docx(source: str, target: Path, args: argparse.Namespace) -> legacy_docx.DocxReport:
+def _encode_docx(
+    source: str, target: Path, args: argparse.Namespace
+) -> legacy_docx.DocxEncodeReport:
+    report = legacy_docx.encode_docx(
+        source,
+        target,
+        overwrite=args.force,
+        font=args.docx_font or legacy_docx.DEFAULT_PREETI_FONT,
+        strict=args.strict,
+        include_unconfirmed=args.include_unconfirmed,
+        digits=args.digits,
+        keep_links=not args.no_keep_links,
+        **_keep_options(args),
+    )
+    if not report.stats.words:
+        print(
+            f"aksharkit: warning: {source} holds no Devanagari text; nothing was changed",
+            file=sys.stderr,
+        )
+    if report.left:
+        print(
+            f"aksharkit: warning: {len(report.left)} stretch(es) of Nepali text were left in "
+            "Unicode, in the font they had",
+            file=sys.stderr,
+        )
+        if args.report:
+            for item in report.left:
+                why = item.reason
+                if item.chars:
+                    why += ": " + " ".join(_describe_char(ch) for ch in item.chars)
+                print(
+                    f"  {item.part}, paragraph {item.paragraph}: {item.text} ({why})",
+                    file=sys.stderr,
+                )
+    if args.report:
+        if report.stats.words and report.complete:
+            print(
+                "aksharkit: every Nepali word was written as Preeti keys that convert back "
+                "to the same text",
+                file=sys.stderr,
+            )
+        print(
+            f"aksharkit: docx: {report.runs_converted} run(s) written as keys and set to "
+            f"{report.font}, {report.runs_split} mixed run(s) cut into pieces, "
+            f"{report.runs_untouched} run(s) left as they were, "
+            f"{report.paragraphs_changed} paragraph(s) changed, "
+            f"{report.boundary_moves} word(s) moved whole into their first run; parts read: "
+            f"{', '.join(report.parts)}",
+            file=sys.stderr,
+        )
+        _encode_summary(report.stats)
+    return report
+
+
+def _convert_docx(
+    source: str, target: Path, args: argparse.Namespace
+) -> legacy_docx.DocxReport | legacy_docx.DocxEncodeReport:
     if not source.lower().endswith(".docx"):
         raise ValueError(
             f"{source} does not end in .docx; an old .doc file must be saved as .docx first"
@@ -477,11 +569,13 @@ def _convert_docx(source: str, target: Path, args: argparse.Namespace) -> legacy
     if not Path(source).is_file():
         raise ValueError(f"no such file: {source}")
     _check_output(target, source, args.force)
+    if args.to == "preeti":
+        return _encode_docx(source, target, args)
     report = legacy_docx.convert_docx(
         source,
         target,
         overwrite=args.force,
-        font=args.docx_font,
+        font=args.docx_font or legacy_docx.DEFAULT_DOCX_FONT,
         source_fonts=args.source_font or ("Preeti",),
         include_unconfirmed=args.include_unconfirmed,
         strict=args.strict,
@@ -539,10 +633,14 @@ def _run_convert(args: argparse.Namespace) -> str | None:
         raise ValueError("give TEXT, or -i FILE, or --docx FILE, not several of them")
     if args.output and args.out_dir:
         raise ValueError("give -o FILE or --out-dir DIR, not both")
-    if documents and args.to == "preeti":
-        raise ValueError("--to preeti works on plain text only, not on .docx files")
-    if documents and (args.markers or args.no_keep_links):
-        raise ValueError("--markers and --no-keep-links apply to plain text, not to .docx files")
+    if args.to != "preeti" and (args.mark_kept or args.digits != "keep"):
+        raise ValueError("--mark-kept and --digits apply to --to preeti only")
+    if documents and (args.markers or args.mark_kept):
+        raise ValueError("--markers and --mark-kept apply to plain text, not to .docx files")
+    if documents and args.no_keep_links and args.to != "preeti":
+        raise ValueError("--no-keep-links applies to plain text, not to .docx files")
+    if documents and args.to == "preeti" and args.source_font:
+        raise ValueError("--source-font has no meaning with --to preeti")
     if inputs.count("-") > 1:
         raise ValueError("standard input can be read only once")
     many = len(inputs) + len(documents) > 1

@@ -26,7 +26,9 @@ def test_preeti_table_is_experimental_and_names_its_sources() -> None:
 def test_unicode_to_preeti_reports_instead_of_guessing() -> None:
     result = legacy.encode_preeti("नेपाल abc")
     assert result.text == "g]kfn abc"
-    assert result.unmapped_chars == ("a", "b", "c")
+    assert result.unmapped_chars == ()
+    assert [span.text for span in result.foreign] == ["abc"]
+    assert legacy.encode_preeti("नेपाल-भारत").unmapped_chars == ("-",)
 
 
 def test_unknown_font_is_a_value_error() -> None:

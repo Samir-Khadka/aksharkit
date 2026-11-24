@@ -8,7 +8,7 @@
 - **Telling Preeti from English without help.** There is no automatic
   "skip English words" option: see `docs/preeti.md` for why.
 
-## Preeti and Unicode (experimental, added in 0.6, extended in 0.7)
+## Preeti and Unicode (experimental, added in 0.6, extended in 0.7 and 0.8)
 
 - **The key table has not been checked against any real Preeti document, and
   no native reader has reviewed it or its output.** It holds what the Preeti
@@ -47,12 +47,41 @@
   text, the stretch is put into its first run, so some letters take that
   run's formatting. The text itself is right; `report.groups_merged` counts
   these.
-- **Unicode → Preeti (0.7) is checked only against this package's own
-  table**, by converting every word back. Nobody has looked at its output in
-  the Preeti font, and where several keys give one letter the key is chosen
-  by rule, not by typists' habit. Words that would not convert back the
-  same are left in Unicode and reported; so is every character with no key
-  (all Latin letters and digits among them).
+- **Unicode → Preeti is checked only against this package's own table**,
+  by converting every word back. Nobody has looked at its output in the
+  Preeti font, and where several keys give one letter the key is chosen by
+  rule, not by typists' habit. The 0.8 numbers (5,236 of 5,300 audited
+  forms, 2,638 of 2,639 hand-written words, 61 of 62 sentences) measure
+  that self-consistency and nothing more. The word list and sentences were
+  written by the builder and not reviewed by a native reader.
+- **What Unicode → Preeti cannot write** (left in Unicode and reported):
+  the hyphen `-`, dashes, `…`, straight quotes, `[ ] { }`, `*`, `&`, `#`,
+  `@`, `÷`, `॰`; a colon straight after a letter; forms with a zero-width
+  joiner or non-joiner (गर्‍यो, भर्‍याङ); nukta letters (ड़ and ढ़ only
+  with the single-table option); ॉ ऍ ऑ ॠ ॄ ऌ ॢ; ॅ and `×` only with the
+  single-table option. The hyphen matters most in practice: dates such as
+  २०८३-०१-१५ and names such as काठमाडौं-३ keep a Unicode hyphen.
+- **Three 0.8 rule choices have not been seen in the font**: `«` for ्र
+  under ङ छ ट ठ ड ढ, `..` for ॥, and the visarga key `M` for a colon that
+  does not follow a letter. They agree with the tables and with the 14
+  worked examples, which is not the same as being right.
+- **English and ASCII numbers are left as they are** in Unicode → Preeti.
+  In plain text they then sit among the keys, and set in the Preeti font
+  they show as other letters; `--mark-kept` marks them, a Word file gives
+  them their own runs. `--digits devanagari` changes the text (2083 becomes
+  २०८३).
+- **A Unicode .docx turned into Preeti (0.8)** was tried only on files
+  built by the tests. One output was read with python-docx and converted to
+  PDF by LibreOffice without error. It was never opened in Microsoft Word,
+  and never seen with the Preeti font installed. A run that is cut leaves
+  an empty run behind in some cases; that is valid, but untidy.
+- **Changed in 0.8:** `M` with no letter before it now reads as a colon
+  (0.7: ः), `..` reads as ॥ (0.7: ।।), and a reph key after a half letter
+  is placed (0.7: reported). Unicode → Preeti reports English as `foreign`,
+  not `unmapped`; writes `«` where 0.7 wrote `|` after ङ छ ट ठ ड ढ; and
+  writes ॥ and some colons that 0.7 reported. `--include-unconfirmed` with
+  `--to preeti` is now an option, not an error, and `--to preeti` accepts
+  `--docx`.
 - The share of characters "converted by agreed keys" in a report says how
   well-attested the keys used were. It is not a measure of correctness.
 - **Changed in 0.7:** a character with no agreed letter is now copied
@@ -106,13 +135,15 @@
   examples and a shared link). Phone untested. Its input box uses the
   system's monospace font; the page does not load the Preeti font, so pasted
   Preeti text looks like Latin letters.
-- **What 0.7 adds to the Preeti tab has not been opened in any browser**:
-  opening `.txt` and `.docx` files, "Download result", the direction switch,
-  highlighting, the Convert button for long text and the side-by-side
-  layout. It is covered by Node tests that fake the page and run ordinary
-  Python. In particular, converting a Word file needs Python's `zipfile` and
-  `xml.parsers.expat` inside Pyodide 0.29.5; they are expected to be there
-  but that was not checked.
+- **The 0.7.0 Preeti tab was checked once, in one desktop browser, on
+  24 November 2026**: both directions, a link kept, an unmapped key
+  highlighted, and a `.docx` opened and downloaded (so Python's `zipfile`
+  and `xml.parsers.expat` do work inside Pyodide 0.29.5). Phone untested.
+- **What 0.8 adds to the Preeti tab has not been opened in any browser**:
+  Unicode → Preeti for `.txt` and `.docx` files, its examples, the notice
+  about the Preeti font, whole-word highlighting and the coverage line. It
+  is covered by Node tests that fake the page and run ordinary Python. 0.8
+  was deployed on 24 November 2026; this direction has not yet been opened in a browser.
 - The conversion runs on the page's own thread. Text over 20,000 characters
   waits for the Convert button, and the page does not respond while it works.
   How long that takes in a browser was not measured. Files over 2 MB are

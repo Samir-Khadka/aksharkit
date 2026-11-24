@@ -931,11 +931,22 @@ def test_preeti_tool_other_direction() -> None:
     out = result("preeti", text="नेपाल abc क्ा कर्म", to="preeti")
     assert out["to"] == "preeti"
     assert out["text"] == "g]kfn abc क्ा sd{"
-    assert out["unmapped_count"] == 3 and out["skipped"] == ["क्ा"] and out["skipped_count"] == 1
-    assert [piece for piece, marked in out["pieces"] if marked] == ["a", "b", "c", "क्ा"]
+    # Since 0.8 English is "not Nepali, left as written", not a failure.
+    assert out["unmapped_count"] == 0 and out["skipped"] == ["क्ा"] and out["skipped_count"] == 1
+    assert out["foreign"] == ["abc"] and out["foreign_count"] == 1
+    assert [piece for piece, marked in out["pieces"] if marked] == ["क्ा"]
+    assert out["left"] == ["क्ा"] and out["left_count"] == 1
+    assert (out["stats"]["words"], out["stats"]["words_encoded"]) == (3, 2)
+    assert out["stats"]["share_words"] == pytest.approx(2 / 3)
     assert "".join(piece for piece, _ in out["pieces"]) == out["text"]
     back = result("preeti", text=result("preeti", text="विद्यार्थी २०८३", to="preeti")["text"])
     assert back["text"] == "विद्यार्थी २०८३"
+    # A word with a character that has no key stays whole, in Unicode, and marked.
+    out = result("preeti", text="भर्\u200dयाङ काठ-मा पढ़", to="preeti")
+    assert out["text"] == "भर्\u200dयाङ sf7-df पढ़"
+    assert out["left"] == ["भर्\u200dयाङ", "-", "पढ़"]
+    assert [piece for piece, marked in out["pieces"] if marked] == out["left"]
+    assert result("preeti", text="पढ़", to="preeti", unconfirmed=True)["text"] == "k9Þ"
     bad = call("preeti", text="क", to="sideways")
     assert not bad["ok"] and bad["kind"] == "ValueError"
 

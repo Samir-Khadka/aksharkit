@@ -343,7 +343,7 @@
 
     <section class="panel" role="tabpanel" id="panel-preeti" aria-labelledby="tab-preeti" tabindex="0" hidden>
       <h2>Preeti and Unicode</h2>
-      <p class="hint">A great deal of older Nepali text was typed in the Preeti font, where the file really holds Latin letters such as <code>g]kfn</code> that only look like <span lang="ne">नेपाल</span> when that font is installed. Paste such text here, or open a text or Word file, to get real Unicode. The other direction turns Unicode back into Preeti keystrokes.</p>
+      <p class="hint">A great deal of older Nepali text was typed in the Preeti font, where the file really holds Latin letters such as <code>g]kfn</code> that only look like <span lang="ne">नेपाल</span> when that font is installed. Paste such text here, or open a text or Word file, to get real Unicode. The other direction turns Unicode Nepali, pasted or in a text or Word file, into Preeti keystrokes for offices that still need them.</p>
       <p class="notice" id="preeti-status"><strong>Experimental.</strong> The key table is the part on which separately published, permissively-licensed tables agree. It has <strong>not yet been checked against real Preeti documents or by a native reader</strong>, so read the result before you rely on it. Keys with no agreed letter are left as they are, highlighted and listed below, never guessed.</p>
       <div class="options">
         <label for="opt-preeti-to">Direction</label>
@@ -356,7 +356,8 @@
         <div class="pair-side">
           <label for="in-preeti"><span id="lbl-preeti-in-text">Preeti text</span> <span class="label-note" id="lbl-preeti-in-note">(shown in an ordinary font, so it looks like Latin letters — that is expected)</span></label>
           <textarea id="in-preeti" data-tool="preeti" data-field="text" class="plain-input" rows="6" spellcheck="false" autocapitalize="off" autocomplete="off">g]kfn /fd|f] b]z xf] .</textarea>
-          <p class="examples"><span class="examples-label">Try:</span> <button type="button" class="example plain" data-example="in-preeti" data-value="ljBfno / lzIff">ljBfno / lzIff</button> <button type="button" class="example plain" data-example="in-preeti" data-value="sfo{qmd @)*# ;fn">sfo{qmd @)*# ;fn</button> <button type="button" class="example plain" data-example="in-preeti" data-value="k|wfgdGqL sf7df8f}+df x'g'x'G5 .">k|wfgdGqL sf7df8f}+df x'g'x'G5 .</button> <button type="button" class="example plain" data-example="in-preeti" data-value="g]kfn ¥ Ý">g]kfn ¥ Ý</button></p>
+          <p class="examples" id="examples-preeti"><span class="examples-label">Try:</span> <button type="button" class="example plain" data-example="in-preeti" data-value="ljBfno / lzIff">ljBfno / lzIff</button> <button type="button" class="example plain" data-example="in-preeti" data-value="sfo{qmd @)*# ;fn">sfo{qmd @)*# ;fn</button> <button type="button" class="example plain" data-example="in-preeti" data-value="k|wfgdGqL sf7df8f}+df x'g'x'G5 .">k|wfgdGqL sf7df8f}+df x'g'x'G5 .</button> <button type="button" class="example plain" data-example="in-preeti" data-value="g]kfn ¥ Ý">g]kfn ¥ Ý</button></p>
+          <p class="examples" id="examples-preeti-reverse" hidden><span class="examples-label">Try (Unicode to Preeti):</span> <button type="button" class="example" lang="ne" data-example="in-preeti" data-to="preeti" data-value="विद्यालय र शिक्षा">विद्यालय र शिक्षा</button> <button type="button" class="example" lang="ne" data-example="in-preeti" data-to="preeti" data-value="कार्यक्रम २०८३ साल">कार्यक्रम २०८३ साल</button> <button type="button" class="example" lang="ne" data-example="in-preeti" data-to="preeti" data-value="प्रधानमन्त्री काठमाडौंमा हुनुहुन्छ ।">प्रधानमन्त्री काठमाडौंमा हुनुहुन्छ ।</button> <button type="button" class="example" lang="ne" data-example="in-preeti" data-to="preeti" data-value="श्री प्रमुख ज्यू, विषय : सिफारिस सम्बन्धमा ।">श्री प्रमुख ज्यू, विषय : सिफारिस सम्बन्धमा ।</button> <button type="button" class="example" lang="ne" data-example="in-preeti" data-to="preeti" data-value="दर्ता नं. 245, काठमाडौं-३, Nepal">दर्ता नं. 245, काठमाडौं-३, Nepal</button></p>
           <div class="file-row">
             <label for="file-preeti">Open a file <span class="label-note">(.txt or .docx, up to 2 MB; it is read on this device and sent nowhere)</span></label>
             <input type="file" id="file-preeti" accept=".txt,.docx,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
@@ -390,13 +391,14 @@
             <p class="actions">
               <button type="button" id="btn-preeti-download" class="button ghost" disabled>Download result</button>
             </p>
+            <p id="note-preeti-reverse" class="notice" hidden>These are <strong>key codes for the Preeti font</strong>, not readable text. They look like Nepali only after you paste them into a document and set that text in the Preeti font, which this page does not supply. Highlighted words could not be written as keys and are still Unicode: give them a Unicode font.</p>
             <p id="out-preeti-unmapped" data-out="preeti.unmapped" class="note" aria-live="polite"></p>
             <p id="out-preeti-confidence" data-out="preeti.confidence" class="note" aria-live="polite"></p>
             <p id="out-preeti-note" data-out="preeti.note" class="note"></p>
           </div>
         </div>
       </div>
-      <p class="note">Web addresses and e-mail addresses in pasted text are left as they are. A Word file is different: only the text set in the Preeti font is converted, everything else in it is kept as it was, and the result is a new file to download. Nothing is guessed about which words are English.</p>
+      <p class="note">Web addresses and e-mail addresses in pasted text are left as they are. A Word file is different: only the text set in the Preeti font is converted, everything else in it is kept as it was, and the result is a new file to download. Nothing is guessed about which words are English. From Unicode to Preeti it is the other way round: only Devanagari is turned into keys, so English words, ASCII numbers and addresses stay as written, and in a Word file they keep their own font. A few marks have no Preeti key in this table (the hyphen, dashes, straight quotes, square brackets); a word holding one is left in Unicode and highlighted.</p>
       <p class="note">This page does not load the Preeti font. Have Preeti text with the correct Unicode beside it? That is what would turn this from experimental into checked: <a href="https://github.com/Samir-Khadka/aksharkit/issues">Preeti: help wanted</a> (opens the project's issues page on GitHub).</p>
     </section>
 

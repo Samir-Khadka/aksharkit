@@ -232,9 +232,19 @@ def _preeti(payload: dict[str, Any]) -> dict[str, Any]:
     label = legacy.PREETI_LABEL
     entries = len(legacy.load_font_map(include_unconfirmed=include_unconfirmed, strict=strict))
     if direction == "preeti":
-        encoded = ak.encode_preeti(text, strict=strict)
-        marks = [(item.output_offset, 1) for item in encoded.unmapped]
-        marks += [(span.output_offset, len(span.text)) for span in encoded.skipped]
+        encoded = ak.encode_preeti(
+            text, strict=strict, include_unconfirmed=include_unconfirmed, whole_words=True
+        )
+        # A word that could not be written is marked whole, not letter by letter.
+        marks = []
+        left = []
+        at = 0
+        for segment in encoded.segments:
+            if segment.kind in ("unmapped", "skipped"):
+                marks.append((at, len(segment.text)))
+                left.append(segment.text)
+            at += len(segment.text)
+        coverage = encoded.stats
         return {
             "to": "preeti",
             "text": encoded.text,
@@ -243,8 +253,17 @@ def _preeti(payload: dict[str, Any]) -> dict[str, Any]:
             "unmapped_count": len(encoded.unmapped),
             "skipped": [span.text for span in encoded.skipped[:20]],
             "skipped_count": len(encoded.skipped),
+            "left": left[:20],
+            "left_count": len(left),
+            "foreign": [span.text for span in encoded.foreign[:8]],
+            "foreign_count": len(encoded.foreign),
             "protected_count": len(encoded.protected),
             "encoded": encoded.encoded,
+            "stats": {
+                "words": coverage.words,
+                "words_encoded": coverage.words_encoded,
+                "share_words": coverage.share_words,
+            },
             "label": label,
             "entries": entries,
         }
@@ -280,6 +299,11 @@ def _preeti_docx(payload: dict[str, Any]) -> dict[str, Any]:
         data = base64.b64decode(str(payload.get("data", "")), validate=True)
     except ValueError as exc:
         raise ValueError("the file did not arrive whole; choose it again") from exc
+    direction = str(payload.get("to", "unicode"))
+    if direction == "preeti":
+        return _preeti_docx_reverse(data, include_unconfirmed, strict)
+    if direction != "unicode":
+        raise ValueError(f"unknown direction {direction!r}")
     options: dict[str, Any] = {"include_unconfirmed": include_unconfirmed, "strict": strict}
     font = str(payload.get("font", "")).strip()
     if font:
@@ -304,6 +328,33 @@ def _preeti_docx(payload: dict[str, Any]) -> dict[str, Any]:
             "unmapped": stats.unmapped,
             "agreed_share": stats.share("agreed"),
             "majority_share": stats.share("majority"),
+        },
+        "label": legacy.PREETI_LABEL,
+    }
+
+
+def _preeti_docx_reverse(data: bytes, include_unconfirmed: bool, strict: bool) -> dict[str, Any]:
+    """Write the Devanagari of a Word file as Preeti keys; the font is only named."""
+    converted, report = ak.encode_docx_bytes(
+        data, include_unconfirmed=include_unconfirmed, strict=strict
+    )
+    stats = report.stats
+    return {
+        "to": "preeti",
+        "data": base64.b64encode(converted).decode("ascii"),
+        "font": report.font,
+        "runs_converted": report.runs_converted,
+        "runs_split": report.runs_split,
+        "runs_untouched": report.runs_untouched,
+        "paragraphs_changed": report.paragraphs_changed,
+        "parts": list(report.parts),
+        "left": [item.text for item in report.left[:20]],
+        "left_count": len(report.left),
+        "stats": {
+            "words": stats.words,
+            "words_encoded": stats.words_encoded,
+            "share_words": stats.share_words,
+            "foreign": stats.foreign,
         },
         "label": legacy.PREETI_LABEL,
     }

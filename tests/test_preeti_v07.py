@@ -325,7 +325,19 @@ def test_every_value_in_the_table_and_its_combinations() -> None:
     ]
     assert len(values) == 131
     for value in values:
-        assert_round_trip(value)
+        if value == "ः":
+            # Since 0.8 a visarga with no letter before it reads as a colon,
+            # so alone it is left in Unicode and reported.
+            assert [span.text for span in encode_preeti(value).skipped] == [value]
+            assert_round_trip("क" + value)
+        elif any("\u0900" <= ch <= "\u097f" for ch in value):
+            assert_round_trip(value)
+        else:
+            # Since 0.8 a mark is written as a key only beside Nepali text;
+            # on its own it is not Nepali and is left alone.
+            assert encode_preeti(value).text == value
+            assert_round_trip(f"क {value} ख")
+            assert_round_trip(f"क{value}")
         if len(value) > 1 and value[-1] in CONSONANTS:
             for sign in VOWEL_SIGNS:
                 assert_round_trip(value + sign)
@@ -387,14 +399,16 @@ def test_random_devanagari_soup_never_reads_back_differently() -> None:
 
 
 def test_characters_without_a_key_are_reported_not_guessed() -> None:
-    result = encode_preeti("नेपाल 2026 ok ड़ ॥ ॉ")
-    assert result.text == "g]kfn 2026 ok 8़ ॥ ॉ"
-    assert result.unmapped_chars == ("2", "0", "6", "o", "k", "़", "॥", "ॉ")
+    result = encode_preeti("नेपाल 2026 ok ड़ काठ-मा ॉ")
+    assert result.text == "g]kfn 2026 ok 8़ sf7-df ॉ"
+    # Since 0.8 text with no Devanagari is "foreign", not a failure.
+    assert [span.text for span in result.foreign] == ["2026", "ok"]
+    assert result.unmapped_chars == ("़", "-", "ॉ")
     assert not result.complete
     first = result.unmapped[0]
-    assert (first.char, first.offset, first.line, first.column) == ("2", 6, 1, 7)
-    assert result.text[first.output_offset] == "2"
-    assert result.encoded == 6
+    assert (first.char, first.offset, first.line, first.column) == ("़", 15, 1, 16)
+    assert result.text[first.output_offset] == "़"
+    assert result.encoded == 11
 
 
 def test_a_word_that_does_not_read_back_is_left_in_unicode() -> None:
@@ -429,7 +443,9 @@ def test_input_is_normalised_first_and_positions_refer_to_that() -> None:
     assert unicode_to_preeti("काे") == "sf]"  # ा + े is ो
     assert unicode_to_preeti("र्इ") == "O{"  # र्इ is ई
     result = encode_preeti("कााx")
-    assert result.text == "sfx" and result.unmapped[0].offset == 2
+    assert result.text == "sfx" and result.foreign[0].start == 2
+    result = encode_preeti("कााॉ")
+    assert result.text == "sfॉ" and result.unmapped[0].offset == 2
 
 
 def test_protection_works_in_the_reverse_direction_too() -> None:
@@ -447,7 +463,16 @@ def test_encode_result_as_dict() -> None:
     assert payload["complete"] is False
     assert payload["text"] == "g]kfn x क्ा"
     assert payload["encoded"] == 5
-    assert payload["unmapped"][0]["codepoint"] == "U+0078"
+    assert payload["unmapped"] == []
+    assert payload["foreign"][0]["text"] == "x"
+    assert payload["stats"]["words"] == 2 and payload["stats"]["words_encoded"] == 1
+    assert [segment["kind"] for segment in payload["segments"]] == [
+        "keys",
+        "space",
+        "foreign",
+        "space",
+        "skipped",
+    ]
     assert payload["skipped"][0]["text"] == "क्ा"
     assert isinstance(encode_preeti(""), PreetiEncodeResult)
     assert encode_preeti("").complete
@@ -645,20 +670,21 @@ def test_cli_to_preeti(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> No
     )
     assert out == "g]kfn ok क्ा\n"
     assert err.splitlines() == [
-        "aksharkit: warning: 2 character(s) had no Preeti key and were left unchanged: "
-        "o (U+006F) k (U+006B)",
-        "  line 1, column 7: o (U+006F)",
-        "  line 1, column 8: k (U+006B)",
         "aksharkit: warning: 1 word(s) were left in Unicode because their Preeti keys "
         "did not convert back to the same text",
         "  line 1, column 10: क्ा",
-        "aksharkit: summary: 5 character(s) written as keys, 2 with no key, "
-        "1 word(s) skipped, 0 stretch(es) protected",
+        "aksharkit: note: 1 stretch(es) with no Devanagari (English words, ASCII numbers) "
+        "were left as they were; in the Preeti font they would show as other letters. "
+        "Use --mark-kept to mark them",
+        "  line 1, column 7: left alone: ok",
+        "aksharkit: summary: 1 of 2 Nepali word(s) written as keys (50.0%); 5 character(s) "
+        "written as keys, 0 left with no key, 3 in words that did not read back, "
+        "2 not Devanagari and left alone; 0 stretch(es) protected",
     ]
-    code, _, err = run(
-        ["convert", "preeti", "क", "--to", "preeti", "--include-unconfirmed", "--quiet"], capsys
+    code, out, _ = run(
+        ["convert", "preeti", "पढ़", "--to", "preeti", "--include-unconfirmed", "--quiet"], capsys
     )
-    assert code == 2 and "no meaning with --to preeti" in err
+    assert (code, out) == (0, "k9Þ\n")
     source = tmp_path / "u.txt"
     source.write_bytes("नेपाल\r\nहो\n".encode())
     target = tmp_path / "p.txt"

@@ -7,10 +7,12 @@
 Preeti is a legacy font: a file typed in it holds Latin letters and symbols
 (`g]kfn`) that only look like Nepali (`नेपाल`) while that font is installed.
 `aksharkit.legacy` turns such text into Unicode, and Unicode back into Preeti
-keys. Version 0.7 adds Word (.docx) files, text files, protected stretches,
-the other direction and fuller reports. **None of that changes the status
-above:** the key table is the 0.6 table, and it is still unchecked against
-real documents.
+keys. Version 0.7 added Word (.docx) files, text files, protected stretches,
+the other direction and fuller reports. Version 0.8 works on the other
+direction, Unicode to Preeti: a coverage audit, better encoding rules, a
+hand-written word list, Word files and a clearer playground. **None of that
+changes the status above:** the key table is the 0.6 table, and it is still
+unchecked against real documents.
 
 ```python
 from aksharkit import convert_preeti, preeti_to_unicode
@@ -188,24 +190,31 @@ wrong silently in either direction is worse than none.
 
 ## Unicode to Preeti
 
+Rewritten in 0.8 so that it can be measured. It is still experimental: the
+key table is the same unchecked table, and **nobody has looked at any of
+these keys in the Preeti font.**
+
 ```python
 from aksharkit import encode_preeti, unicode_to_preeti
 
 unicode_to_preeti("विद्यार्थी")  # 'ljBfyL{'
-result = encode_preeti("नेपाल abc क्ा कर्म")
-result.text  # 'g]kfn abc क्ा sd{'
-result.unmapped_chars  # ('a', 'b', 'c')   no Preeti key: left as they are
-[span.text for span in result.skipped]  # ['क्ा']   would not read back the same
+result = encode_preeti("दर्ता नं. 245, काठमाडौं-३, Nepal")
+result.text  # 'btf{ g+= 245, sf7df8f}+-#, Nepal'
+[span.text for span in result.foreign]  # ['245,', 'Nepal']   not Nepali: left alone
+result.unmapped_chars  # ('-',)   inside Nepali text, no Preeti key
+result.stats  # PreetiEncodeStats(words=3, words_encoded=2, encoded=18, unmapped=1, ...)
+result.segments  # every stretch, in order, with its kind: keys, space, foreign, unmapped, ...
 ```
 
 ```console
-$ aksharkit convert preeti --to preeti 'नेपाल राम्रो देश हो । कर्म abc' --quiet --report
-g]kfn /fd|f] b]z xf] . sd{ abc
-aksharkit: warning: 3 character(s) had no Preeti key and were left unchanged: a (U+0061) b (U+0062) c (U+0063)
-  line 1, column 28: a (U+0061)
-  line 1, column 29: b (U+0062)
-  line 1, column 30: c (U+0063)
-aksharkit: summary: 21 character(s) written as keys, 3 with no key, 0 word(s) skipped, 0 stretch(es) protected
+$ aksharkit convert preeti --to preeti 'नेपाल राम्रो देश हो । दर्ता नं. 245, काठमाडौं-३, Nepal' --quiet --report
+g]kfn /fd|f] b]z xf] . btf{ g+= 245, sf7df8f}+-#, Nepal
+aksharkit: warning: 1 character(s) had no Preeti key and were left unchanged: - (U+002D)
+  line 1, column 46: - (U+002D)
+aksharkit: note: 2 stretch(es) with no Devanagari (English words, ASCII numbers) were left as they were; in the Preeti font they would show as other letters. Use --mark-kept to mark them
+  line 1, column 33: left alone: 245,
+  line 1, column 50: left alone: Nepal
+aksharkit: summary: 7 of 8 Nepali word(s) written as keys (87.5%); 35 character(s) written as keys, 1 left with no key, 0 in words that did not read back, 9 not Devanagari and left alone; 0 stretch(es) protected
 ```
 
 What it promises is narrow and checked: **every word it writes as keys
@@ -213,32 +222,229 @@ converts back, with `convert_preeti`, to the normalised form of what went
 in.** Each word is converted back before it is accepted; a word that does not
 come back the same is left in Unicode and listed in `result.skipped`. A
 character with no key in the table is left as it is and listed in
-`result.unmapped`. Nothing is guessed. The tests run this round trip over
-every consonant with every vowel sign, every conjunct and sequence in the
-table, reph and short i on clusters, digits, punctuation, 6,000 random
-well-formed strings and 4,000 strings of random Devanagari characters (for
-those, the check is that nothing is ever read back differently).
+`result.unmapped`. Nothing is guessed.
 
-What it does not promise:
+### How much can be written: the coverage audit
 
-- **That the keys are the ones a typist would use.** Where several keys give
-  the same letter, one is chosen by rule: the key more table families agree
-  on, then the shorter, then ASCII before other characters. The result is one
-  valid way to type the text.
-- **That it looks right in the Preeti font.** Nobody has looked. Round-trip
-  through this package's own table is the only check, so a mistake shared by
-  both directions would not show.
-- Letters outside the table (ॐ, ऋ, ङ्ग and other conjuncts with no agreed
-  key) are reported, not approximated. Keys from the `unconfirmed` and
-  `disputed` lists are never written; `strict=True` also avoids the four
-  `majority` keys.
-- Latin letters and digits have no Preeti key (those keys mean something
-  else), so English in the input is reported as unmapped.
+`scripts/preeti_coverage.py` writes 5,300 forms one by one and reads each
+back. A form passes only if all of it became keys and the keys read back as
+exactly the same text.
+
+```console
+$ python scripts/preeti_coverage.py                 # the report, with every failure and why
+$ python scripts/preeti_coverage.py --unconfirmed   # also use the single-table keys
+$ python scripts/preeti_coverage.py --strict        # leave out the four majority keys
+$ python scripts/preeti_coverage.py --check         # the table below is current
+```
+
+<!-- coverage:start -->
+| Class | Forms | Default | `--unconfirmed` | `--strict` |
+| --- | ---: | ---: | ---: | ---: |
+| The 33 consonants | 33 | 33 | 33 | 33 |
+| Independent vowels, with अं and अः | 13 | 13 | 13 | 13 |
+| Devanagari digits | 10 | 10 | 10 | 9 |
+| Consonant with a vowel sign | 330 | 330 | 330 | 330 |
+| Consonant with ँ ं ः or a halant | 132 | 132 | 132 | 132 |
+| Consonant, vowel sign, then ँ or ं | 660 | 660 | 660 | 660 |
+| Every two-consonant conjunct | 1089 | 1089 | 1089 | 1089 |
+| Every two-consonant conjunct with ि | 1089 | 1089 | 1089 | 1089 |
+| Every two-consonant conjunct with a halant | 1089 | 1089 | 1089 | 1089 |
+| Longer conjuncts (hand list) | 86 | 86 | 86 | 86 |
+| Longer conjuncts with ि, ी, े and ों | 344 | 344 | 344 | 344 |
+| Shapes with a key of their own (hand list) | 55 | 55 | 55 | 55 |
+| Reph, ra stroke and ऋ forms | 273 | 269 | 269 | 269 |
+| Punctuation straight after a word | 35 | 16 | 17 | 16 |
+| Punctuation standing alone between words | 35 | 17 | 18 | 17 |
+| ॐ, ऽ, borrowed vowels and nukta letters | 17 | 2 | 5 | 2 |
+| Forms with a zero-width joiner or non-joiner | 10 | 2 | 2 | 2 |
+| **All** | **5300** | **5236** | **5241** | **5235** |
+<!-- coverage:end -->
+
+Every consonant, vowel, digit, vowel sign, nasal sign, halant, every one of
+the 1,089 two-consonant conjuncts (plain, with ि, and with a halant), the
+listed longer conjuncts and every listed reph and ra form can be written.
+**That is a statement about this table reading its own output back, not
+about what the font draws.**
+
+The 64 forms that cannot be written, and why:
+
+| Form | Why |
+| --- | --- |
+| र्‍य र्‍ह क्‍ष श्‍च (with a zero-width joiner, U+200D) | The only candidate key, `¥`, is disputed between the tables (र् or र्‍), so it is never written. This is the "eyelash" ra of words like गर्‍यो and भर्‍याङ |
+| Forms with a zero-width non-joiner (U+200C) | No key |
+| ॠ, ॄ, ऌ, ॢ | No key in any table |
+| ऍ, ऑ, ॉ (borrowed vowels) | No key in any table |
+| ॅ | Only a single-table key (`‘`): written with `include_unconfirmed=True` |
+| ड़ ढ़ | Only a single-table key for the dot (`Þ` after `8` and `9`): written with `include_unconfirmed=True` |
+| क़ ख़ ग़ ज़ फ़ य़ | No key: the single-table dot is listed for ड and ढ only |
+| `-` `–` `—` `…` `[` `]` `{` `}` `*` `"` `'` `॰` `÷` `&` `#` `@` | No key in the agreed table. In Preeti these keyboard keys draw Nepali letters and marks |
+| `’` | The key is disputed |
+| `×` | Only a single-table key |
+| `:` straight after a letter | The only key for a colon is the visarga key `M`, and after a letter that key reads as ः. After a space, a digit or at the start it is written (see "Rule choices") |
+
+Standing alone between words, a mark with no key is not Nepali text at all
+and is simply left as it is, like an English word.
+
+### The word list
+
+`tests/golden/preeti_wordlist.txt` holds 2,639 different everyday Nepali
+words (government and form vocabulary, names, places, numbers, dates,
+months, weekdays) and `tests/golden/preeti_sentences.txt` holds 62 ordinary
+sentences. Both were written by hand for this project and have **not been
+reviewed by a native reader**; a few spellings may be non-standard.
+
+- **2,638 of 2,639 words (99.96%)** are written wholly as keys, and every
+  one of them reads back exactly. The one left in Unicode is भर्‍याङ (the
+  zero-width joiner).
+- **61 of 62 sentences** are written wholly as keys and read back exactly.
+  The one that is not holds गर्‍यो.
+
+There are **no hand-made Preeti "expected outputs"** in those files. Making
+some up would be inventing ground truth. The test checks one property: what
+is written reads back the same. It does not show that the keys are the ones
+a typist would press or that they look right in the font.
+
+### Worked examples from two other converters
+
+`tests/golden/preeti_crosscheck.tsv` holds 14 Preeti/Unicode pairs shown as
+examples on two public converter pages, each labelled with its page:
+
+- https://www.engineeringnepal.com.np/p/preeti-to-unicode.html (6 pairs)
+- https://shobfree.com/nepali-preeti-to-unicode-converter (8 pairs)
+
+All 14 convert to the Unicode those pages show, and all 14, converted the
+other way, give **the identical key string** those pages show (for example
+`;D´f}tf`, `cGt/f{li6«o`, `km"n`). The test would also accept a different
+key sequence that reads back the same; it was not needed. These are **worked
+examples from other converters, not ground truth and not real documents**:
+those pages may descend from the same tables aksharkit compared, so
+agreement is weaker evidence than it looks. `tests/golden/preeti_samples.tsv`
+stays empty, reserved for text really typed in Preeti.
+
+### English, numbers and punctuation in Nepali text
+
+Only Devanagari is turned into keys. Decided in 0.8:
+
+- **A word with no Devanagari in it is left exactly as it is** and listed in
+  `result.foreign`: English words, web and e-mail addresses, ASCII numbers.
+  It does not count as a failure and `result.complete` stays true. (0.7
+  reported every Latin letter as unmapped.)
+- **ASCII digits are never written as keys.** The digit keys of the Preeti
+  font draw other things (`2` draws द्द, `5` draws a ligature), so `245`
+  typed in Preeti would not show 245. By default the digits stay as they
+  are, flagged as foreign. With `digits="devanagari"` (`--digits
+  devanagari`) ASCII numbers on lines that hold Devanagari are first
+  rewritten in Devanagari digits, which do have keys: `2083` becomes `@)*#`.
+  That changes the text: converting back gives २०८३, not 2083.
+- **Punctuation that has a key** (`।` `,` `.` `?` `!` `;` `(` `)` `/` `%`
+  `+` `=` and the curly quotes) is written as that key when it stands in or
+  beside Nepali text.
+- **Punctuation with no key** (see the table above) inside a Nepali word is
+  left as it is and reported in `result.unmapped`; the letters round it are
+  still written. With `whole_words=True` the letters stay in Unicode too
+  when the hole is a joiner inside the word.
+
+In plain text the result is one string, so the parts left alone sit among
+the keys, and a reader who sets the whole text in Preeti would see them as
+wrong letters. Two ways round that:
+
+- `mark_kept=("{{", "}}")` (`--mark-kept '{{' '}}'`) puts markers round
+  every stretch that was left as it was. Converting back with
+  `markers=("{{", "}}")` then gives the normalised input again:
+
+  ```console
+  $ aksharkit convert preeti --to preeti 'दर्ता नं. 245, Nepal' --quiet --mark-kept '{{' '}}'
+  btf{ g+= {{245,}} {{Nepal}}
+  $ aksharkit convert preeti 'btf{ g+= {{245,}} {{Nepal}}' --quiet --markers '{{' '}}'
+  दर्ता नं. 245, Nepal
+  ```
+
+- use a Word file, where each part keeps a font of its own (next section).
+
+### Word files: Unicode .docx to Preeti .docx
+
+```python
+from aksharkit import encode_docx
+
+report = encode_docx("nibedan.docx", "nibedan-preeti.docx")
+report.runs_converted, report.runs_split, report.runs_untouched
+[item.text for item in report.left]  # Nepali left in Unicode, with part and paragraph
+report.stats.share_words
+```
+
+```console
+$ aksharkit convert preeti --to preeti --docx nibedan.docx -o nibedan-preeti.docx --report
+aksharkit: note: Preeti conversion is experimental — mapping agreed by at least 2 of 3 permissively-licensed table families (4 projects), not yet checked against real Preeti documents or by a native reader
+aksharkit: warning: 3 stretch(es) of Nepali text were left in Unicode, in the font they had
+  word/document.xml, paragraph 1: : (no key: : (U+003A))
+  word/document.xml, paragraph 1: भर्‍याङ (no key: ? (U+200D))
+  word/document.xml, paragraph 1: - (no key: - (U+002D))
+aksharkit: docx: 2 run(s) written as keys and set to Preeti, 2 mixed run(s) cut into pieces, 3 run(s) left as they were, 2 paragraph(s) changed, 1 word(s) moved whole into their first run; parts read: word/document.xml
+aksharkit: summary: 11 of 14 Nepali word(s) written as keys (78.6%); 61 character(s) written as keys, 9 left with no key, 0 in words that did not read back, 18 not Devanagari and left alone
+```
+
+(That file was built for the purpose, with awkward cases in it.)
+
+- Every stretch of Devanagari that can be written is replaced by its keys
+  in a run whose font is set to **the name** `Preeti` (`--font NAME` for
+  another name). No font is added to the file, bundled with this package or
+  linked from anywhere: the computer that opens the file must have Preeti.
+- Runs with no Devanagari are not touched. A run holding both is cut into
+  several runs: keys in Preeti, the rest (English, ASCII numbers, a mark
+  with no key) with the properties it had.
+- A Nepali word holding a character with no key **stays whole, in Unicode,
+  in the font it had**, and is listed in `report.left`.
+- A word cut across several runs is written as one and put into its first
+  run (`report.boundary_moves` counts these), as in the other direction.
+- Bold, italic and size that were set only for complex scripts are copied to
+  the ordinary properties, because key codes are plain Latin characters to a
+  word processor.
+- The same parts are read as in the other direction (body, tables, headers,
+  footers, footnotes, endnotes, comments), everything else is copied byte
+  for byte, and the input file is never written to.
+- Converting the result back with `convert_docx` gives the same text. The
+  tests check that, and that the output is well-formed XML; one output was
+  also read with python-docx and converted to PDF by LibreOffice without
+  error. **It has not been opened in Microsoft Word, and nobody has seen it
+  with the Preeti font installed.**
+
+Text files work as in the other direction: `-i FILE -o FILE`, several `-i`
+with `--out-dir DIR`, `--force`, line endings kept exactly.
+
+### Single-table keys (off by default)
+
+`include_unconfirmed=True` (`--include-unconfirmed`) also writes the keys
+only one table family has: ड़ (`8Þ`), ढ़ (`9Þ`), ॅ (`‘`) and `×`. That
+raises the audit from 5,236 to 5,241 forms. Such text reads back only when
+the other direction is given the same option, and these keys are the least
+attested in the table. The disputed keys are never written.
+
+### Rule choices made in 0.8
+
+Each of these makes more text writable and reads back exactly. Each is a
+choice made from the tables and the worked examples, **not from looking at
+the font**:
+
+- **्र under round letters.** After ङ छ ट ठ ड ढ the ra stroke is written
+  with `«` (ट्रक is `6«s`, राष्ट्र is `/fi6«`), as the cross-check example
+  `cGt/f{li6«o` has it; after other letters with `|`. 0.7 wrote `|`
+  everywhere.
+- **॥** is written as two danda keys, `..`, and two danda keys together are
+  read as ॥.
+- **A colon** that is not straight after a letter is written with the
+  visarga key `M` (`विषय : निवेदन` is `ljifo M lgj]bg`, `१०:३०` is
+  `!)M#)`), and that key with no letter before it is read as a colon. One
+  table family notes this use; the others are silent. A visarga cannot
+  stand without a letter, so nothing well-formed is lost.
+- **Where several keys give the same letter**, one is chosen by rule: the
+  key more table families agree on, then the shorter, then ASCII before
+  other characters. The result is one valid way to type the text, not
+  necessarily a typist's way.
 
 ## Reports
 
-`convert_preeti(...).as_dict()`, `encode_preeti(...).as_dict()` and
-`DocxReport.as_dict()` give plain data, and `--json` prints it:
+`convert_preeti(...).as_dict()`, `encode_preeti(...).as_dict()`,
+`DocxReport.as_dict()` and `DocxEncodeReport.as_dict()` give plain data, and `--json` prints it:
 
 ```console
 $ aksharkit convert preeti - --quiet --json < patra.txt
@@ -277,6 +483,20 @@ type. A file's text is never put in the address or the shareable link. The
 page gives the text of a text file with whatever line endings the browser
 keeps; use the command line where exact bytes matter.
 
+From 0.8 the Unicode to Preeti direction has the same file open and
+download (a `.txt` gives `-preeti.txt`, a `.docx` gives `-preeti.docx`), its
+own examples, the single-table keys as an option, whole words that could not
+be written highlighted, and a line saying how many Nepali words became keys.
+A notice says that the result is key codes which read as Nepali only in the
+Preeti font, which the page does not load or supply. The page has no digits
+or marker options; use the command line for those.
+
+**Browser checks.** The 0.7.0 Preeti tab was checked once in a desktop
+browser on 24 November 2026: both directions, a link kept, an unmapped key
+highlighted, and a `.docx` opened and downloaded. A phone is untested. What
+0.8 adds has not been opened in any browser; it is covered by tests that
+fake the page and run ordinary Python.
+
 ## What has and has not been checked
 
 Checked:
@@ -286,7 +506,12 @@ Checked:
 - that the reordering rules do what this page says, on inputs typed by the
   builder from the table;
 - that Unicode → Preeti → Unicode gives back the normalised input for every
-  word the encoder accepts (generated inputs, see "Unicode to Preeti");
+  word the encoder accepts: 5,300 audited forms, 2,639 hand-written words,
+  62 sentences, and generated inputs (see "Unicode to Preeti");
+- that 14 example pairs from two other converters' pages agree in both
+  directions;
+- that a Unicode .docx built by the tests, written as Preeti and converted
+  back, has the same text;
 - that a .docx built by the tests comes back with only its Preeti runs
   changed and every other part byte for byte the same.
 
@@ -305,11 +530,17 @@ Checked:
 
 - **No Word file made by Microsoft Word has been converted**, and no output
   has been opened in Microsoft Word. No real Preeti text file either.
-- **The 0.7 playground tab has not been opened in a browser.** Opening files,
-  downloading, and converting Word files inside Pyodide are covered only by
-  tests that fake the browser and run ordinary Python.
-- The keys written by Unicode → Preeti have never been looked at in the
-  Preeti font.
+- **The 0.8 additions to the playground tab have not been opened in a
+  browser.** (The 0.7.0 tab was checked once in a desktop browser on
+  24 November 2026, including a `.docx` open and download; a phone is
+  untested.)
+- **The keys written by Unicode → Preeti have never been looked at in the
+  Preeti font.** The coverage audit, the word list and the sentences show
+  only that this package reads its own output back. A mistake shared by both
+  directions would not show.
+- The word list and the sentences were written by the builder and not
+  reviewed by a native reader.
+- The 14 cross-check pairs are other converters' examples, not documents.
 
 Real samples go in `tests/golden/preeti_samples.tsv`. The file explains the
 format; each line added becomes a test.
@@ -450,6 +681,19 @@ come from the sources, the families that state it are named.
    (`cf` आ, `cf]` ओ, `sf]` को, `P]` ऐ) and drops doubled signs. White space
    and `|` are left alone here.
 
+Added in 0.8, each with tests:
+
+8. **Reph after a half letter.** `{` after a letter that ends in a halant
+   (`s\{`) now moves to the front of it (र्क्); 0.7 reported that `{` as
+   unmapped.
+9. **Two danda keys together** (`..`) are read as ॥; 0.7 gave ।।. With a
+   space between them they stay two dandas.
+10. **The visarga key with no letter before it** (`M` after a space, a
+    digit, punctuation or at the start) is read as a colon: `ljifo M lgj]bg`
+    is विषय : निवेदन and `!)M#)` is १०:३०. After a letter or a vowel sign it
+    is ः as before (`b'Mv` is दुःख). One table family notes this use of the
+    key; no real document has confirmed it.
+
 ## What it does not do
 
 - **Other fonts** (Kantipur, Himali, Sagarmatha, PCS Nepali): not supported.
@@ -462,9 +706,9 @@ come from the sources, the families that state it are named.
 - **Fonts in a .docx that come from a table style**, text in drawings, and
   the other cases marked "No" in the table above.
 - **Typing habits it has not seen.** Real typists overstrike, repeat signs,
-  and use keys in ways no table lists. Four one-family notes were left out:
-  `f‘` for ॉ, `N˜` for ल, `6[` for ट्ट, and `M` at the start of a word as a
-  colon.
+  and use keys in ways no table lists. Three one-family notes were left out:
+  `f‘` for ॉ, `N˜` for ल and `6[` for ट्ट. (A fourth, `M` as a colon where
+  no letter stands before it, is used from 0.8.)
 - **Disputed and unknown keys** are left exactly as they are. Read the
   unmapped list: a short one usually means a rare conjunct key, a long one
   usually means the text is not Preeti.

@@ -1,5 +1,104 @@
 # Changelog
 
+## 0.8.0 — 24 November 2026
+
+Pushed and deployed to the playground on 24 November 2026. Not released on PyPI.
+
+This release works on Unicode → Preeti: what it can write is now measured,
+more of it can be written, and it works on files. **The key table is still
+the 0.6 table and still experimental**: unchecked against real Preeti
+documents, by a native reader, or by anyone looking at the Preeti font.
+Every number below is this package reading its own output back.
+
+### Added
+
+- **Coverage audit**: `scripts/preeti_coverage.py` writes 5,300 forms
+  (consonants, vowel signs, nasal signs, every two-consonant conjunct, longer
+  conjuncts, reph and ra forms, vowels, digits, punctuation, joiner forms,
+  nukta letters, ॐ ऽ) and reads each back. **5,236 are written as keys and
+  read back exactly** (5,241 with single-table keys, 5,235 in strict mode).
+  It lists every form it cannot write and why; `--json`, `--markdown`,
+  `--check`. The table and the list are in `docs/preeti.md`.
+- **A hand-written word list and sentences**:
+  `tests/golden/preeti_wordlist.txt` (2,639 different words) and
+  `tests/golden/preeti_sentences.txt` (62 sentences). **2,638 words (99.96%)
+  and 61 sentences are written wholly as keys and read back exactly**; the
+  two exceptions hold the zero-width-joiner ra (भर्‍याङ, गर्‍यो). The files
+  hold no Preeti keys: only the round trip is tested, not made-up outputs.
+- **Cross-check**: `tests/golden/preeti_crosscheck.tsv`, 14 example pairs
+  shown on two other converters' pages, labelled by page. All 14 agree in
+  both directions, with identical key strings. They are worked examples,
+  not ground truth; `preeti_samples.tsv` stays reserved for real samples.
+- **Word files, Unicode → Preeti**: `encode_docx(src, dst, *, font="Preeti",
+  overwrite=False, strict=False, include_unconfirmed=False, digits="keep",
+  ...)` and `encode_docx_bytes(data, ...)` return a `DocxEncodeReport`.
+  Devanagari becomes keys in runs whose font is set to the name Preeti (no
+  font is supplied); runs without Devanagari are untouched; mixed runs are
+  cut; a Nepali word that cannot be written stays whole in Unicode in its
+  own font and is listed in `report.left` (`DocxLeft`). Converting the
+  result back with `convert_docx` gives the same text.
+- `aksharkit convert preeti --to preeti --docx in.docx -o out.docx`, and
+  `--to preeti` with `-i`, `-o`, `--out-dir` as before.
+- `encode_preeti` options: `include_unconfirmed` (single-table keys for ड़
+  ढ़ ॅ ×, off by default; `--include-unconfirmed`), `digits="devanagari"`
+  (`--digits devanagari`), `mark_kept=(open, close)` (`--mark-kept OPEN
+  CLOSE`: mark what was left alone so that plain text converts back
+  exactly), `whole_words`.
+- `PreetiEncodeResult.foreign` (`ForeignSpan`), `.segments`
+  (`PreetiSegment`: every stretch in order with its kind) and `.stats`
+  (`PreetiEncodeStats`: words, words written, characters, shares).
+- **Playground** (local only): Unicode → Preeti opens `.txt` and `.docx`
+  files and downloads the result, has five examples of its own, the
+  single-table option, whole words that could not be written highlighted, a
+  coverage line, and a notice that the result is key codes that read as
+  Nepali only in the Preeti font. No new CDN resource; asset stamping
+  unchanged; a file's text still never goes into the address.
+
+### Changed
+
+- **Unicode → Preeti leaves text with no Devanagari alone** and lists it in
+  `result.foreign`. 0.7 reported every Latin letter and ASCII digit as
+  unmapped, and `complete` was false for any text with English in it.
+- ्र after ङ छ ट ठ ड ढ is written with `«` (ट्रक `6«s`); 0.7 wrote `|`.
+- ॥ is written as `..`, and a colon that does not follow a letter as `M`;
+  0.7 reported both as having no key.
+- **Preeti → Unicode**: `..` reads as ॥ (0.7: ।।); `M` with no letter
+  before it reads as a colon (0.7: ः); a reph key after a half letter is
+  placed (0.7: reported as unmapped).
+- `--report` for `--to preeti` prints words written and left, and the
+  stretches left alone. `--include-unconfirmed` with `--to preeti` is no
+  longer an error. `--font` defaults to Preeti with `--to preeti`.
+- `encode_preeti(...).as_dict()` has four more keys: `stats`, `foreign`,
+  `segments`, `mark_kept`.
+
+### Cannot be written (reported, never guessed)
+
+The hyphen, en and em dash, `…`, straight quotes, `[ ] { }`, `*`, `&`,
+`#`, `@`, `÷`, `॰`, `’` (disputed key); a colon straight after a letter;
+forms with a zero-width joiner or non-joiner; nukta letters (ड़ ढ़ with the
+single-table option only); ॉ ऍ ऑ ॠ ॄ ऌ ॢ; ॅ and `×` with the single-table
+option only.
+
+### Not verified
+
+- **No real Preeti document** has been converted in either direction.
+- **Nobody has looked at any key in the Preeti font.** The audit, the word
+  list and the sentences prove only that the two directions agree with each
+  other. `«` for ्र, `..` for ॥ and `M` for a colon are rule choices.
+- **No native reader** has reviewed the table, the word list, the sentences
+  or any output.
+- The 14 cross-check pairs come from other converters, which may share
+  table lineage with the sources already compared.
+- **Microsoft Word**: no output was opened in it, and no input came from
+  it. One output was read with python-docx and by LibreOffice only.
+- Whether Preeti or Kalimati is installed anywhere is not checked.
+- **The 0.8 playground has not been opened in any browser.** The 0.7.0
+  Preeti tab was checked once in a desktop browser on 24 November 2026,
+  including a .docx open and download; a phone is untested for every
+  version.
+- Plain text Preeti → Unicode still cannot tell English from Preeti.
+- Where the four tables came from is still unknown.
+
 ## 0.7.0 — 24 November 2026
 
 Pushed and deployed to the playground on 24 November 2026. Not released on PyPI.

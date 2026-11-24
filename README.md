@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/Samir-Khadka/aksharkit/actions/workflows/ci.yml/badge.svg)](https://github.com/Samir-Khadka/aksharkit/actions/workflows/ci.yml)
 
-> **Status: pre-release (0.7.0).** Not yet published to PyPI.
+> **Status: pre-release (0.8.0, built and tested locally).** Not yet published to PyPI.
 
 A small, typed, dependency-free Python toolkit for everyday Nepali text
 chores: cleaning Unicode, splitting text into aksharas (written syllables),
@@ -38,9 +38,12 @@ tab has examples to tap, and "Copy a link to this result" puts what you typed
 in the address after `#`, which browsers do not send to the server.
 
 The 0.3.0, 0.4.0, 0.5.0 and 0.6.0 pages were each checked once in a desktop
-browser on 24 November 2026, the 0.6.0 Preeti tab included. What 0.7.0 adds
-to the Preeti tab (opening and downloading files, Word files, the other
-direction, highlighting) has not been opened in a browser yet. Real phones
+browser on 24 November 2026, the 0.6.0 Preeti tab included. The 0.7.0
+Preeti tab (opening and downloading files, Word files, the other direction,
+highlighting) was checked once in a desktop browser the same day, including
+a .docx open and download. What 0.8.0 adds to it (Unicode to Preeti for
+files, its examples and coverage line) has not been opened in a browser
+yet. Real phones
 and screen readers are untested for every version, see
 [docs/known-issues.md](docs/known-issues.md).
 
@@ -106,9 +109,9 @@ No accuracy comparison with other packages has been made. None is claimed.
 | `dates` patterns and month names | Done (0.5), same range and guards | `format_bs(date, "%-d %B %Y")`; `parse_bs("२०८३ मंसिर ८")`. Only the package's own month spellings are read |
 | `dates` arithmetic | Done (0.4), same range and guards | `add_days`, `add_months`, `days_between`, `difference`, `age`, `month_calendar`, `format_month_calendar` |
 | `translit` | Done; `simple` spellings await native-speaker review | `iast`: exact and reversible. `simple`: plain ASCII, rule-based and approximate, especially Roman → Devanagari |
-| `legacy` (Preeti ↔ Unicode) | **Experimental (0.6, extended in 0.7)** — not checked against real Preeti documents or by a native reader | 126 keys agreed by at least 2 of 3 families of MIT-licensed tables; own reordering rules; unmapped characters reported with line and column, never guessed. 0.7: text files, protected stretches (links, `--keep`, markers), a summary of how well-attested the keys used were, JSON reports, and Unicode → Preeti that only writes words which convert back exactly. See [docs/preeti.md](docs/preeti.md) |
-| `legacy_docx` (Word files) | **Experimental (0.7)** — tried only on .docx files built by the tests, never on a file from Microsoft Word | Converts only the runs set in Preeti (font found on the run, its styles, document defaults or the theme), sets them to a Unicode font name (Kalimati by default, not supplied), leaves everything else byte for byte. Standard library only |
-| Browser playground (`site/`) | 0.5.0 is live and was checked once in a desktop browser on 24 Nov 2026, phone untested | 0.4 added Words to number, Calendar, Date maths and Detect tabs, copy buttons, examples and shareable links; 0.5 adds Aksharas and Sort tabs, ordinals and date patterns; 0.6 turns the Preeti tab on (experimental), checked once in a desktop browser on 24 Nov 2026; 0.7 (deployed 24 Nov 2026) adds file open and download, Word files, the other direction and highlighting to it, not yet opened in a browser |
+| `legacy` (Preeti ↔ Unicode) | **Experimental (0.6, extended in 0.7 and 0.8)** — not checked against real Preeti documents or by a native reader | 126 keys agreed by at least 2 of 3 families of MIT-licensed tables; own reordering rules; unmapped characters reported with line and column, never guessed. 0.7: text files, protected stretches (links, `--keep`, markers), a summary of how well-attested the keys used were, JSON reports, and Unicode → Preeti that only writes words which convert back exactly. 0.8: Unicode → Preeti measured (5,236 of 5,300 audited forms and 2,638 of 2,639 hand-written words are written and read back exactly; that is self-consistency, nobody has seen the keys in the Preeti font), English and ASCII numbers left alone, `--digits`, `--mark-kept`, single-table keys as an option. See [docs/preeti.md](docs/preeti.md) |
+| `legacy_docx` (Word files) | **Experimental (0.7, both directions in 0.8)** — tried only on .docx files built by the tests, never on a file from Microsoft Word | Converts only the runs set in Preeti (font found on the run, its styles, document defaults or the theme), sets them to a Unicode font name (Kalimati by default, not supplied), leaves everything else byte for byte. 0.8: `encode_docx` writes the Devanagari of a Unicode file as Preeti keys in runs named Preeti (font not supplied), leaves English runs alone, cuts mixed runs, and keeps words it cannot write in Unicode and lists them. Standard library only |
+| Browser playground (`site/`) | 0.5.0 is live and was checked once in a desktop browser on 24 Nov 2026, phone untested | 0.4 added Words to number, Calendar, Date maths and Detect tabs, copy buttons, examples and shareable links; 0.5 adds Aksharas and Sort tabs, ordinals and date patterns; 0.6 turns the Preeti tab on (experimental), checked once in a desktop browser on 24 Nov 2026; 0.7 (deployed 24 Nov 2026) adds file open and download, Word files, the other direction and highlighting to it, checked once in a desktop browser on 24 Nov 2026 including a .docx open and download, phone untested; 0.8 (deployed 24 Nov 2026) gives Unicode → Preeti the same file open and download, examples and a coverage line, not yet opened in a browser |
 | Spell check | Planned | Roadmap phase 5 |
 | JavaScript port | Planned | Roadmap phase 6 |
 
@@ -261,8 +264,26 @@ convert_preeti("g]kfn Kathmandu df", keep_words=["Kathmandu"]).text  # 'ने�
 
 # The other way. A word is only written as keys if it converts back exactly.
 unicode_to_preeti("विद्यार्थी")  # 'ljBfyL{'
-encode_preeti("नेपाल abc").unmapped_chars  # ('a', 'b', 'c'): no Preeti key, left as they are
+result = encode_preeti("दर्ता नं. 245, काठमाडौं-३, Nepal")
+result.text  # 'btf{ g+= 245, sf7df8f}+-#, Nepal'
+[span.text for span in result.foreign]  # ['245,', 'Nepal']: not Nepali, left as written
+result.unmapped_chars  # ('-',): the hyphen has no Preeti key in this table
+result.stats.words_encoded, result.stats.words  # (2, 3)
+
+# A Unicode Word file to Preeti keys (0.8). The font is only named, never supplied.
+from aksharkit import encode_docx
+
+report = encode_docx("nibedan.docx", "nibedan-preeti.docx")
+[item.text for item in report.left]  # Nepali words left in Unicode, e.g. ['भर्‍याङ']
 ```
+
+How much Unicode → Preeti can write is measured, not claimed: of 5,300
+audited forms 5,236 are written as keys and read back exactly, and of 2,639
+hand-written everyday words 2,638 are. The rest are reported, never
+guessed: the hyphen, dashes, straight quotes, square brackets, the
+zero-width-joiner forms (गर्‍यो), nukta letters and a few rare vowels have
+no agreed key. **Reading back is the only check there is: nobody has looked
+at these keys in the Preeti font.**
 
 The Word converter has only been tried on files built by the tests, never on
 a file from Microsoft Word; it sets a font *name* (Kalimati by default) and
@@ -359,6 +380,12 @@ $ aksharkit convert preeti -i patra.txt -o patra-unicode.txt
 $ aksharkit convert preeti --docx suchana.docx -o suchana-unicode.docx --report
 $ aksharkit convert preeti --to preeti 'नेपाल' --quiet
 g]kfn
+$ aksharkit convert preeti --to preeti --docx nibedan.docx -o nibedan-preeti.docx --report
+$ aksharkit convert preeti --to preeti -i a.txt -i b.txt --out-dir preeti/
+$ aksharkit convert preeti --to preeti 'दर्ता नं. 245, Nepal' --quiet --mark-kept '{{' '}}'
+btf{ g+= {{245,}} {{Nepal}}
+$ aksharkit convert preeti --to preeti 'मिति 2083 साल' --quiet --digits devanagari
+ldlt @)*# ;fn
 ```
 
 `convert preeti` is experimental: without `--quiet` it says so on standard

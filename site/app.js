@@ -396,25 +396,29 @@ const RENDER = {
     const tooMany = r.unmapped_count + (r.skipped_count || 0) > 0 && !r.pieces ? " Too many to highlight." : "";
     if (r.to === "preeti") {
       const parts = [];
-      if (r.unmapped.length) {
-        parts.push("Left as they are, no Preeti key (" + r.unmapped_count + "): " + listChars(r.unmapped));
-      }
-      if (r.skipped_count) {
+      if (r.left_count) {
         parts.push(
-          "Left in Unicode because the keys would not read back as the same text (" +
-            r.skipped_count +
-            "): " +
-            r.skipped.join(", ") +
-            (r.skipped_count > r.skipped.length ? ", …" : "")
+          "Left in Unicode, highlighted (" + r.left_count + "): " + r.left.join(", ") + (r.left_count > r.left.length ? ", …" : "")
         );
       }
-      setOut("preeti.unmapped", parts.length ? parts.join(". ") + "." + tooMany : r.text ? "Every character has a Preeti key." : "");
-      setOut(
-        "preeti.confidence",
-        r.text
-          ? "Every converted word was converted back and gave the same text. The keys chosen are one valid way to type it, not necessarily the way a typist would."
-          : ""
-      );
+      if (r.unmapped.length) {
+        parts.push("Characters with no Preeti key (" + r.unmapped_count + "): " + listChars(r.unmapped));
+      }
+      if (r.skipped_count) {
+        parts.push("Words whose keys would not read back as the same text: " + r.skipped_count);
+      }
+      if (r.foreign_count) {
+        parts.push(
+          "Not Nepali, left as written (" +
+            r.foreign_count +
+            "): " +
+            r.foreign.join(", ") +
+            (r.foreign_count > r.foreign.length ? ", …" : "") +
+            " — in the Preeti font these would show as other letters, so give them another font"
+        );
+      }
+      setOut("preeti.unmapped", parts.length ? parts.join(". ") + "." + tooMany : r.text ? "Every Nepali word was written as Preeti keys." : "");
+      setOut("preeti.confidence", r.text ? coverage(r.stats) : "");
     } else {
       setOut(
         "preeti.unmapped",
@@ -485,6 +489,20 @@ function setMarked(key, text, pieces) {
   });
 }
 
+// How much of the Nepali text became keys. This counts words; it says nothing
+// about whether a typist would have pressed the same keys.
+function coverage(stats) {
+  const share = stats.words ? Math.round(stats.share_words * 1000) / 10 : 0;
+  return (
+    stats.words_encoded +
+    " of " +
+    stats.words +
+    " Nepali words written as Preeti keys (" +
+    share +
+    "%). Each of them was converted back and gave the same text. The keys are one valid way to type it by this experimental table, not necessarily the way a typist would; nobody has yet looked at them in the Preeti font."
+  );
+}
+
 function showDirection(to) {
   const reverse = to === "preeti";
   byId("lbl-preeti-in-text").textContent = reverse ? "Unicode text" : "Preeti text";
@@ -498,7 +516,10 @@ function showDirection(to) {
   const output = byId("out-preeti-text");
   output.classList.toggle("plain-input", reverse);
   output.setAttribute("lang", reverse ? "zxx" : "ne");
-  byId("opt-preeti-unconfirmed").disabled = reverse;
+  byId("opt-preeti-font").disabled = reverse; // the keys are always set in the font named Preeti
+  byId("note-preeti-reverse").hidden = !reverse;
+  byId("examples-preeti").hidden = reverse;
+  byId("examples-preeti-reverse").hidden = !reverse;
 }
 
 function toBase64(bytes) {
@@ -578,6 +599,7 @@ function convertWordFile() {
     answer = runPython("preeti_docx", {
       data: source.data,
       font: byId("opt-preeti-font").value,
+      to: options.to,
       unconfirmed: options.unconfirmed,
       strict: options.strict,
     });
@@ -592,6 +614,35 @@ function convertWordFile() {
   }
   const r = answer.result;
   showError("preeti", "");
+  if (r.to === "preeti") {
+    showDirection("preeti");
+    preetiFile.result = { name: stem(source.name) + "-preeti.docx", bytes: fromBase64(r.data) };
+    setOut(
+      "preeti.file",
+      source.name +
+        ": " +
+        (r.runs_converted + r.runs_split) +
+        " stretch(es) of Nepali text written as Preeti keys and set to the font named " +
+        r.font +
+        " (" +
+        r.runs_split +
+        " of them cut up because they also held other text); " +
+        r.runs_untouched +
+        " left as they were. Press Download result for the new file. It reads as Nepali only where the Preeti font is installed."
+    );
+    setOut(
+      "preeti.unmapped",
+      r.left_count
+        ? "Left in Unicode, in the font they had (" + r.left_count + "): " + r.left.join(", ") + (r.left_count > r.left.length ? ", …" : "") + "."
+        : r.stats.words
+          ? "Every Nepali word was written as Preeti keys."
+          : "No Nepali text in Devanagari was found in this file, so nothing was changed."
+    );
+    setOut("preeti.confidence", r.stats.words ? coverage(r.stats) : "");
+    setOut("preeti.note", "Table: " + r.label + ".");
+    byId("btn-preeti-download").disabled = false;
+    return;
+  }
   preetiFile.result = { name: stem(source.name) + "-unicode.docx", bytes: fromBase64(r.data) };
   setOut(
     "preeti.file",
@@ -913,7 +964,8 @@ function useExample(button) {
   const target = byId(button.dataset.example);
   if (target.id === "in-preeti") {
     forgetPreetiFile();
-    byId("opt-preeti-to").value = "unicode"; // the examples are Preeti keystrokes
+    // An example says which way it goes: Preeti keystrokes, or Nepali to turn into them.
+    byId("opt-preeti-to").value = button.dataset.to === "preeti" ? "preeti" : "unicode";
   }
   target.value = button.dataset.value;
   update(target.dataset.tool, true);

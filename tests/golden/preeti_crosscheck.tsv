@@ -1,0 +1,23 @@
+# Worked examples published on two other converters' pages, used as a cross-check.
+#
+# These are NOT ground truth and NOT real documents: they are the example
+# pairs those pages show, copied on 24 November 2026. The pages may share
+# table lineage with the tables aksharkit compared, so agreement here is
+# weaker evidence than a real Preeti document would be. Samir's own samples
+# belong in preeti_samples.tsv, which stays reserved for them.
+#
+# Columns: source page, Preeti key codes, Unicode text (tab-separated).
+https://www.engineeringnepal.com.np/p/preeti-to-unicode.html	lgdf{0f ;D´f}tf	निर्माण सम्झौता
+https://www.engineeringnepal.com.np/p/preeti-to-unicode.html	hUufwgL k|df0f k'hf{	जग्गाधनी प्रमाण पुर्जा
+https://www.engineeringnepal.com.np/p/preeti-to-unicode.html	gS;f kf;	नक्सा पास
+https://www.engineeringnepal.com.np/p/preeti-to-unicode.html	sfo{ ;DkGg k|ltj]bg	कार्य सम्पन्न प्रतिवेदन
+https://www.engineeringnepal.com.np/p/preeti-to-unicode.html	k|fljlws	प्राविधिक
+https://www.engineeringnepal.com.np/p/preeti-to-unicode.html	?= !,@%,)))	रु. १,२५,०००
+https://shobfree.com/nepali-preeti-to-unicode-converter	g]kfn Ps ;'Gb/ b]z xf] . oxfF w]/} hfthfltsf dflg;x? a:5g\ .	नेपाल एक सुन्दर देश हो । यहाँ धेरै जातजातिका मानिसहरु बस्छन् ।
+https://shobfree.com/nepali-preeti-to-unicode-converter	cGt/f{li6«o	अन्तर्राष्ट्रिय
+https://shobfree.com/nepali-preeti-to-unicode-converter	km"n	फूल
+https://shobfree.com/nepali-preeti-to-unicode-converter	sf7df8f}+	काठमाडौं
+https://shobfree.com/nepali-preeti-to-unicode-converter	gd:t]	नमस्ते
+https://shobfree.com/nepali-preeti-to-unicode-converter	lxGbL	हिन्दी
+https://shobfree.com/nepali-preeti-to-unicode-converter	wd{	धर्म
+https://shobfree.com/nepali-preeti-to-unicode-converter	x'G5	हुन्छ

@@ -24,15 +24,24 @@ targets, not promises.
    each). Not done; nothing has been sent to anyone.
 4. Settling the 5 disputed and 5 one-family keys, ideally by looking at what
    the font draws for each.
-5. The 0.6 Preeti tab was checked once in a desktop browser on 24 Nov 2026.
-   Still to do: a phone, and everything the 0.7 tab adds (files, Word
-   files, the other direction), which has not been opened in a browser.
+5. The 0.6 and 0.7 Preeti tabs were each checked once in a desktop browser
+   on 24 Nov 2026 (0.7 including a .docx open and download). Still to do: a
+   phone, and what the 0.8 tab adds (Unicode → Preeti for files, examples,
+   the coverage line), which has not been opened in a browser.
 6. A .docx written by Microsoft Word, with Preeti text in it, put through
    `convert_docx` and the result opened in Word. v0.7 has only seen files
    built by its own tests.
-7. Someone looking at Unicode → Preeti output in the Preeti font. v0.7
-   checks it only by converting back with the same table.
-8. Table styles and DrawingML text in .docx files; other legacy fonts.
+7. Someone looking at Unicode → Preeti output in the Preeti font. v0.8
+   measures it (5,236 of 5,300 audited forms, 2,638 of 2,639 hand-written
+   words) but still only by converting back with the same table. Three rule
+   choices need eyes on the font: `«` for ्र under ङ छ ट ठ ड ढ, `..` for ॥,
+   and `M` for a colon.
+8. Keys for what cannot be written yet: the hyphen and dashes, straight
+   quotes, square brackets, the zero-width-joiner forms (गर्‍यो), nukta
+   letters, ॉ ऍ ऑ. Each needs a source this project may use, or the font.
+9. A Unicode .docx written by Microsoft Word put through `encode_docx`, and
+   the result opened in Word with Preeti installed.
+10. Table styles and DrawingML text in .docx files; other legacy fonts.
 
 npttf2utf (GPL-3.0), 2utf8 and npm `preeti` (both non-commercial) cannot be
 copied and were not opened.
@@ -43,8 +52,8 @@ copied and were not opened.
 2. Desktop checks of v0.3 and v0.4 done 24 Nov 2026 (every tab; for v0.4
    also copy, examples and a shared link after a reload). Still to do: a
    real phone, other browsers, the error state, a screen reader; and for
-   v0.5 and v0.6 were each checked once on a desktop on 24 Nov 2026; the
-   v0.7 Preeti tab additions have not been opened in a browser.
+   v0.5, v0.6 and v0.7 were each checked once on a desktop on 24 Nov 2026;
+   the v0.8 Preeti tab additions have not been opened in a browser.
 3. Decide whether to add a Content-Security-Policy once it has been seen
    working.
 

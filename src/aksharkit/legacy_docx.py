@@ -35,17 +35,26 @@ from xml.parsers import expat
 from .legacy import (
     PREETI_LABEL,
     Keep,
+    PreetiEncodeResult,
+    PreetiEncodeStats,
     PreetiResult,
     PreetiStats,
     convert_preeti,
+    encode_preeti,
 )
+from .normalize import normalize
 
 __all__ = [
     "DEFAULT_DOCX_FONT",
+    "DEFAULT_PREETI_FONT",
+    "DocxEncodeReport",
+    "DocxLeft",
     "DocxReport",
     "DocxUnmapped",
     "convert_docx",
     "convert_docx_bytes",
+    "encode_docx",
+    "encode_docx_bytes",
 ]
 
 #: The font name written on converted runs. The font itself is not part of
@@ -828,6 +837,44 @@ def _check_font_name(font: str) -> str:
     return font.strip()
 
 
+def _open_docx(data: bytes) -> zipfile.ZipFile:
+    """Open the bytes of a .docx file, or say plainly why they are not one."""
+    if data[:4] == _OLE_MAGIC:
+        raise ValueError(
+            "this is an old .doc file or a password-protected file, not a .docx; "
+            "open it in a word processor and save it as .docx first"
+        )
+    try:
+        archive = zipfile.ZipFile(io.BytesIO(data))
+    except zipfile.BadZipFile as error:
+        raise ValueError("this is not a .docx file (it is not a zip archive)") from error
+    names = archive.namelist()
+    if "word/document.xml" not in names or "[Content_Types].xml" not in names:
+        archive.close()
+        raise ValueError("this is not a Word .docx file (word/document.xml is missing)")
+    return archive
+
+
+def _check_paths(
+    src: str | os.PathLike[str], dst: str | os.PathLike[str], overwrite: bool
+) -> tuple[Path, Path]:
+    """Check an input and an output path; the input is never the output."""
+    source = Path(src)
+    target = Path(dst)
+    if not source.is_file():
+        raise ValueError(f"no such file: {source}")
+    if target.exists():
+        if target.is_dir():
+            raise ValueError(f"the output {target} is a directory")
+        if os.path.samefile(source, target):
+            raise ValueError("the output file is the input file; choose another name")
+        if not overwrite:
+            raise ValueError(f"the output file {target} already exists")
+    elif source.resolve() == target.resolve():
+        raise ValueError("the output file is the input file; choose another name")
+    return source, target
+
+
 def convert_docx_bytes(
     data: bytes,
     *,
@@ -856,19 +903,9 @@ def convert_docx_bytes(
     wanted = frozenset(name.casefold() for name in sources)
     if font.casefold() in wanted:
         raise ValueError("font must differ from the source fonts")
-    if data[:4] == _OLE_MAGIC:
-        raise ValueError(
-            "this is an old .doc file or a password-protected file, not a .docx; "
-            "open it in a word processor and save it as .docx first"
-        )
-    try:
-        archive = zipfile.ZipFile(io.BytesIO(data))
-    except zipfile.BadZipFile as error:
-        raise ValueError("this is not a .docx file (it is not a zip archive)") from error
+    archive = _open_docx(data)
     with archive:
         names = archive.namelist()
-        if "word/document.xml" not in names or "[Content_Types].xml" not in names:
-            raise ValueError("this is not a Word .docx file (word/document.xml is missing)")
         styles = _read_styles(
             archive.read("word/styles.xml") if "word/styles.xml" in names else None,
             archive.read("word/theme/theme1.xml") if "word/theme/theme1.xml" in names else None,
@@ -957,25 +994,448 @@ def convert_docx(
     Preeti. ``keep`` and ``keep_words`` work as in
     :func:`aksharkit.convert_preeti`.
     """
-    source = Path(src)
-    target = Path(dst)
-    if not source.is_file():
-        raise ValueError(f"no such file: {source}")
-    if target.exists():
-        if target.is_dir():
-            raise ValueError(f"the output {target} is a directory")
-        if os.path.samefile(source, target):
-            raise ValueError("the output file is the input file; choose another name")
-        if not overwrite:
-            raise ValueError(f"the output file {target} already exists")
-    elif source.resolve() == target.resolve():
-        raise ValueError("the output file is the input file; choose another name")
+    source, target = _check_paths(src, dst, overwrite)
     data, report = convert_docx_bytes(
         source.read_bytes(),
         font=font,
         source_fonts=source_fonts,
         include_unconfirmed=include_unconfirmed,
         strict=strict,
+        keep_links=keep_links,
+        keep=keep,
+        keep_words=keep_words,
+    )
+    target.write_bytes(data)
+    return report
+
+
+# --- Unicode to Preeti ---------------------------------------------------------
+
+#: The font name written on runs turned into Preeti key codes. The font is
+#: not part of this package or of the output file.
+DEFAULT_PREETI_FONT = "Preeti"
+
+
+@dataclass(frozen=True)
+class DocxLeft:
+    """A stretch of Nepali text that :func:`encode_docx` left in Unicode."""
+
+    #: The part of the archive, for example ``word/document.xml``.
+    part: str
+    #: The paragraph in that part, counting from 1 in document order.
+    paragraph: int
+    text: str
+    #: ``"no key"`` (a character in it has no Preeti key) or ``"does not
+    #: read back"`` (its keys would not convert back to the same text).
+    reason: str
+    #: The characters with no key, when that is the reason.
+    chars: tuple[str, ...] = ()
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "part": self.part,
+            "paragraph": self.paragraph,
+            "text": self.text,
+            "reason": self.reason,
+            "chars": [{"char": ch, "codepoint": f"U+{ord(ch):04X}"} for ch in self.chars],
+        }
+
+
+@dataclass(frozen=True)
+class DocxEncodeReport:
+    """What :func:`encode_docx` did."""
+
+    #: The parts that were read, in archive order.
+    parts: tuple[str, ...]
+    #: The parts that were changed.
+    parts_changed: tuple[str, ...]
+    #: Paragraphs holding at least one stretch written as keys.
+    paragraphs_changed: int
+    #: Runs written wholly as keys and given ``font``.
+    runs_converted: int
+    #: Runs cut into pieces: keys in ``font``, the rest as it was.
+    runs_split: int
+    #: Runs with text that were left exactly as they were.
+    runs_untouched: int
+    #: Words that crossed a run boundary and were put into their first run.
+    boundary_moves: int
+    #: Word and character counts.
+    stats: PreetiEncodeStats
+    #: Every stretch of Nepali text left in Unicode, in document order.
+    left: tuple[DocxLeft, ...]
+    #: The font name written on the key-code runs.
+    font: str = DEFAULT_PREETI_FONT
+
+    @property
+    def complete(self) -> bool:
+        """True when every Nepali word was written as keys."""
+        return not self.left
+
+    def as_dict(self) -> dict[str, Any]:
+        """Everything in the report as plain JSON-ready data."""
+        return {
+            "direction": "unicode-to-preeti",
+            "status": PREETI_LABEL,
+            "complete": self.complete,
+            "font": self.font,
+            "parts": list(self.parts),
+            "parts_changed": list(self.parts_changed),
+            "paragraphs_changed": self.paragraphs_changed,
+            "runs_converted": self.runs_converted,
+            "runs_split": self.runs_split,
+            "runs_untouched": self.runs_untouched,
+            "boundary_moves": self.boundary_moves,
+            "stats": self.stats.as_dict(),
+            "left": [item.as_dict() for item in self.left],
+        }
+
+
+@dataclass
+class _EncodeTally:
+    paragraphs: int = 0
+    converted: int = 0
+    split: int = 0
+    untouched: int = 0
+    moves: int = 0
+    stats: PreetiEncodeStats = field(default_factory=PreetiEncodeStats)
+    left: list[DocxLeft] = field(default_factory=list)
+
+
+def _preeti_rpr(run: _Run, styles: _Styles, font: str, data: bytes) -> bytes:
+    """Build the w:rPr for key codes: same children, the Preeti font name.
+
+    A word processor reads bold, italic and size for Devanagari from the
+    "complex script" properties and for key codes (plain Latin characters)
+    from the ordinary ones. They are copied across where they differ, so the
+    text keeps its look.
+    """
+    layers = _layers(run, styles)
+    replace: dict[str, bytes] = {}
+    fonts = {"ascii": font, "hAnsi": font, "cs": font}
+    for name, value in run.direct().get("rFonts", {}).items():
+        if name in ("eastAsia", "eastAsiaTheme"):
+            fonts[name] = value
+    replace["rFonts"] = _element(run.prefix, "rFonts", fonts)
+    for plain, complex_name in (("b", "bCs"), ("i", "iCs")):
+        latin = _lookup(layers, plain)
+        other = _lookup(layers, complex_name)
+        wanted = other is not None and _on(other.get("val"))
+        current = latin is not None and _on(latin.get("val"))
+        if wanted != current:
+            replace[plain] = _element(run.prefix, plain, {} if wanted else {"val": "0"})
+    size = (_lookup(layers, "sz") or {}).get("val", "20")
+    complex_size = (_lookup(layers, "szCs") or {}).get("val", "20")
+    if size != complex_size:
+        replace["sz"] = _element(run.prefix, "sz", {"val": complex_size})
+    kept: list[tuple[int, bytes]] = []
+    for child in run.children:
+        if child.is_w and child.local in replace:
+            continue
+        # These say "treat the text as complex script": not so for key codes.
+        if child.is_w and child.local in ("cs", "rtl"):
+            continue
+        rank = _RPR_RANK.get(child.local, len(_RPR_ORDER)) if child.is_w else len(_RPR_ORDER)
+        kept.append((rank, data[child.start : child.end]))
+    for local, raw in replace.items():
+        rank = _RPR_RANK[local]
+        at = len(kept)
+        for index, (other_rank, _) in enumerate(kept):
+            if other_rank > rank:
+                at = index
+                break
+        kept.insert(at, (rank, raw))
+    lead = f"{run.prefix}:" if run.prefix else ""
+    body = b"".join(raw for _, raw in kept)
+    return f"<{lead}rPr>".encode() + body + f"</{lead}rPr>".encode()
+
+
+_Pieces = list[tuple[str, bool]]
+
+
+def _cut_group(texts: list[str], result: PreetiEncodeResult, tally: _EncodeTally) -> list[_Pieces]:
+    """Share the segments of ``result`` out over the runs they came from.
+
+    Returns, for every text, its pieces as ``(text, is keys)``. A stretch of
+    keys that crosses a run boundary goes whole into the run it starts in.
+    White space goes with the piece before it.
+    """
+    bounds = [0]
+    for text in texts:
+        bounds.append(bounds[-1] + len(text))
+    raw: list[list[tuple[str, str]]] = [[] for _ in texts]
+    index = 0
+    for segment in result.segments:
+        while index + 1 < len(texts) and segment.start >= bounds[index + 1]:
+            index += 1
+        if segment.kind == "keys":
+            if segment.end > bounds[index + 1]:
+                tally.moves += 1
+            raw[index].append((segment.text, "keys"))
+            continue
+        at = index
+        start = segment.start
+        while start < segment.end:
+            while start >= bounds[at + 1]:
+                at += 1
+            end = min(segment.end, bounds[at + 1])
+            piece = segment.text[start - segment.start : end - segment.start]
+            raw[at].append((piece, "space" if segment.kind == "space" else "kept"))
+            start = end
+    out: list[_Pieces] = []
+    for items in raw:
+        kinds = [kind for _, kind in items]
+        for position, kind in enumerate(kinds):
+            if kind != "space":
+                continue
+            before = next((k for k in reversed(kinds[:position]) if k != "space"), None)
+            after = next((k for k in kinds[position + 1 :] if k != "space"), None)
+            kinds[position] = before or after or "kept"
+        pieces: _Pieces = []
+        for (text, _), kind in zip(items, kinds, strict=True):
+            keys = kind == "keys"
+            if pieces and pieces[-1][1] == keys:
+                pieces[-1] = (pieces[-1][0] + text, keys)
+            else:
+                pieces.append((text, keys))
+        out.append(pieces)
+    return out
+
+
+def _encode_part(
+    data: bytes,
+    part: str,
+    styles: _Styles,
+    font: str,
+    encode: Callable[[str], PreetiEncodeResult],
+    tally: _EncodeTally,
+) -> bytes | None:
+    """Write the Devanagari of one part as keys. None when it is not a text part."""
+    if data[:2] in (b"\xff\xfe", b"\xfe\xff"):
+        raise ValueError(f"{part} is not UTF-8; only UTF-8 parts are supported")
+    reader = _PartReader(data, part)
+    reader.read()
+    if reader.root is None or reader.root[0] not in _W_NAMESPACES:
+        return None
+    if reader.root[1] not in _PART_ROOTS:
+        return None
+    pieces_of: dict[int, _Pieces] = {}
+    for paragraph in [*reader.paragraphs, reader._loose]:
+        groups: list[list[_Text]] = [[]]
+        for item in paragraph.items:
+            if item is None:
+                groups.append([])
+            else:
+                groups[-1].append(item[1])
+        changed = False
+        for group in groups:
+            texts = [normalize(text.text, whitespace=False, danda=False) for text in group]
+            joined = "".join(texts)
+            if not any("\u0900" <= ch <= "\u097f" for ch in joined):
+                continue
+            result = encode(joined)
+            tally.stats = tally.stats + result.stats
+            holes = {item.offset: item.char for item in result.unmapped}
+            for segment in result.segments:
+                if segment.kind == "unmapped":
+                    chars = tuple(
+                        dict.fromkeys(
+                            holes[at] for at in range(segment.start, segment.end) if at in holes
+                        )
+                    )
+                    tally.left.append(
+                        DocxLeft(part, paragraph.index, segment.text, "no key", chars)
+                    )
+                elif segment.kind == "skipped":
+                    tally.left.append(
+                        DocxLeft(part, paragraph.index, segment.text, "does not read back")
+                    )
+            cut_group = _cut_group(texts, result, tally)
+            if not any(keys for pieces in cut_group for _, keys in pieces):
+                continue
+            changed = True
+            for text, pieces in zip(group, cut_group, strict=True):
+                pieces_of[id(text)] = pieces
+        tally.paragraphs += changed
+    edits: list[tuple[int, int, bytes]] = []
+    for run in reader.runs:
+        if not run.texts:
+            continue
+        cut = [pieces_of.get(id(text)) for text in run.texts]
+        if not any(keys for chosen in cut for _, keys in chosen or ()):
+            # Nothing here became keys. A run whose text went into the run
+            # before it, to keep a word whole, is left empty.
+            for text, chosen in zip(run.texts, cut, strict=True):
+                if chosen is not None and not chosen and text.text:
+                    edits.append((text.start, text.end, _new_text(run, "")))
+            tally.untouched += 1
+            continue
+        lead = f"{run.prefix}:" if run.prefix else ""
+        rpr = _preeti_rpr(run, styles, font, data)
+        whole = all(chosen is not None and all(keys for _, keys in chosen) for chosen in cut)
+        if whole:
+            tally.converted += 1
+            if run.rpr_span is None:
+                edits.append((run.body_start, run.body_start, rpr))
+            else:
+                edits.append((run.rpr_span[0], run.rpr_span[1], rpr))
+            for text, chosen in zip(run.texts, cut, strict=True):
+                piece = chosen[0][0] if chosen else ""
+                edits.append((text.start, text.end, _new_text(run, piece)))
+            continue
+        # A mixed run: each text element is closed out of the run and put
+        # back as runs of its own, the keys in the new font and the rest
+        # with the properties it had. The run is then opened again for
+        # whatever follows (a tab, a break, more text).
+        tally.split += 1
+        old = b"" if run.rpr_span is None else data[run.rpr_span[0] : run.rpr_span[1]]
+        open_run = f"<{lead}r>".encode()
+        close_run = f"</{lead}r>".encode()
+        for text, chosen in zip(run.texts, cut, strict=True):
+            if chosen is None or (chosen and not any(keys for _, keys in chosen)):
+                continue
+            if not chosen:
+                edits.append((text.start, text.end, _new_text(run, "")))
+                continue
+            parts = [close_run]
+            for piece, keys in chosen:
+                parts.append(open_run + (rpr if keys else old) + _new_text(run, piece) + close_run)
+            parts.append(open_run + old)
+            edits.append((text.start, text.end, b"".join(parts)))
+    if not edits:
+        return data
+    edits.sort(key=lambda edit: (edit[0], edit[1]))
+    out: list[bytes] = []
+    position = 0
+    for start, end, replacement in edits:
+        if start < position:
+            raise ValueError(f"{part}: overlapping runs; the part was not changed")
+        out.append(data[position:start])
+        out.append(replacement)
+        position = end
+    out.append(data[position:])
+    return b"".join(out)
+
+
+def encode_docx_bytes(
+    data: bytes,
+    *,
+    font: str = DEFAULT_PREETI_FONT,
+    strict: bool = False,
+    include_unconfirmed: bool = False,
+    digits: str = "keep",
+    keep_links: bool = True,
+    keep: Keep | Iterable[Keep] | None = None,
+    keep_words: Iterable[str] | None = None,
+) -> tuple[bytes, DocxEncodeReport]:
+    """Write the Devanagari of a .docx file held in memory as Preeti key codes.
+
+    EXPERIMENTAL. Returns the new file's bytes and a
+    :class:`DocxEncodeReport`. See :func:`encode_docx` for what is changed.
+    """
+    if not isinstance(data, (bytes, bytearray, memoryview)):
+        raise TypeError("data must be the bytes of a .docx file")
+    data = bytes(data)
+    font = _check_font_name(font)
+    archive = _open_docx(data)
+    with archive:
+        names = archive.namelist()
+        styles = _read_styles(
+            archive.read("word/styles.xml") if "word/styles.xml" in names else None,
+            archive.read("word/theme/theme1.xml") if "word/theme/theme1.xml" in names else None,
+        )
+        cache: dict[str, PreetiEncodeResult] = {}
+
+        def encode(text: str) -> PreetiEncodeResult:
+            if text not in cache:
+                cache[text] = encode_preeti(
+                    text,
+                    strict=strict,
+                    include_unconfirmed=include_unconfirmed,
+                    normalise=False,
+                    keep_links=keep_links,
+                    keep=keep,
+                    keep_words=keep_words,
+                    digits=digits,
+                    whole_words=True,
+                )
+            return cache[text]
+
+        tally = _EncodeTally()
+        parts: list[str] = []
+        changed: list[str] = []
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w") as out:
+            for info in archive.infolist():
+                content = archive.read(info)
+                if _PART_NAME.fullmatch(info.filename):
+                    new = _encode_part(content, info.filename, styles, font, encode, tally)
+                    if new is not None:
+                        parts.append(info.filename)
+                        if new != content:
+                            changed.append(info.filename)
+                            content = new
+                copy = zipfile.ZipInfo(info.filename, info.date_time)
+                copy.compress_type = info.compress_type
+                copy.external_attr = info.external_attr
+                copy.create_system = info.create_system
+                out.writestr(copy, content)
+    report = DocxEncodeReport(
+        parts=tuple(parts),
+        parts_changed=tuple(changed),
+        paragraphs_changed=tally.paragraphs,
+        runs_converted=tally.converted,
+        runs_split=tally.split,
+        runs_untouched=tally.untouched,
+        boundary_moves=tally.moves,
+        stats=tally.stats,
+        left=tuple(tally.left),
+        font=font,
+    )
+    return buffer.getvalue(), report
+
+
+def encode_docx(
+    src: str | os.PathLike[str],
+    dst: str | os.PathLike[str],
+    *,
+    overwrite: bool = False,
+    font: str = DEFAULT_PREETI_FONT,
+    strict: bool = False,
+    include_unconfirmed: bool = False,
+    digits: str = "keep",
+    keep_links: bool = True,
+    keep: Keep | Iterable[Keep] | None = None,
+    keep_words: Iterable[str] | None = None,
+) -> DocxEncodeReport:
+    """Write the Devanagari text of the Word file ``src`` as Preeti key codes in ``dst``.
+
+    EXPERIMENTAL: the key table has not been checked against real Preeti
+    documents, nobody has looked at the result in the Preeti font, and the
+    result has not been opened in Microsoft Word.
+
+    Every stretch of Nepali text that can be written as keys which read
+    back exactly is replaced by those keys, in a run whose font is set to
+    ``font`` (``Preeti``; only the name is written, no font is added to the
+    file). Everything else stays as it was, in the font it had: English
+    words, ASCII numbers, web and e-mail addresses, and any Nepali word
+    holding a character with no key. A run holding both kinds is cut into
+    several runs. The words left in Unicode are listed in ``report.left``.
+
+    Converting the result back with :func:`convert_docx` gives the same
+    text, in runs set to that function's font.
+
+    ``digits="devanagari"`` first rewrites ASCII numbers in Devanagari
+    digits, as in :func:`aksharkit.encode_preeti`. ``src`` is never written
+    to: ``dst`` must be a different file, and an existing ``dst`` is
+    replaced only with ``overwrite=True``.
+    """
+    source, target = _check_paths(src, dst, overwrite)
+    data, report = encode_docx_bytes(
+        source.read_bytes(),
+        font=font,
+        strict=strict,
+        include_unconfirmed=include_unconfirmed,
+        digits=digits,
         keep_links=keep_links,
         keep=keep,
         keep_words=keep_words,

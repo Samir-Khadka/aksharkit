@@ -51,8 +51,11 @@ from .normalize import normalize
 __all__ = [
     "PREETI_LABEL",
     "SUPPORTED_FONTS",
+    "ForeignSpan",
     "PreetiEncodeResult",
+    "PreetiEncodeStats",
     "PreetiResult",
+    "PreetiSegment",
     "PreetiStats",
     "ProtectedSpan",
     "SkippedSpan",
@@ -78,6 +81,8 @@ _AA = "\u093e"
 _SHORT_I = "\u093f"
 _RA = "\u0930"
 _VISARGA = "\u0903"
+_DANDA = "\u0964"
+_DOUBLE_DANDA = "\u0965"
 _NASALS = "\u0901\u0902"
 
 # Markers for the two keys whose letter has to move. They are longer than
@@ -104,6 +109,10 @@ def _is_vowel_sign(ch: str) -> bool:
 def _is_sign(ch: str) -> bool:
     """A vowel sign, a nasal sign or the visarga: what follows a consonant cluster."""
     return _is_vowel_sign(ch) or ch in _NASALS or ch == _VISARGA
+
+
+def _is_devanagari_digit(ch: str) -> bool:
+    return "\u0966" <= ch <= "\u096f"
 
 
 def _is_devanagari(ch: str) -> bool:
@@ -313,23 +322,141 @@ class SkippedSpan:
 
 
 @dataclass(frozen=True)
+class ForeignSpan:
+    """A stretch :func:`encode_preeti` left alone because it holds no Devanagari.
+
+    An English word, an ASCII number, a lone symbol between English words.
+    Such text has no Preeti keys and is not Nepali, so it is not a failure
+    and is kept apart from ``unmapped``.
+    """
+
+    start: int
+    end: int
+    text: str
+    line: int = field(default=1, compare=False)
+    column: int = field(default=1, compare=False)
+    output_offset: int = field(default=-1, compare=False)
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "start": self.start,
+            "end": self.end,
+            "text": self.text,
+            "line": self.line,
+            "column": self.column,
+            "output_offset": self.output_offset,
+        }
+
+
+@dataclass(frozen=True)
+class PreetiSegment:
+    """One stretch of the input and what :func:`encode_preeti` made of it.
+
+    The segments of a result cover the (normalised) input from start to end
+    without gaps, and their ``text`` values joined give ``result.text`` when
+    no ``mark_kept`` markers were asked for.
+    """
+
+    #: Where the stretch starts and ends (exclusive) in the normalised input.
+    start: int
+    end: int
+    #: What stands for it in the result: keys, or the text as it was.
+    text: str
+    #: ``"keys"``, ``"space"``, ``"unmapped"``, ``"skipped"``, ``"foreign"``
+    #: or ``"protected"``. Only ``"keys"`` text is meant for the Preeti font.
+    kind: str
+
+    def as_dict(self) -> dict[str, Any]:
+        return {"start": self.start, "end": self.end, "text": self.text, "kind": self.kind}
+
+
+@dataclass(frozen=True)
+class PreetiEncodeStats:
+    """Counts for one Unicode to Preeti conversion.
+
+    A *word* here is a stretch between white space that holds at least one
+    Devanagari character. ``words_encoded`` are the words written wholly as
+    keys. The character counts leave white space out.
+    """
+
+    words: int = 0
+    words_encoded: int = 0
+    #: Characters written as keys.
+    encoded: int = 0
+    #: Characters of Nepali words that have no key, left as they were.
+    unmapped: int = 0
+    #: Characters in words left in Unicode because the keys did not read back.
+    skipped: int = 0
+    #: Characters in stretches with no Devanagari (English, ASCII numbers).
+    foreign: int = 0
+    #: Characters in protected stretches.
+    protected: int = 0
+
+    @property
+    def share_words(self) -> float:
+        """Share of the Nepali words written wholly as keys; 1.0 with no words."""
+        return self.words_encoded / self.words if self.words else 1.0
+
+    @property
+    def share_chars(self) -> float:
+        """Share of the characters of Nepali words written as keys."""
+        total = self.encoded + self.unmapped + self.skipped
+        return self.encoded / total if total else 1.0
+
+    def __add__(self, other: PreetiEncodeStats) -> PreetiEncodeStats:
+        return PreetiEncodeStats(
+            self.words + other.words,
+            self.words_encoded + other.words_encoded,
+            self.encoded + other.encoded,
+            self.unmapped + other.unmapped,
+            self.skipped + other.skipped,
+            self.foreign + other.foreign,
+            self.protected + other.protected,
+        )
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "words": self.words,
+            "words_encoded": self.words_encoded,
+            "encoded": self.encoded,
+            "unmapped": self.unmapped,
+            "skipped": self.skipped,
+            "foreign": self.foreign,
+            "protected": self.protected,
+            "share_words": round(self.share_words, 4),
+            "share_chars": round(self.share_chars, 4),
+        }
+
+
+@dataclass(frozen=True)
 class PreetiEncodeResult:
     """The outcome of a Unicode to Preeti conversion."""
 
     #: The Preeti key codes. Characters with no key are in it unchanged.
     text: str
-    #: Characters that have no Preeti key in the agreed table.
+    #: Characters of Nepali words that have no Preeti key in the table.
     unmapped: tuple[UnmappedChar, ...]
     #: Words left in Unicode because their keys did not convert back exactly.
     skipped: tuple[SkippedSpan, ...] = ()
     #: Stretches that were left alone on purpose, in input order.
     protected: tuple[ProtectedSpan, ...] = field(default=(), compare=False)
-    #: Characters written as keys, and characters left as they were.
+    #: Characters written as keys.
     encoded: int = field(default=0, compare=False)
+    #: Stretches with no Devanagari in them (English, ASCII numbers), left alone.
+    foreign: tuple[ForeignSpan, ...] = field(default=(), compare=False)
+    #: The input cut into stretches, each with what was written for it.
+    segments: tuple[PreetiSegment, ...] = field(default=(), compare=False)
+    #: Word and character counts.
+    stats: PreetiEncodeStats = field(default_factory=PreetiEncodeStats, compare=False)
+    #: The markers put round kept text, when ``mark_kept`` was given.
+    mark_kept: tuple[str, str] | None = field(default=None, compare=False)
 
     @property
     def complete(self) -> bool:
-        """True when every character was written as keys that convert back exactly."""
+        """True when every Nepali word was written as keys that convert back exactly.
+
+        Text with no Devanagari in it (``foreign``) does not count against this.
+        """
         return not self.unmapped and not self.skipped
 
     @property
@@ -344,10 +471,14 @@ class PreetiEncodeResult:
             "complete": self.complete,
             "text": self.text,
             "encoded": self.encoded,
+            "stats": self.stats.as_dict(),
             "unmapped": [item.as_dict() for item in self.unmapped],
             "unmapped_counts": _unmapped_counts(self.unmapped),
             "skipped": [span.as_dict() for span in self.skipped],
+            "foreign": [span.as_dict() for span in self.foreign],
             "protected": [span.as_dict() for span in self.protected],
+            "segments": [segment.as_dict() for segment in self.segments],
+            "mark_kept": list(self.mark_kept) if self.mark_kept else None,
         }
 
 
@@ -615,6 +746,14 @@ def _place_reph(
         end = len(out)
         while end > 0 and _is_sign(out[end - 1][0]):
             end -= 1
+        # A reph typed after a letter that ends in a halant (``र्क्``).
+        if (
+            end == len(out)
+            and end >= 2
+            and out[end - 1][0] == _VIRAMA
+            and (_is_consonant(out[end - 2][0]) or out[end - 2][0] == _NUKTA)
+        ):
+            end -= 1
         start = _cluster_start(out, end)
         if start == end:
             out.append((_REPH_KEY, offset))
@@ -649,6 +788,36 @@ def _order_signs(units: list[tuple[str, int]]) -> list[tuple[str, int]]:
             j += 1
         out.extend(sorted(units[i:j], key=lambda unit: _sign_rank(unit[0])))
         i = j
+    return out
+
+
+def _join_dandas(units: list[tuple[str, int]]) -> list[tuple[str, int]]:
+    """Two danda keys typed one straight after the other are a double danda."""
+    out: list[tuple[str, int]] = []
+    for ch, offset in units:
+        if ch == _DANDA and out and out[-1] == (_DANDA, offset - 1):
+            out[-1] = (_DOUBLE_DANDA, offset - 1)
+            continue
+        out.append((ch, offset))
+    return out
+
+
+def _loose_visarga(units: list[tuple[str, int]]) -> list[tuple[str, int]]:
+    """A visarga with no letter before it is a colon.
+
+    The visarga belongs to the syllable before it. Typed after a space, a
+    digit, a punctuation mark or at the very start it has no syllable, and
+    in Preeti documents that key is what stands for a colon (``विषय :``,
+    ``१०:३०``).
+    """
+    out: list[tuple[str, int]] = []
+    for ch, offset in units:
+        if ch == _VISARGA:
+            before = out[-1][0] if out else ""
+            if not before or not (_is_devanagari(before) and not _is_devanagari_digit(before)):
+                out.append((":", offset))
+                continue
+        out.append((ch, offset))
     return out
 
 
@@ -802,6 +971,8 @@ def _convert_plain(
     units = _place_short_i(units)
     units = _place_reph(units, unmapped, kinds)
     units = _order_signs(units)
+    units = _join_dandas(units)
+    units = _loose_visarga(units)
     left_over = {item.offset for item in unmapped}
     parts: list[str] = []
     length = 0
@@ -972,6 +1143,21 @@ _VOWEL_KEYS_FROM = {
 _LONG_I = "\u0908"
 _SHORT_I_VOWEL = "\u0907"
 _SHORT_I_KEY = "l"
+_RAKAR = _VIRAMA + _RA
+# The second key for the ra stroke. The table has two keys for ``्र``; this
+# one is used under the letters with a round foot and no upright bar.
+_ROUND_RAKAR_KEY = "\u00ab"
+_ROUND_LETTERS = frozenset("\u0919\u091b\u091f\u0920\u0921\u0922")  # ङ छ ट ठ ड ढ
+_DOUBLE_DANDA_KEYS = ".."
+_COLON_KEY = "M"
+
+#: How ASCII digits are treated by :func:`encode_preeti`.
+DIGIT_MODES: tuple[str, ...] = ("keep", "devanagari")
+_ASCII_NUMBER = re.compile(r"(?<![A-Za-z0-9])[0-9]+(?![A-Za-z0-9])")
+_TO_DEVANAGARI_DIGITS = {ord("0") + i: chr(0x0966 + i) for i in range(10)}
+# Inside a Nepali word: an English word or an ASCII number, with the marks
+# that hold such things together (3.5, 10:30, A-4, user@example).
+_FOREIGN = re.compile(r"[A-Za-z0-9]+(?:[.,:/@_'+\-][A-Za-z0-9]+)*")
 
 
 @dataclass(frozen=True)
@@ -986,6 +1172,12 @@ class _Reverse:
     longest: int
     #: Every character that can be written with some key.
     writable: frozenset[str]
+    #: The key for ``्र`` under a round letter, when the table has it.
+    round_rakar: str | None = None
+    #: True when two danda keys read back as a double danda.
+    double_danda: bool = False
+    #: True when the visarga key reads back as a colon after a space or digit.
+    colon: bool = False
 
 
 def _key_rank(key: str, families: int) -> tuple[int, int, int, str]:
@@ -998,14 +1190,19 @@ def _key_rank(key: str, families: int) -> tuple[int, int, int, str]:
 
 
 @cache
-def _reverse(strict: bool) -> _Reverse:
+def _reverse(strict: bool, unconfirmed: bool = False) -> _Reverse:
     table = _table("preeti")
     best: dict[str, tuple[int, int, int, str]] = {}
     sections = ["mapping", "sequences"] if strict else ["mapping", "sequences", "majority"]
+    if unconfirmed:
+        sections += ["unconfirmed", "unconfirmed_sequences"]
     for section in sections:
         for key, entry in table.get(section, {}).items():
             value = str(entry["to"])
             families = len(entry.get("families", ())) if section == "mapping" else 1
+            if section.startswith("unconfirmed"):
+                # Last choice: only when nothing better writes the same text.
+                families = 0
             rank = _key_rank(str(key), families)
             if value not in best or rank < best[value]:
                 best[value] = rank
@@ -1023,7 +1220,21 @@ def _reverse(strict: bool) -> _Reverse:
     keys.pop(_SHORT_I, None)
     writable = set("".join(keys)) | {_SHORT_I, _LONG_I}
     writable.update(_SPLIT_VOWELS, _VOWEL_KEYS_FROM)
-    return _Reverse(keys, halves, max(len(value) for value in keys), frozenset(writable))
+    single, _ = _maps("preeti", unconfirmed, strict)
+    round_rakar = _ROUND_RAKAR_KEY if single.get(_ROUND_RAKAR_KEY) == _RAKAR else None
+    double_danda = keys.get(_DANDA) == _DOUBLE_DANDA_KEYS[0]
+    colon = keys.get(_VISARGA) == _COLON_KEY
+    if double_danda:
+        writable.add(_DOUBLE_DANDA)
+    return _Reverse(
+        keys,
+        halves,
+        max(len(value) for value in keys),
+        frozenset(writable),
+        round_rakar,
+        double_danda,
+        colon,
+    )
 
 
 def _encode_cluster(body: str, rev: _Reverse) -> list[tuple[str, str]]:
@@ -1031,11 +1242,13 @@ def _encode_cluster(body: str, rev: _Reverse) -> list[tuple[str, str]]:
 
     Longest table entry first (``द्ध``, ``क्ष्``, ``त्र``). Otherwise a letter
     before another letter is its half form when it has one, except before
-    ``र``, which is written as the full letter and the ``्र`` stroke.
+    ``र``, which is written as the full letter and the ``्र`` stroke. Under
+    a letter with a round foot the stroke is the table's second ``्र`` key.
     """
     out: list[tuple[str, str]] = []
     i = 0
     n = len(body)
+    last = ""
     while i < n:
         matched = False
         for length in range(min(rev.longest, n - i), 2, -1):
@@ -1043,6 +1256,7 @@ def _encode_cluster(body: str, rev: _Reverse) -> list[tuple[str, str]]:
             if chunk in rev.keys and _is_consonant(chunk[0]):
                 out.append((chunk, rev.keys[chunk]))
                 i += length
+                last = chunk[-1] if _is_consonant(chunk[-1]) else ""
                 matched = True
                 break
         if matched:
@@ -1050,25 +1264,42 @@ def _encode_cluster(body: str, rev: _Reverse) -> list[tuple[str, str]]:
         ch = body[i]
         if ch == _VIRAMA:
             tail = body[i : i + 2]
-            if len(tail) == 2 and tail in rev.keys:
+            if tail == _RAKAR and last in _ROUND_LETTERS and rev.round_rakar:
+                out.append((tail, rev.round_rakar))
+                i += 2
+            elif len(tail) == 2 and tail in rev.keys:
                 out.append((tail, rev.keys[tail]))
                 i += 2
             else:
                 out.append((ch, rev.keys[_VIRAMA]))
                 i += 1
+            last = ""
+            continue
+        if i + 1 < n and body[i + 1] == _NUKTA:
+            # A nukta letter is written only when the table has it whole.
+            out.append((body[i : i + 2], rev.keys[body[i : i + 2]]))
+            i += 2
+            last = ""
             continue
         after = body[i + 2] if i + 2 < n and body[i + 1] == _VIRAMA else ""
         if after and after != _RA and ch in rev.halves:
             out.append((ch + _VIRAMA, rev.halves[ch]))
             i += 2
+            last = ""
         else:
             out.append((ch, rev.keys[ch]))
             i += 1
+            last = ch
     return out
 
 
 def _sign_keys(signs: Iterable[str], rev: _Reverse) -> list[str]:
     return [_SHORT_I_KEY if sign == _SHORT_I else rev.keys[sign] for sign in signs]
+
+
+def _colon_fits(before: str) -> bool:
+    """True where the visarga key reads back as a colon: not after a letter."""
+    return not before or not (_is_devanagari(before) and not _is_devanagari_digit(before))
 
 
 def _encode_piece(piece: str, rev: _Reverse) -> str:
@@ -1089,8 +1320,12 @@ def _encode_piece(piece: str, rev: _Reverse) -> str:
         body: list[tuple[str, str]]
         if _is_consonant(ch):
             j = i + 1
+            if j < n and piece[j] == _NUKTA:
+                j += 1
             while j + 1 < n and piece[j] == _VIRAMA and _is_consonant(piece[j + 1]):
                 j += 2
+                if j < n and piece[j] == _NUKTA:
+                    j += 1
             if j < n and piece[j] == _VIRAMA:
                 j += 1
             body = _encode_cluster(piece[i:j], rev)
@@ -1101,6 +1336,18 @@ def _encode_piece(piece: str, rev: _Reverse) -> str:
             body.extend((sign, rev.keys[sign]) for sign in spelt[1:])
             reph = ch == _LONG_I
             i += 1
+        elif ch == _DOUBLE_DANDA:
+            if not rev.double_danda:
+                raise KeyError(ch)
+            out.append(_DOUBLE_DANDA_KEYS)
+            i += 1
+            continue
+        elif ch == ":":
+            if not rev.colon or not _colon_fits(piece[i - 1] if i else ""):
+                raise KeyError(ch)
+            out.append(_COLON_KEY)
+            i += 1
+            continue
         else:
             # A sign with no letter before it, a digit, a punctuation mark.
             out.extend(_sign_keys(_SPLIT_VOWELS.get(ch, ch), rev))
@@ -1129,22 +1376,30 @@ def _encode_piece(piece: str, rev: _Reverse) -> str:
     return "".join(out)
 
 
-def _reads_back(keys: str, expected: str, strict: bool) -> bool:
-    back = convert_preeti(keys, strict=strict, keep_links=False)
+def _reads_back(keys: str, expected: str, strict: bool, unconfirmed: bool = False) -> bool:
+    back = convert_preeti(keys, strict=strict, include_unconfirmed=unconfirmed, keep_links=False)
     return not back.unmapped and back.text == expected
 
 
 @lru_cache(maxsize=65536)
-def _encode_checked(piece: str, strict: bool) -> str | None:
+def _encode_checked(piece: str, strict: bool, unconfirmed: bool = False) -> str | None:
     """Write ``piece`` as keys, or None when the keys do not convert back to it."""
     try:
-        keys = _encode_piece(piece, _reverse(strict))
+        keys = _encode_piece(piece, _reverse(strict, unconfirmed))
     except KeyError:
         return None
-    return keys if _reads_back(keys, piece, strict) else None
+    return keys if _reads_back(keys, piece, strict, unconfirmed) else None
 
 
-def _encode_word(chunk: str, rev: _Reverse, strict: bool) -> str | None:
+def _can_write(text: str, i: int, rev: _Reverse) -> bool:
+    """True when the character at ``i`` has a key where it stands."""
+    ch = text[i]
+    if ch == ":":
+        return rev.colon and _colon_fits(text[i - 1] if i else "")
+    return ch in rev.writable
+
+
+def _encode_word(chunk: str, rev: _Reverse, strict: bool, unconfirmed: bool) -> str | None:
     """Write a word that holds unwritable Devanagari characters, checked whole.
 
     Such characters pass through both directions untouched, so the whole
@@ -1153,12 +1408,12 @@ def _encode_word(chunk: str, rev: _Reverse, strict: bool) -> str | None:
     pieces: list[str] = []
     i = 0
     while i < len(chunk):
-        if chunk[i] not in rev.writable:
+        if not _can_write(chunk, i, rev):
             pieces.append(chunk[i])
             i += 1
             continue
         j = i
-        while j < len(chunk) and chunk[j] in rev.writable:
+        while j < len(chunk) and _can_write(chunk, j, rev):
             j += 1
         try:
             pieces.append(_encode_piece(chunk[i:j], rev))
@@ -1166,158 +1421,315 @@ def _encode_word(chunk: str, rev: _Reverse, strict: bool) -> str | None:
             return None
         i = j
     whole = "".join(pieces)
-    back = convert_preeti(whole, strict=strict, keep_links=False)
+    back = convert_preeti(whole, strict=strict, include_unconfirmed=unconfirmed, keep_links=False)
     return whole if back.text == chunk and not back.unmapped else None
+
+
+def _has_devanagari_letter(text: str) -> bool:
+    return any("\u0900" <= ch <= "\u097f" for ch in text)
 
 
 def encode_preeti(
     text: str,
     *,
     strict: bool = False,
+    include_unconfirmed: bool = False,
     normalise: bool = True,
     keep_links: bool = True,
     keep: Keep | Iterable[Keep] | None = None,
     keep_words: Iterable[str] | None = None,
     markers: tuple[str, str] | None = None,
+    digits: str = "keep",
+    whole_words: bool = False,
+    mark_kept: tuple[str, str] | None = None,
 ) -> PreetiEncodeResult:
     """Write Unicode ``text`` as Preeti key codes and report what was left over.
 
-    EXPERIMENTAL, like the table it reads backwards. Three things are
-    promised and tested:
+    EXPERIMENTAL, like the table it reads backwards. What is promised and
+    tested:
 
-    * every word written as keys converts back, with
-      :func:`convert_preeti`, to exactly the word it came from; a word whose
+    * every stretch written as keys converts back, with
+      :func:`convert_preeti`, to exactly the text it came from; a word whose
       keys do not is left in Unicode and listed in ``result.skipped``;
-    * a character with no key in the agreed table (an ASCII letter or digit,
-      a nukta, ``ॉ``, ``॥``, a joiner, ...) is left as it is and listed in
+    * a character of a Nepali word with no key in the table (a hyphen, a
+      nukta, ``ॉ``, a joiner, ...) is left as it is and listed in
       ``result.unmapped``; no near-enough key is chosen for it;
-    * when nothing was skipped or protected and every unmapped character
-      is a Devanagari one, ``convert_preeti(result.text,
-      keep_links=False).text`` equals the normalised input.
-
-    A skipped word is, in practice, one that is not well formed (a vowel
-    sign straight after a halant, a sign with no letter). The converter
-    tidies such sequences when it meets them, which is why they cannot be
-    written and read back unchanged.
+    * text with no Devanagari in it (an English word, an ASCII number, a web
+      address) is not Nepali and is left alone; it is listed in
+      ``result.foreign`` and is not counted as a failure;
+    * with ``mark_kept``, ``convert_preeti(result.text, markers=mark_kept,
+      keep_links=False).text`` equals the normalised input, always; without
+      it the same holds when nothing was skipped, protected or foreign and
+      every unmapped character is a Devanagari one.
 
     What is **not** promised: that the keys look right in the Preeti font.
     Where several keys write the same letter, one is chosen by a fixed rule,
     not by what a typist would press, and nobody has looked at the result in
     the font.
 
-    ``normalise`` first runs :func:`aksharkit.normalize` on the text (white
-    space and danda are left alone); offsets, lines and columns in the result
-    refer to that normalised text. ``strict`` uses only keys that every
-    table family agrees on. The ``keep`` options work as in
-    :func:`convert_preeti`.
+    Options:
+
+    * ``strict`` uses only keys that every table family agrees on.
+    * ``include_unconfirmed`` also uses keys only one table family has. It
+      adds ``ड़``, ``ढ़`` and ``ॅ``; the result then reads back only with
+      ``convert_preeti(..., include_unconfirmed=True)``.
+    * ``digits``: ``"keep"`` leaves ASCII digits alone. ``"devanagari"``
+      first rewrites every ASCII number on a line that has Devanagari on it
+      (and is not part of an English word) in Devanagari digits, which have
+      keys. That changes the text: it reads back with Devanagari digits.
+    * ``whole_words``: a word holding a Devanagari character with no key is
+      left in Unicode whole, instead of key codes round the one character.
+    * ``mark_kept``: an opening and a closing string put round everything
+      that was left as it was, so that plain text survives the round trip.
+      Raises ``ValueError`` when the markers occur in the text.
+    * ``normalise`` first runs :func:`aksharkit.normalize` on the text (white
+      space and danda are left alone); offsets, lines and columns in the
+      result refer to that normalised text.
+    * The ``keep`` options work as in :func:`convert_preeti`.
     """
     if not isinstance(text, str):
         raise TypeError("text must be a string")
+    if digits not in DIGIT_MODES:
+        raise ValueError(f"digits must be one of {', '.join(DIGIT_MODES)}; got {digits!r}")
+    pair = _check_markers(mark_kept)
     if normalise:
         text = normalize(text, whitespace=False, danda=False)
-    rev = _reverse(strict)
+    if pair is not None and (pair[0] in text or pair[1] in text):
+        raise ValueError(
+            f"the mark_kept markers {pair[0]!r} and {pair[1]!r} occur in the text; choose others"
+        )
+    rev = _reverse(strict, include_unconfirmed)
     spans = _protected_spans(text, keep_links, keep, keep_words, markers)
+    if digits == "devanagari":
+        text = _rewrite_digits(text, spans)
     starts = _line_starts(text)
-    parts: list[str] = []
-    length = 0
-    encoded = 0
+    segments: list[PreetiSegment] = []
     unmapped: list[UnmappedChar] = []
     skipped: list[SkippedSpan] = []
+    foreign: list[ForeignSpan] = []
     protected: list[ProtectedSpan] = []
+    words = 0
+    words_encoded = 0
+    length = 0
 
-    def emit(piece: str) -> None:
+    def emit(start: int, end: int, piece: str, kind: str) -> None:
         nonlocal length
-        parts.append(piece)
+        if start == end:
+            return
+        segments.append(PreetiSegment(start, end, piece, kind))
         length += len(piece)
+
+    def report(index: int, offset: int) -> None:
+        line, column = _line_column(starts, index)
+        unmapped.append(UnmappedChar(text[index], index, line, column, offset))
 
     def skip(start: int, end: int) -> None:
         line, column = _line_column(starts, start)
         skipped.append(SkippedSpan(start, end, text[start:end], line, column, length))
-        emit(text[start:end])
+        emit(start, end, text[start:end], "skipped")
 
-    def word(start: int, end: int) -> None:
-        """Write one stretch with no white space in it."""
-        nonlocal encoded
-        chunk = text[start:end]
-        left = [ch for ch in chunk if ch not in rev.writable]
-        if not left:
-            keys = _encode_checked(chunk, strict)
-            if keys is None:
-                skip(start, end)
-            else:
-                encoded += len(chunk)
-                emit(keys)
-            return
-        devanagari_only = all(_is_devanagari(ch) for ch in left)
-        if devanagari_only:
-            whole = _encode_word(chunk, rev, strict)
-            if whole is None:
-                skip(start, end)
-                return
-        i = 0
-        while i < len(chunk):
-            ch = chunk[i]
-            if ch not in rev.writable:
-                line, column = _line_column(starts, start + i)
-                unmapped.append(UnmappedChar(ch, start + i, line, column, length))
-                emit(ch)
-                i += 1
-                continue
-            j = i
-            while j < len(chunk) and chunk[j] in rev.writable:
-                j += 1
-            if devanagari_only:
-                # Already checked as part of the whole word.
-                keys = _encode_piece(chunk[i:j], rev)
-            else:
-                keys = _encode_checked(chunk[i:j], strict)
-            if keys is None:
-                skip(start + i, start + j)
-            else:
-                encoded += j - i
-                emit(keys)
-            i = j
+    def leave(start: int, end: int) -> None:
+        line, column = _line_column(starts, start)
+        foreign.append(ForeignSpan(start, end, text[start:end], line, column, length))
+        emit(start, end, text[start:end], "foreign")
 
-    def plain(start: int, end: int) -> None:
+    def native(start: int, end: int) -> bool:
+        """Write a stretch of Devanagari and marks. True when all of it became keys."""
+        whole = True
         i = start
         while i < end:
-            if text[i].isspace():
-                emit(text[i])
+            if not _can_write(text, i, rev) and not _is_devanagari(text[i]):
+                report(i, length)
+                emit(i, i + 1, text[i], "unmapped")
+                whole = False
                 i += 1
                 continue
             j = i
-            while j < end and not text[j].isspace():
+            while j < end and (_can_write(text, j, rev) or _is_devanagari(text[j])):
                 j += 1
-            word(i, j)
+            chunk = text[i:j]
+            left = [k for k in range(i, j) if not _can_write(text, k, rev)]
+            if not left:
+                keys = _encode_checked(chunk, strict, include_unconfirmed)
+                if keys is None:
+                    skip(i, j)
+                    whole = False
+                else:
+                    emit(i, j, keys, "keys")
+            elif whole_words or pair is not None:
+                for k in left:
+                    report(k, length + k - i)
+                emit(i, j, chunk, "unmapped")
+                whole = False
+            elif _encode_word(chunk, rev, strict, include_unconfirmed) is None:
+                skip(i, j)
+                whole = False
+            else:
+                whole = False
+                k = i
+                while k < j:
+                    if not _can_write(text, k, rev):
+                        report(k, length)
+                        emit(k, k + 1, text[k], "unmapped")
+                        k += 1
+                        continue
+                    m = k
+                    while m < j and _can_write(text, m, rev):
+                        m += 1
+                    # Already checked as part of the whole word.
+                    emit(k, m, _encode_piece(text[k:m], rev), "keys")
+                    k = m
             i = j
+        return whole
+
+    def plain(start: int, end: int) -> None:
+        nonlocal words, words_encoded
+        tokens = [(m.start() + start, m.end() + start) for m in _TOKEN.finditer(text[start:end])]
+        nepali = [_has_devanagari_letter(text[a:b]) for a, b in tokens]
+        position = start
+        for index, (a, b) in enumerate(tokens):
+            emit(position, a, text[position:a], "space")
+            position = b
+            if nepali[index]:
+                words += 1
+                whole = True
+                at = a
+                for match in _FOREIGN.finditer(text, a, b):
+                    whole = native(at, match.start()) and whole
+                    leave(match.start(), match.end())
+                    at = match.end()
+                whole = native(at, b) and whole
+                words_encoded += whole
+                continue
+            beside = (index > 0 and nepali[index - 1]) or (
+                index + 1 < len(tokens) and nepali[index + 1]
+            )
+            keys = None
+            if beside and all(_can_write(text, k, rev) for k in range(a, b)):
+                keys = _encode_checked(text[a:b], strict, include_unconfirmed)
+            if keys is None:
+                leave(a, b)
+            else:
+                emit(a, b, keys, "keys")
+        emit(position, end, text[position:end], "space")
 
     position = 0
     for start, end, inner_start, inner_end, reason in spans:
         plain(position, start)
         kept = text[inner_start:inner_end]
         protected.append(ProtectedSpan(start, end, kept, reason, length))
-        emit(kept)
+        emit(start, end, kept, "protected")
         position = end
     plain(position, len(text))
-    result = "".join(parts)
-    if (
-        not skipped
-        and not protected
-        and all(_is_devanagari(item.char) for item in unmapped)
-        and convert_preeti(result, strict=strict, keep_links=False).text != text
-    ):
-        # Should not happen: every word was checked on its own. Rather than
-        # hand back keys that read differently, hand back the text.
-        whole = SkippedSpan(0, len(text), text, 1, 1, 0)
-        return PreetiEncodeResult(text, (), (whole,), (), 0)
-    return PreetiEncodeResult(result, tuple(unmapped), tuple(skipped), tuple(protected), encoded)
+
+    counts = dict.fromkeys(("keys", "unmapped", "skipped", "foreign", "protected"), 0)
+    for segment in segments:
+        if segment.kind != "space":
+            counts[segment.kind] += segment.end - segment.start
+    stats = PreetiEncodeStats(
+        words,
+        words_encoded,
+        counts["keys"],
+        counts["unmapped"],
+        counts["skipped"],
+        counts["foreign"],
+        counts["protected"],
+    )
+    if pair is None:
+        result = "".join(segment.text for segment in segments)
+        if (
+            not skipped
+            and not protected
+            and not foreign
+            and all(_is_devanagari(item.char) for item in unmapped)
+            and convert_preeti(
+                result, strict=strict, include_unconfirmed=include_unconfirmed, keep_links=False
+            ).text
+            != text
+        ):
+            # Should not happen: every word was checked on its own. Rather
+            # than hand back keys that read differently, hand back the text.
+            whole_span = SkippedSpan(0, len(text), text, 1, 1, 0)
+            return PreetiEncodeResult(
+                text,
+                (),
+                (whole_span,),
+                segments=(PreetiSegment(0, len(text), text, "skipped"),),
+                stats=PreetiEncodeStats(words, 0, 0, 0, len(text), 0, 0),
+            )
+    else:
+        result = _with_marks(segments, pair)
+        back = convert_preeti(
+            result,
+            strict=strict,
+            include_unconfirmed=include_unconfirmed,
+            keep_links=False,
+            markers=pair,
+        )
+        if back.text != text:
+            raise ValueError(
+                f"the mark_kept markers {pair[0]!r} and {pair[1]!r} clash with the key codes "
+                "of this text; choose others"
+            )
+    return PreetiEncodeResult(
+        result,
+        tuple(unmapped),
+        tuple(skipped),
+        tuple(protected),
+        counts["keys"],
+        tuple(foreign),
+        tuple(segments),
+        stats,
+        pair,
+    )
 
 
-def unicode_to_preeti(text: str, *, strict: bool = False) -> str:
+_TOKEN = re.compile(r"\S+")
+
+
+def _rewrite_digits(text: str, spans: list[_Span]) -> str:
+    """Rewrite ASCII numbers in Devanagari digits on lines that hold Devanagari.
+
+    Protected stretches and numbers that touch an ASCII letter are left
+    alone. The text keeps its length, so offsets stay true.
+    """
+    chars = list(text)
+    shielded = [False] * len(text)
+    for start, end, _, _, _ in spans:
+        shielded[start:end] = [True] * (end - start)
+    offset = 0
+    for line in text.split("\n"):
+        if _has_devanagari_letter(line):
+            for match in _ASCII_NUMBER.finditer(line):
+                a, b = offset + match.start(), offset + match.end()
+                if not any(shielded[a:b]):
+                    chars[a:b] = match.group().translate(_TO_DEVANAGARI_DIGITS)
+        offset += len(line) + 1
+    return "".join(chars)
+
+
+def _with_marks(segments: Iterable[PreetiSegment], pair: tuple[str, str]) -> str:
+    """Join the segments, with the markers round each kept stretch."""
+    out: list[str] = []
+    open_now = False
+    for segment in segments:
+        kept = segment.kind not in ("keys", "space")
+        if kept and not open_now:
+            out.append(pair[0])
+        elif not kept and open_now:
+            out.append(pair[1])
+        open_now = kept
+        out.append(segment.text)
+    if open_now:
+        out.append(pair[1])
+    return "".join(out)
+
+
+def unicode_to_preeti(text: str, *, strict: bool = False, include_unconfirmed: bool = False) -> str:
     """Write Unicode ``text`` as Preeti key codes. EXPERIMENTAL.
 
-    Returns only the keys. Characters with no key and words whose keys do
-    not convert back exactly are left as they are; use
-    :func:`encode_preeti` to learn which.
+    Returns only the keys. Characters with no key, words whose keys do not
+    convert back exactly, and text that is not Devanagari are left as they
+    are; use :func:`encode_preeti` to learn which.
     """
-    return encode_preeti(text, strict=strict).text
+    return encode_preeti(text, strict=strict, include_unconfirmed=include_unconfirmed).text
