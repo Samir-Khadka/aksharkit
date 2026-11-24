@@ -1,5 +1,57 @@
 # Changelog
 
+## 0.4.0 — 24 November 2026
+
+Not yet pushed or released when this entry was written.
+
+### Added
+
+- **Words to number**: `parse_words` reads what `number_to_words` and
+  `currency_to_words` write, over the same range (up to 99,99,99,99,99,999):
+  ऋण for negatives, दशमलव followed by digits, and रुपैयाँ / पैसा / मात्र. It
+  returns an `int`, or a `Decimal` when there is a decimal part or paisa.
+  It also accepts the 47 alternative spellings in `ALTERNATIVE_SPELLINGS`
+  (the variants listed in `docs/sources.md`), माइनस, दशमलब, रुपियाँ, अरब and
+  खरब, and the spoken shortcuts सय, हजार and पन्ध्र सय. Anything else raises
+  `ValueError` naming the word.
+- `aksharkit number TEXT [--devanagari] [--group]`.
+- **Script detection** (`aksharkit.detect`): `char_script`, `script_counts`,
+  `script_shares`, `detect_script`, `token_scripts`, by Unicode range. It
+  does not identify the language.
+- `looks_romanised_nepali` and `romanised_nepali_score`: a heuristic that
+  counts matches against a hand-written list of 71 romanised words.
+- `aksharkit detect TEXT [--tokens] [--json]`.
+- **Date arithmetic** on the existing table: `add_days`, `add_months` (the
+  day is clamped to the length of the target month), `days_between`,
+  `difference` (`BSDifference` of years, months, days), `age`,
+  `month_calendar` and `format_month_calendar`. Range and disputed-month
+  guards are the same as for conversion.
+- `aksharkit date --calendar YYYY-MM`, `--add-days N`, `--add-months N`,
+  `--until BS_DATE`, `--age`.
+- **Playground**: Words to number, Calendar, Date maths and Detect tabs; a
+  Copy button on every result; examples to tap under every input; "Copy a
+  link to this result", which keeps the tab and inputs in the address after
+  `#`; a "Preeti: help wanted" link to the issue tracker.
+
+### Changed
+
+- Playground layout for phones: the tab strip scrolls sideways, buttons and
+  inputs are at least 2.75rem (44px) tall, and the focus outline is more
+  visible. Devanagari output is marked `lang="ne"`; Roman transliteration
+  output is marked `ne-Latn`.
+- README: CI badge, "Why aksharkit", new quick-start and command examples.
+
+### Not verified
+
+- The new playground has **not been opened with real Pyodide or on a real
+  phone**. It was loaded in headless Chromium at 360px and 1280px with the
+  Python side answered by local CPython: no sideways page scroll, no control
+  under 44px, copy and link sharing worked, no console errors.
+- No native speaker has reviewed the romanised word list, the rule-generated
+  alternative spellings, or the calendar's weekday abbreviations.
+- The accuracy of `looks_romanised_nepali` has not been measured.
+- Tests were run on Python 3.12 only; GitHub CI has not run on this version.
+
 ## 0.3.0 — 23 November 2026
 
 ### Added

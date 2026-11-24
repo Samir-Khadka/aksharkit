@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import json
+import re
 import sys
 from collections.abc import Callable
 from typing import Any
@@ -126,15 +127,120 @@ def _translit(payload: dict[str, Any]) -> dict[str, Any]:
         out = ak.to_devanagari(text, scheme)
     else:
         raise ValueError(f"unknown direction {direction!r}")
-    return {"text": out, "approximate": scheme == "simple"}
+    return {
+        "text": out,
+        "approximate": scheme == "simple",
+        "lang": "ne-Latn" if direction == "roman" else "ne",
+    }
+
+
+def _words(payload: dict[str, Any]) -> dict[str, Any]:
+    text = str(payload.get("text", "")).strip()
+    if not text:
+        raise ValueError("type a number in Nepali words")
+    value = ak.parse_words(text)
+    return {
+        "number": _attempt(lambda: str(value)),
+        "grouped": _attempt(lambda: ak.format_number(value)),
+        "grouped_devanagari": _attempt(lambda: ak.format_number(value, devanagari=True)),
+        "respelt": _attempt(lambda: ak.number_to_words(value)),
+    }
+
+
+def _detect(payload: dict[str, Any]) -> dict[str, Any]:
+    text = str(payload.get("text", ""))
+    return {
+        "script": ak.detect_script(text),
+        "counts": ak.script_counts(text),
+        "shares": ak.script_shares(text),
+        "tokens": [{"text": token, "script": script} for token, script in ak.token_scripts(text)],
+        "romanised_score": ak.romanised_nepali_score(text),
+        "romanised": ak.looks_romanised_nepali(text),
+    }
+
+
+_YEAR_MONTH = re.compile(r"^(\d{4})\s*[-/.]\s*(\d{1,2})$")
+
+
+def _long_ad(ad: _dt.date) -> str:
+    return f"{ad.day} {ad.strftime('%B')} {ad.year}"
+
+
+def _calendar(payload: dict[str, Any]) -> dict[str, Any]:
+    text = str(payload.get("text", "")).strip()
+    match = _YEAR_MONTH.match(ak.to_ascii_digits(text))
+    if match is None:
+        raise ValueError(f"type a BS month as YYYY-MM, not {text!r}")
+    year, month = int(match[1]), int(match[2])
+    allow = bool(payload.get("allow_disputed", False))
+    nepali = bool(payload.get("devanagari", True))
+    grid = ak.format_month_calendar(year, month, devanagari=nepali, allow_disputed=allow)
+    title, head, *rows = grid.split("\n")
+    length = ak.days_in_month(year, month)
+    first = ak.bs_to_ad(year, month, 1, allow_disputed=True)
+    last = ak.bs_to_ad(year, month, length, allow_disputed=True)
+    return {
+        "title": title,
+        "head": head.split("\t"),
+        "weeks": [(row.split("\t") + [""] * 7)[:7] for row in rows],
+        "span": f"{length} days: {_long_ad(first)} to {_long_ad(last)}",
+        "text": grid,
+        "lang": "ne" if nepali else "en",
+    }
+
+
+def _whole(payload: dict[str, Any], field: str) -> int:
+    text = ak.to_ascii_digits(str(payload.get(field, ""))).strip()
+    if not text:
+        return 0
+    try:
+        return int(text)
+    except ValueError:
+        raise ValueError(f"{field} must be a whole number, not {text!r}") from None
+
+
+def _datemath(payload: dict[str, Any]) -> dict[str, Any]:
+    text = str(payload.get("text", "")).strip()
+    if not text:
+        raise ValueError("type a BS date as YYYY-MM-DD")
+    start = ak.parse_bs(text)
+    allow = bool(payload.get("allow_disputed", False))
+    days = _whole(payload, "days")
+    months = _whole(payload, "months")
+    until = str(payload.get("until", "")).strip()
+
+    def moved() -> ak.BSDate:
+        later = ak.add_months(start, months, allow_disputed=allow)
+        return ak.add_days(later, days, allow_disputed=allow)
+
+    def end() -> ak.BSDate:
+        return ak.parse_bs(until) if until else ak.today_bs()
+
+    def gap() -> str:
+        found = ak.difference(start, end(), allow_disputed=allow)
+        return f"{found.years} years, {found.months} months, {found.days} days"
+
+    return {
+        "moved": _attempt(lambda: ak.format_bs(moved())),
+        "moved_ne": _attempt(lambda: ak.format_bs(moved(), "full", devanagari=True)),
+        "moved_ad": _attempt(lambda: _long_ad(ak.bs_to_ad(*moved(), allow_disputed=allow))),
+        "until": _attempt(lambda: ak.format_bs(end())),
+        "gap": _attempt(gap),
+        "days": _attempt(lambda: str(ak.days_between(start, end(), allow_disputed=allow))),
+        "age": _attempt(lambda: str(ak.age(start, end(), allow_disputed=allow))),
+    }
 
 
 TOOLS: dict[str, Callable[[dict[str, Any]], dict[str, Any]]] = {
     "info": _info,
     "normalize": _normalize,
     "numbers": _numbers,
+    "words": _words,
     "dates": _dates,
+    "calendar": _calendar,
+    "datemath": _datemath,
     "tokenize": _tokenize,
+    "detect": _detect,
     "translit": _translit,
 }
 

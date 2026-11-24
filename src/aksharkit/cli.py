@@ -5,16 +5,17 @@ from __future__ import annotations
 import argparse
 import datetime as _dt
 import json
+import re
 import sys
 from collections.abc import Sequence
 
-from . import __version__, dates, legacy
+from . import __version__, dates, detect, legacy
 from ._errors import DataNotVerifiedError
 from .normalize import normalize
 from .numerals import format_number, to_ascii_digits, to_devanagari_digits
 from .tokens import sentences, tokenize
 from .translit import SCHEMES, to_devanagari, to_roman
-from .words import currency_to_words, number_to_words
+from .words import currency_to_words, number_to_words, parse_words
 
 __all__ = ["build_parser", "main"]
 
@@ -52,6 +53,19 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--currency", action="store_true", help="rupees and paisa")
     p.add_argument("--only", action="store_true", help="append मात्र (with --currency)")
 
+    p = sub.add_parser("number", help="read a number written in Nepali words")
+    p.add_argument("text", nargs="?")
+    p.add_argument("--devanagari", action="store_true", help="print Nepali digits")
+    p.add_argument("--group", action="store_true", help="group digits the Nepali way")
+
+    p = sub.add_parser(
+        "detect",
+        help="which script the text is in (by Unicode ranges; this is not language detection)",
+    )
+    p.add_argument("text", nargs="?")
+    p.add_argument("--tokens", action="store_true", help="one token and its script per line")
+    p.add_argument("--json", action="store_true", help="print everything as JSON")
+
     p = sub.add_parser("tokenize", help="split into words, or sentences with --sentences")
     p.add_argument("text", nargs="?")
     p.add_argument("--sentences", action="store_true")
@@ -79,6 +93,15 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--style", choices=("iso", "long", "full"), default="iso")
     p.add_argument("--devanagari", action="store_true", help="Nepali digits and names")
     p.add_argument("--fiscal-year", action="store_true", help="print the fiscal year instead")
+    p.add_argument("--calendar", metavar="YYYY-MM", help="print a BS month as a grid")
+    p.add_argument("--add-days", type=int, metavar="N", help="BS DATE plus N days")
+    p.add_argument("--add-months", type=int, metavar="N", help="BS DATE plus N BS months")
+    p.add_argument("--until", metavar="BS_DATE", help="years, months and days from BS DATE")
+    p.add_argument(
+        "--age",
+        action="store_true",
+        help="completed years since BS DATE (to --until, or today in Nepal)",
+    )
     p.add_argument(
         "--allow-disputed",
         action="store_true",
@@ -101,6 +124,13 @@ def _run(args: argparse.Namespace) -> str:
         if args.currency:
             return currency_to_words(number, only=args.only)
         return number_to_words(number)
+    if command == "number":
+        value = parse_words(_read(args.text))
+        if args.group:
+            return format_number(value, devanagari=args.devanagari)
+        return to_devanagari_digits(str(value)) if args.devanagari else str(value)
+    if command == "detect":
+        return _run_detect(args)
     if command == "tokenize":
         text = _read(args.text)
         items = sentences(text) if args.sentences else tokenize(text)
@@ -117,8 +147,73 @@ def _run(args: argparse.Namespace) -> str:
     raise AssertionError(f"unhandled command {command!r}")  # pragma: no cover
 
 
+def _run_detect(args: argparse.Namespace) -> str:
+    text = _read(args.text)
+    pairs = detect.token_scripts(text)
+    if args.json:
+        report = {
+            "script": detect.detect_script(text),
+            "counts": detect.script_counts(text),
+            "shares": detect.script_shares(text),
+            "tokens": [{"text": token, "script": script} for token, script in pairs],
+            "romanised_nepali_score": detect.romanised_nepali_score(text),
+            "looks_romanised_nepali": detect.looks_romanised_nepali(text),
+        }
+        return json.dumps(report, ensure_ascii=False)
+    if args.tokens:
+        return "\n".join(f"{token}\t{script}" for token, script in pairs)
+    shares = detect.script_shares(text)
+    lines = [f"script: {detect.detect_script(text)}"]
+    lines += [f"{name}: {shares[name]:.1%}" for name in detect.SCRIPTS]
+    return "\n".join(lines)
+
+
+_YEAR_MONTH = re.compile(r"^\s*(\d{4})\s*[-/.]\s*(\d{1,2})\s*$")
+
+
+def _run_date_tools(args: argparse.Namespace) -> str | None:
+    """The BS-only tools of ``date``. Returns None when none was asked for."""
+    allow: bool = args.allow_disputed
+    arithmetic = args.add_days is not None or args.add_months is not None or args.until or args.age
+    if args.calendar is not None:
+        if arithmetic or args.date is not None:
+            raise ValueError("--calendar takes only a month (YYYY-MM) and no DATE")
+        match = _YEAR_MONTH.match(to_ascii_digits(args.calendar))
+        if match is None:
+            raise ValueError(f"not a BS month in YYYY-MM form: {args.calendar!r}")
+        return dates.format_month_calendar(
+            int(match[1]), int(match[2]), devanagari=args.devanagari, allow_disputed=allow
+        )
+    if not arithmetic:
+        return None
+    if args.to == "ad":
+        raise ValueError("--add-days, --add-months, --until and --age work on BS dates only")
+    if args.date is None:
+        raise ValueError("a BS date is required")
+    bs = dates.parse_bs(_read(args.date))
+    if args.add_days is not None or args.add_months is not None:
+        if args.until or args.age:
+            raise ValueError("--add-days/--add-months cannot be combined with --until or --age")
+        if args.add_months is not None:
+            bs = dates.add_months(bs, args.add_months, allow_disputed=allow)
+        if args.add_days is not None:
+            bs = dates.add_days(bs, args.add_days, allow_disputed=allow)
+        return dates.format_bs(bs, args.style, devanagari=args.devanagari)
+    end = dates.parse_bs(args.until) if args.until else dates.today_bs()
+    gap = dates.difference(bs, end, allow_disputed=allow)
+    if args.age:
+        out = str(gap.years)
+    else:
+        total = dates.days_between(bs, end, allow_disputed=allow)
+        out = f"{gap.years} years, {gap.months} months, {gap.days} days ({total} days)"
+    return to_devanagari_digits(out) if args.devanagari else out
+
+
 def _run_date(args: argparse.Namespace) -> str:
     allow: bool = args.allow_disputed
+    tool = _run_date_tools(args)
+    if tool is not None:
+        return tool
     if args.to == "ad":
         if args.date is None:
             raise ValueError("a BS date is required with --to ad")

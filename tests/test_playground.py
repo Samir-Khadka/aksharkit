@@ -50,6 +50,20 @@ APP = (SITE / "app.js").read_text("utf-8")
 STYLE = (SITE / "style.css").read_text("utf-8")
 
 
+#: The tools the page calls, in tab order. Preeti has a tab but no tool.
+PAGE_TOOLS = [
+    "normalize",
+    "numbers",
+    "words",
+    "dates",
+    "calendar",
+    "datemath",
+    "tokenize",
+    "detect",
+    "translit",
+]
+
+
 def call(tool: str, **payload: Any) -> dict[str, Any]:
     answer = json.loads(glue.run(tool, json.dumps(payload)))
     assert isinstance(answer, dict)
@@ -191,13 +205,151 @@ def test_tokenize() -> None:
 def test_translit() -> None:
     text = "नमस्ते, नेपाल राम्रो छ। धन्यवाद!"
     iast = result("translit", text=text, scheme="iast", direction="roman")
-    assert iast == {"text": "namaste, nepāla rāmro cha| dhanyavāda!", "approximate": False}
+    assert iast == {
+        "text": "namaste, nepāla rāmro cha| dhanyavāda!",
+        "approximate": False,
+        "lang": "ne-Latn",
+    }
     back = result("translit", text=iast["text"], scheme="iast", direction="devanagari")
     assert back["text"] == text
+    assert back["lang"] == "ne"
     simple = result("translit", text=text, scheme="simple")
-    assert simple == {"text": "namaste, nepal ramro chha. dhanyavad!", "approximate": True}
+    assert simple["text"] == "namaste, nepal ramro chha. dhanyavad!"
+    assert simple["approximate"] is True
     assert call("translit", text="क", scheme="hk")["kind"] == "ValueError"
     assert call("translit", text="क", direction="up")["kind"] == "ValueError"
+
+
+def test_words_to_number() -> None:
+    out = result("words", text="  एक लाख पच्चीस हजार ")
+    assert out == {
+        "number": {"ok": True, "value": "125000"},
+        "grouped": {"ok": True, "value": "1,25,000"},
+        "grouped_devanagari": {"ok": True, "value": "१,२५,०००"},
+        "respelt": {"ok": True, "value": "एक लाख पच्चिस हजार"},
+    }
+    money = result("words", text="दुई सय रुपैयाँ पचास पैसा मात्र")
+    assert money["number"]["value"] == "200.50"
+    assert result("words", text="ऋण बाह्र दशमलव पाँच")["number"]["value"] == "-12.5"
+    for bad in ("", "  ", "एक एक", "hello", "12"):
+        answer = call("words", text=bad)
+        assert answer["ok"] is False
+        assert answer["kind"] == "ValueError"
+        assert answer["error"]
+
+
+def test_detect() -> None:
+    out = result("detect", text="म school जान्छु 5")
+    assert out["script"] == "mixed"
+    assert out["counts"] == {"devanagari": 7, "latin": 6, "digit": 1, "other": 0}
+    assert out["shares"]["devanagari"] == pytest.approx(0.5)
+    assert out["tokens"] == [
+        {"text": "म", "script": "devanagari"},
+        {"text": "school", "script": "latin"},
+        {"text": "जान्छु", "script": "devanagari"},
+        {"text": "5", "script": "digits"},
+    ]
+    assert out["romanised"] is False
+    assert out["romanised_score"] == 0.0
+    chat = result("detect", text="timi kasto cha? malai ramro lagyo")
+    assert chat["script"] == "latin"
+    assert chat["romanised"] is True
+    assert chat["romanised_score"] == pytest.approx(5 / 6)
+    empty = result("detect")
+    assert empty["script"] == "none"
+    assert empty["tokens"] == []
+
+
+def test_calendar() -> None:
+    out = result("calendar", text="2083-08", devanagari=False)
+    assert out["title"] == "Mangsir 2083"
+    assert out["head"] == ["Aai", "Som", "Man", "Bud", "Bih", "Shu", "Sha"]
+    assert out["weeks"][0] == ["", "", "1", "2", "3", "4", "5"]
+    assert out["weeks"][-1] == ["27", "28", "29", "", "", "", ""]
+    assert all(len(week) == 7 for week in out["weeks"])
+    assert out["span"] == "29 days: 17 November 2026 to 15 December 2026"
+    assert out["text"] == aksharkit.format_month_calendar(2083, 8)
+    assert out["lang"] == "en"
+    nepali = result("calendar", text=" २०८३/८ ")
+    assert nepali["title"] == "मंसिर २०८३"
+    assert nepali["weeks"][0] == ["", "", "१", "२", "३", "४", "५"]
+    assert nepali["lang"] == "ne"
+    allowed = result("calendar", text="2062-02", allow_disputed=True, devanagari=False)
+    assert allowed["title"] == "Jestha 2062"
+
+
+@pytest.mark.parametrize(
+    ("text", "kind", "fragment"),
+    [
+        ("", "ValueError", "YYYY-MM"),
+        ("2083", "ValueError", "YYYY-MM"),
+        ("2083-08-07", "ValueError", "YYYY-MM"),
+        ("2083-13", "DateRangeError", "month"),
+        ("2084-01", "DateRangeError", "outside"),
+        ("2062-01", "DisputedDateError", "disagree"),
+    ],
+)
+def test_calendar_errors(text: str, kind: str, fragment: str) -> None:
+    answer = call("calendar", text=text)
+    assert answer["ok"] is False
+    assert answer["kind"] == kind
+    assert fragment in answer["error"]
+
+
+def test_datemath() -> None:
+    out = result("datemath", text="2059-05-12", months="1", days="30", until="2083-08-07")
+    assert {key: row["value"] for key, row in out.items()} == {
+        "moved": "2059-07-11",
+        "moved_ne": "२०५९ कात्तिक ११, सोमबार",
+        "moved_ad": "28 October 2002",
+        "until": "2083-08-07",
+        "gap": "24 years, 2 months, 25 days",
+        "days": "8853",
+        "age": "24",
+    }
+    assert all(row["ok"] for row in out.values())
+    assert result("datemath", text="२०८३-०३-३२", months="१")["moved"]["value"] == "2083-04-31"
+    back = result("datemath", text="2083-08-07", days="-7", until="2080-01-01")
+    assert back["moved"] == {"ok": True, "value": "2083-07-30"}
+    assert back["days"] == {"ok": True, "value": "-1319"}
+    assert back["gap"]["ok"] is False and "before the start date" in back["gap"]["value"]
+    assert back["age"]["ok"] is False
+    far = result("datemath", text="2083-08-07", days="100000", until="2083-08-07")
+    assert far["moved"]["ok"] is False and "outside" in far["moved"]["value"]
+    assert far["gap"] == {"ok": True, "value": "0 years, 0 months, 0 days"}
+
+
+def test_datemath_counts_up_to_today_when_no_end_is_given(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(glue.ak, "today_bs", lambda: aksharkit.BSDate(2083, 8, 8))
+    out = result("datemath", text="2060-08-08")
+    assert out["until"]["value"] == "2083-08-08"
+    assert out["age"]["value"] == "23"
+
+
+@pytest.mark.parametrize(
+    ("payload", "kind"),
+    [
+        ({"text": ""}, "ValueError"),
+        ({"text": "yesterday"}, "ValueError"),
+        ({"text": "2090-01-01"}, "DateRangeError"),
+        ({"text": "2083-08-07", "days": "1.5"}, "ValueError"),
+        ({"text": "2083-08-07", "months": "two"}, "ValueError"),
+    ],
+)
+def test_datemath_errors(payload: dict[str, Any], kind: str) -> None:
+    answer = call("datemath", **payload)
+    assert answer["ok"] is False
+    assert answer["kind"] == kind
+
+
+def test_datemath_disputed_rows_fail_one_by_one() -> None:
+    out = result("datemath", text="2062-02-10", until="2083-08-07")
+    assert out["moved"]["ok"] is False and "disagree" in out["moved"]["value"]
+    assert out["age"]["ok"] is False
+    allowed = result("datemath", text="2062-02-10", until="2083-08-07", allow_disputed=True)
+    assert all(row["ok"] for row in allowed.values())
 
 
 @pytest.mark.parametrize(
@@ -214,7 +366,7 @@ def test_every_tool_the_page_uses_exists() -> None:
     tools = re.search(r"const TOOLS = \[([^\]]+)\]", APP)
     assert tools is not None
     names = re.findall(r'"([a-z]+)"', tools.group(1))
-    assert names == ["normalize", "numbers", "dates", "tokenize", "translit"]
+    assert names == PAGE_TOOLS
     assert set(names) | {"info"} == set(glue.TOOLS)
 
 
@@ -318,7 +470,7 @@ def test_html_ids_are_unique_and_every_id_the_script_needs_exists() -> None:
     wanted = set(re.findall(r'byId\("([^"]+)"\)', APP))
     assert wanted, "app.js should look elements up by id"
     assert wanted <= set(ids), wanted - set(ids)
-    for tool in ("normalize", "numbers", "dates", "tokenize", "translit"):
+    for tool in PAGE_TOOLS:
         assert f"err-{tool}" in ids
         assert f"tab-{tool}" in ids
         assert f"panel-{tool}" in ids
@@ -331,14 +483,7 @@ def test_tabs_and_panels_are_wired_for_assistive_technology() -> None:
     panels = re.findall(
         r'<section class="panel" role="tabpanel" id="([^"]+)" aria-labelledby="([^"]+)"', INDEX
     )
-    assert [t[0] for t in tabs] == [
-        "tab-normalize",
-        "tab-numbers",
-        "tab-dates",
-        "tab-tokenize",
-        "tab-translit",
-        "tab-preeti",
-    ]
+    assert [t[0] for t in tabs] == [f"tab-{tool}" for tool in PAGE_TOOLS] + ["tab-preeti"]
     assert [(panel, tab) for tab, panel in tabs] == panels
     assert INDEX.count('aria-selected="true"') == 1
     assert INDEX.count('role="tablist"') == 1
@@ -365,17 +510,115 @@ def test_every_output_the_script_writes_has_a_place_on_the_page() -> None:
         if key.endswith("."):  # a prefix: keys are added from the result
             continue
         assert key in outs, key
-    numbers = result("numbers", text="1")
-    dates = result("dates", text="2026-11-23")
-    for key in numbers:
-        assert f"numbers.{key}" in outs
-    for key in dates:
-        assert f"dates.{key}" in outs
+    row_tools = {
+        "numbers": result("numbers", text="1"),
+        "dates": result("dates", text="2026-11-23"),
+        "words": result("words", text="एक"),
+        "datemath": result("datemath", text="2083-08-07"),
+    }
+    for tool, rows in row_tools.items():
+        for key in rows:
+            assert f"{tool}.{key}" in outs, (tool, key)
+    for key in ("calendar.title", "calendar.span", "calendar.text"):
+        assert key in outs
+    for key in ("detect.script", "detect.shares", "detect.romanised"):
+        assert key in outs
     for key in re.findall(r'data-copy="([a-z_.]+)"', INDEX):
         assert key in outs, key
     for tool, field in re.findall(r'data-tool="([a-z]+)" data-field="([a-z_]+)"', INDEX):
         assert tool in glue.TOOLS
         assert f'"{field}"' in (SITE / "playground.py").read_text("utf-8"), (tool, field)
+
+
+def test_every_result_can_be_copied() -> None:
+    copies = set(re.findall(r'data-copy="([a-z_.]+)"', INDEX))
+    outputs = re.findall(r'<output\b[^>]*data-out="([a-z_.]+)"', INDEX)
+    assert len(outputs) >= 30
+    # The calendar title and span are captions; the grid is copied as calendar.text.
+    assert set(outputs) - copies == {"calendar.title", "calendar.span"}
+    lists = re.findall(r'data-copy-list="([a-z-]+)"', INDEX)
+    assert sorted(lists) == ["out-detect-tokens", "out-tokenize-sentences", "out-tokenize-tokens"]
+    assert set(lists) <= set(_ids())
+    for button in re.findall(r'<button type="button" class="copy"[^>]*>', INDEX):
+        assert "aria-label=" in button, button
+    assert 'id="btn-share"' in INDEX
+
+
+def test_examples_fill_real_inputs() -> None:
+    examples = re.findall(r'data-example="([a-z-]+)" data-value="([^"]+)"', INDEX)
+    targets = {target for target, _ in examples}
+    assert targets == {f"in-{tool}" for tool in PAGE_TOOLS}
+    for target in targets:
+        assert len([1 for t, _ in examples if t == target]) >= 3, target
+        assert re.search(rf'<(?:input|textarea) id="{target}" data-tool="[a-z]+"', INDEX), target
+
+
+@pytest.mark.parametrize(
+    ("tool", "target"),
+    [
+        ("numbers", "in-numbers"),
+        ("words", "in-words"),
+        ("dates", "in-dates"),
+        ("calendar", "in-calendar"),
+        ("datemath", "in-datemath"),
+    ],
+)
+def test_examples_are_accepted_by_the_library(tool: str, target: str) -> None:
+    values = re.findall(rf'data-example="{target}" data-value="([^"]+)"', INDEX)
+    assert values
+    for value in values:
+        assert call(tool, text=value)["ok"], (tool, value)
+
+
+def test_devanagari_output_is_marked_as_nepali() -> None:
+    for tag in re.findall(r"<output\b[^>]*>", INDEX):
+        key = re.search(r'data-out="([a-z_.]+)"', tag)
+        assert key is not None
+        nepali = key.group(1).endswith(("_ne", "devanagari", ".words", ".currency", ".respelt"))
+        if nepali or key.group(1) == "normalize.text":
+            assert 'lang="ne"' in tag, tag
+    # Outputs whose script depends on the input get their lang from the script.
+    assert 'setAttribute("lang", r.lang)' in APP
+    assert 'chip.setAttribute("lang", "ne")' in APP
+    for list_id in ("out-tokenize-tokens", "out-tokenize-sentences"):
+        assert re.search(rf'id="{list_id}"[^>]*lang="ne"', INDEX)
+
+
+def test_state_lives_in_the_address_and_nowhere_else() -> None:
+    assert "history.replaceState" in APP
+    assert "location.hash" in APP
+    assert "hashchange" in APP
+    for word in ("sessionStorage", "indexedDB", "document.cookie", "sendBeacon", "XMLHttpRequest"):
+        assert word not in APP, word
+    assert APP.count("fetch(") == 1  # only the package archive
+
+
+def test_phone_layout_rules() -> None:
+    def block(selector: str) -> str:
+        match = re.search(rf"\n\n{re.escape(selector)} \{{\n(.*?)\n\}}", STYLE, re.DOTALL)
+        assert match is not None, selector
+        return match.group(1)
+
+    assert "overflow-x: auto" in block(".tabs")
+    assert "flex: none" in block('.tabs [role="tab"]')
+    for selector in ('.tabs [role="tab"]', ".example", ".check"):
+        assert "min-height: 2.75rem" in block(selector), selector  # 44px at 16px
+    assert "min-height: 2.75rem" in STYLE.split(".button,\n.copy {")[1].split("}")[0]
+    for rule in ("min-height: 2.75rem", "min-width: 2.75rem"):
+        assert rule in block(".copy"), rule
+    assert "overflow-wrap: anywhere" in block(".out")
+    assert "overflow-x: auto" in block(".grid-wrap")
+    # Nothing is given a fixed width that could be wider than a 360px screen.
+    phone = STYLE.split("@media (min-width: 40rem)")[0]
+    assert not re.search(r"(?<!max-)(?<!min-)width: \d{3,}px", phone)
+    assert not re.search(r"min-width: (?:\d{3,}px|[2-9]\d(?:\.\d+)?rem)", phone)
+    assert "white-space: nowrap" not in block(".out")
+
+
+def test_preeti_help_wanted_link() -> None:
+    link = '<a class="button ghost link" href="https://github.com/Samir-Khadka/aksharkit/issues">'
+    assert link + "Preeti: help wanted</a>" in INDEX
+    assert INDEX.count("https://github.com/Samir-Khadka/aksharkit/issues") == 2
 
 
 def test_the_page_loads_nothing_from_other_sites_except_pyodide() -> None:

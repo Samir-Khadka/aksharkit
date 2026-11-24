@@ -30,16 +30,24 @@ __all__ = [
     "WEEKDAYS",
     "WEEKDAYS_ROMAN",
     "BSDate",
+    "BSDifference",
     "DateRangeError",
     "DisputedDateError",
     "ad_to_bs",
+    "add_days",
+    "add_months",
+    "age",
     "bs_to_ad",
+    "days_between",
     "days_in_month",
     "days_in_year",
+    "difference",
     "fiscal_year",
     "format_bs",
+    "format_month_calendar",
     "is_valid_bs",
     "load_calendar",
+    "month_calendar",
     "month_name",
     "parse_bs",
     "supported_range",
@@ -327,4 +335,183 @@ def fiscal_year(date: BSDate | _dt.date, *, devanagari: bool = False) -> str:
     _require_valid(bs)
     start = bs.year if bs.month >= _FISCAL_START_MONTH else bs.year - 1
     out = f"{start}/{(start + 1) % 100:02d}"
+    return to_devanagari_digits(out) if devanagari else out
+
+
+# --- arithmetic --------------------------------------------------------------
+
+
+class BSDifference(NamedTuple):
+    """The gap between two BS dates in whole years, whole months and days."""
+
+    years: int
+    months: int
+    days: int
+
+
+def _as_bs(date: BSDate | tuple[int, int, int]) -> BSDate:
+    bs = BSDate(*date)
+    _require_valid(bs)
+    return bs
+
+
+def _month_is_disputed(cal: _Calendar, year: int, month: int) -> bool:
+    return any(
+        (start.year, start.month) <= (year, month) <= (end.year, end.month)
+        for start, end in cal.disputed
+    )
+
+
+def add_days(
+    date: BSDate | tuple[int, int, int], days: int, *, allow_disputed: bool = False
+) -> BSDate:
+    """The BS date ``days`` days after ``date`` (before it, if negative).
+
+    Raises :class:`DateRangeError` when the result leaves the table and
+    :class:`DisputedDateError` when ``date`` or the result is inside the
+    disputed span of 2062, unless ``allow_disputed`` is true. Stepping right
+    across that span is safe: the two readings agree again after it.
+    """
+    if not _is_int(days):
+        raise TypeError(f"days must be an int, not {type(days).__name__}")
+    bs = _as_bs(date)
+    start = bs_to_ad(*bs, allow_disputed=allow_disputed)
+    cal = _calendar()
+    offset = (start - cal.epoch_ad).days + days
+    if not 0 <= offset < cal.year_starts[-1]:
+        raise DateRangeError(
+            f"{days:+d} days from BS {bs} is outside the verified table "
+            f"({cal.first_year} to {cal.last_year})"
+        )
+    return ad_to_bs(cal.epoch_ad + _dt.timedelta(days=offset), allow_disputed=allow_disputed)
+
+
+def add_months(
+    date: BSDate | tuple[int, int, int], months: int, *, allow_disputed: bool = False
+) -> BSDate:
+    """The same day of the month ``months`` BS months later (earlier, if negative).
+
+    When the target month is shorter, the day is clamped to its last day:
+    32 Asar plus one month is the last day of Shrawan. Use ``12 * n`` for
+    years. Errors are as for :func:`add_days`.
+    """
+    if not _is_int(months):
+        raise TypeError(f"months must be an int, not {type(months).__name__}")
+    bs = _as_bs(date)
+    cal = _calendar()
+    _check_disputed(cal, bs, allow_disputed)
+    index = bs.year * 12 + (bs.month - 1) + months
+    year, month = index // 12, index % 12 + 1
+    if not cal.first_year <= year <= cal.last_year:
+        raise DateRangeError(
+            f"{months:+d} months from BS {bs} is outside the verified table "
+            f"({cal.first_year} to {cal.last_year})"
+        )
+    length = cal.months[year][month - 1]
+    result = BSDate(year, month, min(bs.day, length))
+    _check_disputed(cal, result, allow_disputed)
+    if bs.day > length and not allow_disputed and _month_is_disputed(cal, year, month):
+        raise DisputedDateError(
+            f"BS {bs} {months:+d} months ends in {BS_MONTHS_ROMAN[month - 1]} {year}, whose "
+            "length the published calendars disagree on. Pass allow_disputed=True to use "
+            "the majority reading. See docs/sources.md."
+        )
+    return result
+
+
+def days_between(
+    start: BSDate | tuple[int, int, int],
+    end: BSDate | tuple[int, int, int],
+    *,
+    allow_disputed: bool = False,
+) -> int:
+    """Number of days from ``start`` to ``end``; negative if ``end`` is earlier."""
+    first = bs_to_ad(*_as_bs(start), allow_disputed=allow_disputed)
+    last = bs_to_ad(*_as_bs(end), allow_disputed=allow_disputed)
+    return (last - first).days
+
+
+def difference(
+    start: BSDate | tuple[int, int, int],
+    end: BSDate | tuple[int, int, int],
+    *,
+    allow_disputed: bool = False,
+) -> BSDifference:
+    """Whole BS years, months and remaining days from ``start`` to ``end``.
+
+    Months are counted on the BS calendar with :func:`add_months` (so a day
+    that does not exist in a later month is clamped), and the days are what
+    is left after the last whole month. ``end`` must not be before ``start``.
+    The disputed span is refused for either date, and also when the last
+    whole month ends inside it, because the day count would then be unsure.
+    """
+    first, last = _as_bs(start), _as_bs(end)
+    if last < first:
+        raise ValueError(f"the end date BS {last} is before the start date BS {first}")
+    cal = _calendar()
+    _check_disputed(cal, first, allow_disputed)
+    _check_disputed(cal, last, allow_disputed)
+    months = (last.year - first.year) * 12 + (last.month - first.month)
+    anchor = add_months(first, months, allow_disputed=True)
+    if anchor > last:
+        months -= 1
+        anchor = add_months(first, months, allow_disputed=True)
+    _check_disputed(cal, anchor, allow_disputed)
+    days = days_between(anchor, last, allow_disputed=True)
+    return BSDifference(months // 12, months % 12, days)
+
+
+def age(
+    birth: BSDate | tuple[int, int, int],
+    on: BSDate | tuple[int, int, int] | None = None,
+    *,
+    allow_disputed: bool = False,
+) -> int:
+    """Completed years from a BS date of birth to ``on`` (default: today in Nepal).
+
+    Someone born on a day that does not exist in a later year's month (for
+    example the 32nd) completes the year on that month's last day.
+    """
+    today = today_bs() if on is None else on
+    return difference(birth, today, allow_disputed=allow_disputed).years
+
+
+def month_calendar(year: int, month: int, *, allow_disputed: bool = False) -> list[list[int]]:
+    """Weeks of a BS month as rows of seven day numbers, Sunday first.
+
+    Days outside the month are ``0``, like :func:`calendar.monthcalendar`.
+    Baishakh and Jestha 2062 raise :class:`DisputedDateError` unless
+    ``allow_disputed`` is true, because their weekdays depend on the reading.
+    """
+    cal = _check_year_month(year, month)
+    length = cal.months[year][month - 1]
+    if not allow_disputed and _month_is_disputed(cal, year, month):
+        raise DisputedDateError(
+            f"{BS_MONTHS_ROMAN[month - 1]} {year} is a month whose length the published "
+            "calendars disagree on. Pass allow_disputed=True to use the majority reading. "
+            "See docs/sources.md."
+        )
+    lead = (bs_to_ad(year, month, 1, allow_disputed=True).weekday() + 1) % 7
+    cells = [0] * lead + list(range(1, length + 1))
+    cells += [0] * (-len(cells) % 7)
+    return [cells[i : i + 7] for i in range(0, len(cells), 7)]
+
+
+def format_month_calendar(
+    year: int, month: int, *, devanagari: bool = False, allow_disputed: bool = False
+) -> str:
+    """A month as plain text: a title, a weekday row and one row per week.
+
+    Columns are separated by tabs so they line up whatever the font does with
+    Devanagari. The weekday row uses the first three letters of the romanised
+    names, or the Nepali names without ``बार``.
+    """
+    weeks = month_calendar(year, month, allow_disputed=allow_disputed)
+    title = f"{month_name(month, roman=not devanagari)} {year}"
+    if devanagari:
+        head = [name.removesuffix("बार") for name in WEEKDAYS]
+    else:
+        head = [name[:3] for name in WEEKDAYS_ROMAN]
+    rows = ["\t".join(str(day) if day else "" for day in week).rstrip("\t") for week in weeks]
+    out = "\n".join([title, "\t".join(head), *rows])
     return to_devanagari_digits(out) if devanagari else out

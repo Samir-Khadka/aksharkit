@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>aksharkit playground — Nepali text tools in your browser</title>
-  <meta name="description" content="Try aksharkit, a Python toolkit for Nepali text: Unicode normaliser, Nepali numbers, BS and AD dates, tokeniser and transliteration. It runs in your browser; nothing you type is sent anywhere.">
+  <meta name="description" content="Try aksharkit, a Python toolkit for Nepali text: Unicode normaliser, Nepali numbers and number words, BS and AD dates and calendar, tokeniser, script detection and transliteration. It runs in your browser; nothing you type is sent anywhere.">
   <meta name="theme-color" content="#4a2a8a">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%234a2a8a'/%3E%3Ctext x='32' y='45' font-size='38' text-anchor='middle' fill='%23f3e3b3' font-family='sans-serif'%3E%E0%A4%85%3C/text%3E%3C/svg%3E">
   <link rel="stylesheet" href="style.css">
@@ -34,8 +34,12 @@
     <div class="tabs" role="tablist" aria-label="Tools">
       <button type="button" role="tab" id="tab-normalize" aria-controls="panel-normalize" aria-selected="true">Normalise</button>
       <button type="button" role="tab" id="tab-numbers" aria-controls="panel-numbers" aria-selected="false" tabindex="-1">Numbers</button>
+      <button type="button" role="tab" id="tab-words" aria-controls="panel-words" aria-selected="false" tabindex="-1">Words to number</button>
       <button type="button" role="tab" id="tab-dates" aria-controls="panel-dates" aria-selected="false" tabindex="-1">Dates</button>
+      <button type="button" role="tab" id="tab-calendar" aria-controls="panel-calendar" aria-selected="false" tabindex="-1">Calendar</button>
+      <button type="button" role="tab" id="tab-datemath" aria-controls="panel-datemath" aria-selected="false" tabindex="-1">Date maths</button>
       <button type="button" role="tab" id="tab-tokenize" aria-controls="panel-tokenize" aria-selected="false" tabindex="-1">Tokenise</button>
+      <button type="button" role="tab" id="tab-detect" aria-controls="panel-detect" aria-selected="false" tabindex="-1">Detect script</button>
       <button type="button" role="tab" id="tab-translit" aria-controls="panel-translit" aria-selected="false" tabindex="-1">Transliterate</button>
       <button type="button" role="tab" id="tab-preeti" aria-controls="panel-preeti" aria-selected="false" tabindex="-1">Preeti <span class="soon">soon</span></button>
     </div>
@@ -45,6 +49,7 @@
       <p class="hint">Text that looks the same can be stored in different ways, which breaks search. This gives one canonical form: repaired vowels, tidy spaces, <span lang="ne">।</span> for a typed <code>|</code>.</p>
       <label for="in-normalize">Text</label>
       <textarea id="in-normalize" data-tool="normalize" data-field="text" rows="4" lang="ne" spellcheck="false">  राम   घर गयो|  अाज   पानी  पर्‍यो||</textarea>
+      <p class="examples"><span class="examples-label">Try:</span> <button type="button" class="example" data-example="in-normalize" data-value="अाज   पानी  पर्‍यो||" lang="ne">अाज पानी पर्‍यो||</button> <button type="button" class="example" data-example="in-normalize" data-value="नेपाल   सुन्दर छ |" lang="ne">नेपाल सुन्दर छ |</button> <button type="button" class="example" data-example="in-normalize" data-value="के   छ ?  ठिक  छ|" lang="ne">के छ ? ठिक छ|</button></p>
       <div class="options">
         <label for="opt-joiners">Joiners (ZWJ, ZWNJ)</label>
         <select id="opt-joiners" data-tool="normalize" data-field="joiners">
@@ -58,7 +63,7 @@
       <div class="result">
         <div class="result-head">
           <h3 id="lbl-normalize-text">Result</h3>
-          <button type="button" class="copy" data-copy="normalize.text">Copy</button>
+          <button type="button" class="copy" data-copy="normalize.text" aria-label="Copy result">Copy</button>
         </div>
         <output id="out-normalize-text" data-out="normalize.text" class="out big" lang="ne" aria-labelledby="lbl-normalize-text" aria-live="polite"></output>
         <p id="out-normalize-note" data-out="normalize.note" class="note"></p>
@@ -70,19 +75,36 @@
       <p class="hint">Nepali digits, lakh and crore grouping, and numbers spelt in words, including rupees and paisa for cheques.</p>
       <label for="in-numbers">Number</label>
       <input id="in-numbers" data-tool="numbers" data-field="text" type="text" inputmode="decimal" autocomplete="off" value="1250500.50">
+      <p class="examples"><span class="examples-label">Try:</span> <button type="button" class="example" data-example="in-numbers" data-value="125000">125000</button> <button type="button" class="example" data-example="in-numbers" data-value="१२३४५६७">१२३४५६७</button> <button type="button" class="example" data-example="in-numbers" data-value="99.50">99.50</button> <button type="button" class="example" data-example="in-numbers" data-value="-42">-42</button> <button type="button" class="example" data-example="in-numbers" data-value="9999999999999">9999999999999</button></p>
       <div class="options">
         <label class="check"><input type="checkbox" id="opt-only" data-tool="numbers" data-field="only" checked> End the amount with <span lang="ne">मात्र</span> (only)</label>
       </div>
       <p id="err-numbers" class="notice error" role="alert" hidden></p>
       <dl class="rows" aria-live="polite">
-        <div><dt>Nepali digits</dt><dd><output data-out="numbers.devanagari" class="out" lang="ne"></output></dd></div>
-        <div><dt>ASCII digits</dt><dd><output data-out="numbers.ascii" class="out"></output></dd></div>
-        <div><dt>Grouped</dt><dd><output data-out="numbers.grouped" class="out"></output></dd></div>
-        <div><dt>Grouped, Nepali digits</dt><dd><output data-out="numbers.grouped_devanagari" class="out" lang="ne"></output></dd></div>
-        <div><dt>In words</dt><dd><output data-out="numbers.words" class="out" lang="ne"></output> <button type="button" class="copy" data-copy="numbers.words">Copy</button></dd></div>
-        <div><dt>As money</dt><dd><output data-out="numbers.currency" class="out" lang="ne"></output> <button type="button" class="copy" data-copy="numbers.currency">Copy</button></dd></div>
+        <div><dt>Nepali digits</dt><dd><output data-out="numbers.devanagari" class="out" lang="ne"></output> <button type="button" class="copy" data-copy="numbers.devanagari" aria-label="Copy nepali digits">Copy</button></dd></div>
+        <div><dt>ASCII digits</dt><dd><output data-out="numbers.ascii" class="out"></output> <button type="button" class="copy" data-copy="numbers.ascii" aria-label="Copy ascii digits">Copy</button></dd></div>
+        <div><dt>Grouped</dt><dd><output data-out="numbers.grouped" class="out"></output> <button type="button" class="copy" data-copy="numbers.grouped" aria-label="Copy grouped number">Copy</button></dd></div>
+        <div><dt>Grouped, Nepali digits</dt><dd><output data-out="numbers.grouped_devanagari" class="out" lang="ne"></output> <button type="button" class="copy" data-copy="numbers.grouped_devanagari" aria-label="Copy grouped number in Nepali digits">Copy</button></dd></div>
+        <div><dt>In words</dt><dd><output data-out="numbers.words" class="out" lang="ne"></output> <button type="button" class="copy" data-copy="numbers.words" aria-label="Copy number in words">Copy</button></dd></div>
+        <div><dt>As money</dt><dd><output data-out="numbers.currency" class="out" lang="ne"></output> <button type="button" class="copy" data-copy="numbers.currency" aria-label="Copy amount in words">Copy</button></dd></div>
       </dl>
       <p class="note">Spellings such as <span lang="ne">दस</span>/<span lang="ne">दश</span> are still under native-speaker review.</p>
+    </section>
+
+    <section class="panel" role="tabpanel" id="panel-words" aria-labelledby="tab-words" tabindex="0" hidden>
+      <h2>Words to number</h2>
+      <p class="hint">Read a number written in Nepali words. Negatives (<span lang="ne">ऋण</span>), decimals (<span lang="ne">दशमलव</span>) and amounts in <span lang="ne">रुपैयाँ</span> and <span lang="ne">पैसा</span> are understood, as are common alternative spellings such as <span lang="ne">दश</span> and <span lang="ne">बीस</span>.</p>
+      <label for="in-words">Number in words</label>
+      <input id="in-words" data-tool="words" data-field="text" type="text" autocomplete="off" lang="ne" spellcheck="false" value="बाह्र लाख पचास हजार पाँच सय">
+      <p class="examples"><span class="examples-label">Try:</span> <button type="button" class="example" data-example="in-words" data-value="एक लाख पच्चीस हजार" lang="ne">एक लाख पच्चीस हजार</button> <button type="button" class="example" data-example="in-words" data-value="ऋण बाह्र दशमलव पाँच" lang="ne">ऋण बाह्र दशमलव पाँच</button> <button type="button" class="example" data-example="in-words" data-value="पाँच सय रुपैयाँ पचास पैसा मात्र" lang="ne">पाँच सय रुपैयाँ पचास पैसा मात्र</button> <button type="button" class="example" data-example="in-words" data-value="पन्ध्र सय" lang="ne">पन्ध्र सय</button> <button type="button" class="example" data-example="in-words" data-value="दुई करोड" lang="ne">दुई करोड</button></p>
+      <p id="err-words" class="notice error" role="alert" hidden></p>
+      <dl class="rows" aria-live="polite">
+        <div><dt>Number</dt><dd><output data-out="words.number" class="out"></output> <button type="button" class="copy" data-copy="words.number" aria-label="Copy number">Copy</button></dd></div>
+        <div><dt>Grouped</dt><dd><output data-out="words.grouped" class="out"></output> <button type="button" class="copy" data-copy="words.grouped" aria-label="Copy grouped number">Copy</button></dd></div>
+        <div><dt>Grouped, Nepali digits</dt><dd><output data-out="words.grouped_devanagari" class="out" lang="ne"></output> <button type="button" class="copy" data-copy="words.grouped_devanagari" aria-label="Copy grouped number in Nepali digits">Copy</button></dd></div>
+        <div><dt>Spelt by aksharkit</dt><dd><output data-out="words.respelt" class="out" lang="ne"></output> <button type="button" class="copy" data-copy="words.respelt" aria-label="Copy spelling">Copy</button></dd></div>
+      </dl>
+      <p class="note">Only the spellings listed in the project's sources are read; anything else is refused with the word that was not understood.</p>
     </section>
 
     <section class="panel" role="tabpanel" id="panel-dates" aria-labelledby="tab-dates" tabindex="0" hidden>
@@ -98,18 +120,84 @@
         <input id="in-dates" data-tool="dates" data-field="text" type="text" inputmode="numeric" autocomplete="off" value="2026-11-23" placeholder="2026-11-23">
         <button type="button" id="btn-today" class="button ghost">Today</button>
       </div>
+      <p class="examples"><span class="examples-label">Try:</span> <button type="button" class="example" data-example="in-dates" data-value="2026-04-14">2026-04-14</button> <button type="button" class="example" data-example="in-dates" data-value="2000-01-01">2000-01-01</button> <button type="button" class="example" data-example="in-dates" data-value="१९९०-०७-१५">१९९०-०७-१५</button> <button type="button" class="example" data-example="in-dates" data-value="1943-04-14">1943-04-14</button></p>
       <div class="options">
         <label class="check"><input type="checkbox" id="opt-disputed" data-tool="dates" data-field="allow_disputed"> Allow the disputed month of 2062 (majority reading)</label>
       </div>
       <p id="err-dates" class="notice error" role="alert" hidden></p>
       <dl class="rows" aria-live="polite">
-        <div><dt>BS</dt><dd><output data-out="dates.bs_iso" class="out"></output> · <output data-out="dates.bs_iso_ne" class="out" lang="ne"></output></dd></div>
-        <div><dt>BS, in full</dt><dd><output data-out="dates.bs_long_ne" class="out" lang="ne"></output></dd></div>
-        <div><dt>BS, romanised</dt><dd><output data-out="dates.bs_long" class="out"></output></dd></div>
-        <div><dt>AD</dt><dd><output data-out="dates.ad_iso" class="out"></output> · <output data-out="dates.ad_long" class="out"></output></dd></div>
-        <div><dt>Fiscal year</dt><dd><output data-out="dates.fiscal_year" class="out"></output> · <output data-out="dates.fiscal_year_ne" class="out" lang="ne"></output></dd></div>
+        <div><dt>BS</dt><dd><output data-out="dates.bs_iso" class="out"></output> <button type="button" class="copy" data-copy="dates.bs_iso" aria-label="Copy BS date">Copy</button></dd></div>
+        <div><dt>BS, Nepali digits</dt><dd><output data-out="dates.bs_iso_ne" class="out" lang="ne"></output> <button type="button" class="copy" data-copy="dates.bs_iso_ne" aria-label="Copy BS date in Nepali digits">Copy</button></dd></div>
+        <div><dt>BS, in full</dt><dd><output data-out="dates.bs_long_ne" class="out" lang="ne"></output> <button type="button" class="copy" data-copy="dates.bs_long_ne" aria-label="Copy BS date in full">Copy</button></dd></div>
+        <div><dt>BS, romanised</dt><dd><output data-out="dates.bs_long" class="out"></output> <button type="button" class="copy" data-copy="dates.bs_long" aria-label="Copy romanised BS date">Copy</button></dd></div>
+        <div><dt>AD</dt><dd><output data-out="dates.ad_iso" class="out"></output> <button type="button" class="copy" data-copy="dates.ad_iso" aria-label="Copy AD date">Copy</button></dd></div>
+        <div><dt>AD, in full</dt><dd><output data-out="dates.ad_long" class="out"></output> <button type="button" class="copy" data-copy="dates.ad_long" aria-label="Copy AD date in full">Copy</button></dd></div>
+        <div><dt>Fiscal year</dt><dd><output data-out="dates.fiscal_year" class="out"></output> <button type="button" class="copy" data-copy="dates.fiscal_year" aria-label="Copy fiscal year">Copy</button></dd></div>
+        <div><dt>Fiscal year, Nepali digits</dt><dd><output data-out="dates.fiscal_year_ne" class="out" lang="ne"></output> <button type="button" class="copy" data-copy="dates.fiscal_year_ne" aria-label="Copy fiscal year in Nepali digits">Copy</button></dd></div>
       </dl>
       <p class="note">Month and weekday spellings are still under native-speaker review.</p>
+    </section>
+
+    <section class="panel" role="tabpanel" id="panel-calendar" aria-labelledby="tab-calendar" tabindex="0" hidden>
+      <h2>Calendar</h2>
+      <p class="hint">One Bikram Sambat month as a grid, Sunday first, for BS 2000 to 2083.</p>
+      <label for="in-calendar">BS month (YYYY-MM)</label>
+      <input id="in-calendar" data-tool="calendar" data-field="text" type="text" inputmode="numeric" autocomplete="off" value="2083-08" placeholder="2083-08">
+      <p class="examples"><span class="examples-label">Try:</span> <button type="button" class="example" data-example="in-calendar" data-value="2083-01">2083-01</button> <button type="button" class="example" data-example="in-calendar" data-value="2083-12">2083-12</button> <button type="button" class="example" data-example="in-calendar" data-value="२०८०-०३">२०८०-०३</button> <button type="button" class="example" data-example="in-calendar" data-value="2000-01">2000-01</button></p>
+      <div class="options">
+        <label class="check"><input type="checkbox" id="opt-calendar-ne" data-tool="calendar" data-field="devanagari" checked> Nepali digits and names</label>
+        <label class="check"><input type="checkbox" id="opt-calendar-disputed" data-tool="calendar" data-field="allow_disputed"> Allow Baishakh and Jestha 2062 (majority reading)</label>
+      </div>
+      <p id="err-calendar" class="notice error" role="alert" hidden></p>
+      <div class="result">
+        <div class="result-head">
+          <h3 id="lbl-calendar"><output data-out="calendar.title" class="out"></output></h3>
+          <button type="button" class="copy" data-copy="calendar.text" aria-label="Copy the month as text">Copy</button>
+        </div>
+        <div class="grid-wrap">
+          <table id="out-calendar-grid" class="grid" aria-labelledby="lbl-calendar">
+            <thead id="out-calendar-head"></thead>
+            <tbody id="out-calendar-weeks"></tbody>
+          </table>
+        </div>
+        <p class="note"><output data-out="calendar.span" class="out"></output></p>
+        <output data-out="calendar.text" class="out" hidden></output>
+      </div>
+      <p class="note">Month and weekday spellings are still under native-speaker review.</p>
+    </section>
+
+    <section class="panel" role="tabpanel" id="panel-datemath" aria-labelledby="tab-datemath" tabindex="0" hidden>
+      <h2>Date maths</h2>
+      <p class="hint">Add days or months to a BS date, and count the time between two BS dates: an age, a notice period, days left.</p>
+      <label for="in-datemath">BS date (YYYY-MM-DD)</label>
+      <input id="in-datemath" data-tool="datemath" data-field="text" type="text" inputmode="numeric" autocomplete="off" value="2060-01-15" placeholder="2060-01-15">
+      <p class="examples"><span class="examples-label">Try:</span> <button type="button" class="example" data-example="in-datemath" data-value="2083-08-07">2083-08-07</button> <button type="button" class="example" data-example="in-datemath" data-value="2059-05-12">2059-05-12</button> <button type="button" class="example" data-example="in-datemath" data-value="२०७२-०१-१२">२०७२-०१-१२</button> <button type="button" class="example" data-example="in-datemath" data-value="2083-03-32">2083-03-32</button></p>
+      <div class="pair">
+        <div>
+          <label for="in-datemath-months">Add months</label>
+          <input id="in-datemath-months" data-tool="datemath" data-field="months" type="text" inputmode="numeric" autocomplete="off" value="0">
+        </div>
+        <div>
+          <label for="in-datemath-days">Add days</label>
+          <input id="in-datemath-days" data-tool="datemath" data-field="days" type="text" inputmode="numeric" autocomplete="off" value="90">
+        </div>
+      </div>
+      <label for="in-datemath-until">Count up to this BS date (leave empty for today in Nepal)</label>
+      <input id="in-datemath-until" data-tool="datemath" data-field="until" type="text" inputmode="numeric" autocomplete="off" value="2083-08-07" placeholder="today">
+      <div class="options">
+        <label class="check"><input type="checkbox" id="opt-datemath-disputed" data-tool="datemath" data-field="allow_disputed"> Allow the disputed month of 2062 (majority reading)</label>
+      </div>
+      <p id="err-datemath" class="notice error" role="alert" hidden></p>
+      <dl class="rows" aria-live="polite">
+        <div><dt>Date after adding</dt><dd><output data-out="datemath.moved" class="out"></output> <button type="button" class="copy" data-copy="datemath.moved" aria-label="Copy new date">Copy</button></dd></div>
+        <div><dt>In full</dt><dd><output data-out="datemath.moved_ne" class="out" lang="ne"></output> <button type="button" class="copy" data-copy="datemath.moved_ne" aria-label="Copy new date in full">Copy</button></dd></div>
+        <div><dt>That day in AD</dt><dd><output data-out="datemath.moved_ad" class="out"></output> <button type="button" class="copy" data-copy="datemath.moved_ad" aria-label="Copy new date in AD">Copy</button></dd></div>
+        <div><dt>Counted up to</dt><dd><output data-out="datemath.until" class="out"></output> <button type="button" class="copy" data-copy="datemath.until" aria-label="Copy end date">Copy</button></dd></div>
+        <div><dt>Time between</dt><dd><output data-out="datemath.gap" class="out"></output> <button type="button" class="copy" data-copy="datemath.gap" aria-label="Copy time between">Copy</button></dd></div>
+        <div><dt>Days between</dt><dd><output data-out="datemath.days" class="out"></output> <button type="button" class="copy" data-copy="datemath.days" aria-label="Copy days between">Copy</button></dd></div>
+        <div><dt>Age in completed years</dt><dd><output data-out="datemath.age" class="out"></output> <button type="button" class="copy" data-copy="datemath.age" aria-label="Copy age">Copy</button></dd></div>
+      </dl>
+      <p class="note">A day that does not exist in the target month is moved to that month's last day (32 Asar plus one month is the last day of Shrawan).</p>
     </section>
 
     <section class="panel" role="tabpanel" id="panel-tokenize" aria-labelledby="tab-tokenize" tabindex="0" hidden>
@@ -117,13 +205,42 @@
       <p class="hint">Split text into words and sentences. Nepali sentences end in <span lang="ne">।</span>, and a full stop inside <span lang="ne">डा.</span> or <span lang="ne">रु. 99.50</span> must not end one.</p>
       <label for="in-tokenize">Text</label>
       <textarea id="in-tokenize" data-tool="tokenize" data-field="text" rows="4" lang="ne" spellcheck="false">डा. राम आए। नेपालको जनसंख्या २,९१,६४,५७८ छ। मूल्य रु. 99.50 हो। ठिक छ?</textarea>
+      <p class="examples"><span class="examples-label">Try:</span> <button type="button" class="example" data-example="in-tokenize" data-value="म घर जान्छु। तिमी कहाँ जान्छौ?" lang="ne">म घर जान्छु। तिमी कहाँ जान्छौ?</button> <button type="button" class="example" data-example="in-tokenize" data-value="Facebookमा photo राख्नुहोस्।" lang="ne">Facebookमा photo राख्नुहोस्।</button> <button type="button" class="example" data-example="in-tokenize" data-value="मूल्य रु. 1,250.50 हो।" lang="ne">मूल्य रु. 1,250.50 हो।</button></p>
       <p id="err-tokenize" class="notice error" role="alert" hidden></p>
       <div class="result">
-        <h3 id="lbl-tokens">Tokens <span id="out-tokenize-count" data-out="tokenize.count" class="count"></span></h3>
+        <div class="result-head">
+          <h3 id="lbl-tokens">Tokens <span id="out-tokenize-count" data-out="tokenize.count" class="count"></span></h3>
+          <button type="button" class="copy" data-copy-list="out-tokenize-tokens" aria-label="Copy tokens, one per line">Copy</button>
+        </div>
         <ul id="out-tokenize-tokens" class="chips" lang="ne" aria-labelledby="lbl-tokens"></ul>
         <p class="note">Faded chips are stopwords; outlined chips are numbers and punctuation.</p>
-        <h3 id="lbl-sentences">Sentences</h3>
+        <div class="result-head">
+          <h3 id="lbl-sentences">Sentences</h3>
+          <button type="button" class="copy" data-copy-list="out-tokenize-sentences" aria-label="Copy sentences, one per line">Copy</button>
+        </div>
         <ol id="out-tokenize-sentences" class="sentences" lang="ne" aria-labelledby="lbl-sentences"></ol>
+      </div>
+    </section>
+
+    <section class="panel" role="tabpanel" id="panel-detect" aria-labelledby="tab-detect" tabindex="0" hidden>
+      <h2>Detect script</h2>
+      <p class="hint">Which script is this text written in? Letters are sorted by their Unicode range into Devanagari, Latin, digits and other. This is <strong>not</strong> language detection: Nepali, Hindi, Marathi and Sanskrit all use Devanagari and look the same here.</p>
+      <label for="in-detect">Text</label>
+      <textarea id="in-detect" data-tool="detect" data-field="text" rows="4" spellcheck="false">Facebookमा photo राख्नुहोस्। मेरो नम्बर 9800000000 हो।</textarea>
+      <p class="examples"><span class="examples-label">Try:</span> <button type="button" class="example" data-example="in-detect" data-value="नेपाल राम्रो छ।">नेपाल राम्रो छ।</button> <button type="button" class="example" data-example="in-detect" data-value="timi kasto cha? malai ramro lagyo">timi kasto cha?</button> <button type="button" class="example" data-example="in-detect" data-value="How are you today?">How are you today?</button> <button type="button" class="example" data-example="in-detect" data-value="२०८३-०८-०७">२०८३-०८-०७</button></p>
+      <p id="err-detect" class="notice error" role="alert" hidden></p>
+      <dl class="rows" aria-live="polite">
+        <div><dt>Script</dt><dd><output data-out="detect.script" class="out"></output> <button type="button" class="copy" data-copy="detect.script" aria-label="Copy script">Copy</button></dd></div>
+        <div><dt>Share of each</dt><dd><output data-out="detect.shares" class="out"></output> <button type="button" class="copy" data-copy="detect.shares" aria-label="Copy shares">Copy</button></dd></div>
+      </dl>
+      <div class="result">
+        <div class="result-head">
+          <h3 id="lbl-detect-tokens">Token by token</h3>
+          <button type="button" class="copy" data-copy-list="out-detect-tokens" aria-label="Copy tokens and their scripts">Copy</button>
+        </div>
+        <ul id="out-detect-tokens" class="chips" aria-labelledby="lbl-detect-tokens"></ul>
+        <p class="note">Violet chips are Devanagari, gold-outlined chips are Latin, plain chips are digits and punctuation.</p>
+        <p data-out="detect.romanised" class="note"></p>
       </div>
     </section>
 
@@ -144,11 +261,12 @@
       </div>
       <label for="in-translit">Text</label>
       <textarea id="in-translit" data-tool="translit" data-field="text" rows="4" spellcheck="false">नमस्ते, नेपाल राम्रो छ। धन्यवाद!</textarea>
+      <p class="examples"><span class="examples-label">Try:</span> <button type="button" class="example" data-example="in-translit" data-value="काठमाडौँ उपत्यका" lang="ne">काठमाडौँ उपत्यका</button> <button type="button" class="example" data-example="in-translit" data-value="ज्ञान र विज्ञान" lang="ne">ज्ञान र विज्ञान</button> <button type="button" class="example" data-example="in-translit" data-value="मेरो नाम समिर हो।" lang="ne">मेरो नाम समिर हो।</button></p>
       <p id="err-translit" class="notice error" role="alert" hidden></p>
       <div class="result">
         <div class="result-head">
           <h3 id="lbl-translit-text">Result</h3>
-          <button type="button" class="copy" data-copy="translit.text">Copy</button>
+          <button type="button" class="copy" data-copy="translit.text" aria-label="Copy result">Copy</button>
         </div>
         <output id="out-translit-text" data-out="translit.text" class="out big" aria-labelledby="lbl-translit-text" aria-live="polite"></output>
         <p id="out-translit-note" data-out="translit.note" class="note"></p>
@@ -158,12 +276,19 @@
     <section class="panel" role="tabpanel" id="panel-preeti" aria-labelledby="tab-preeti" tabindex="0" hidden>
       <h2>Preeti to Unicode</h2>
       <p class="notice soon-box"><strong>Coming soon — needs a verified mapping.</strong> A great deal of older Nepali text is stored in the Preeti font. aksharkit will not guess the key-to-letter table, and the tables published so far are either under licences an MIT project cannot copy or do not say where they came from.</p>
-      <p>What unblocks it: real Preeti text with the correct Unicode beside it, to test against. If you have some, please open an issue on <a href="https://github.com/Samir-Khadka/aksharkit">GitHub</a>.</p>
+      <p>What unblocks it: real Preeti text with the correct Unicode beside it, to test against.</p>
+      <p><a class="button ghost link" href="https://github.com/Samir-Khadka/aksharkit/issues">Preeti: help wanted</a></p>
+      <p class="note">The link opens the project's issues page on GitHub. If you have Preeti text and its Unicode version, or know where a glyph table came from, please say so there.</p>
     </section>
+
+    <p class="share">
+      <button type="button" id="btn-share" class="button ghost">Copy a link to this result</button>
+      <span class="note">The link holds what you typed, after the <code>#</code>. Browsers do not send that part to any server.</span>
+    </p>
   </main>
 
   <footer class="wrap foot">
-    <p><span id="version">aksharkit</span> · <a href="https://github.com/Samir-Khadka/aksharkit">Source on GitHub</a> · MIT licence</p>
+    <p><span id="version">aksharkit</span> · <a href="https://github.com/Samir-Khadka/aksharkit">Source on GitHub</a> · <a href="https://github.com/Samir-Khadka/aksharkit/issues">Preeti: help wanted</a> · MIT licence</p>
     <p class="small">The Python runtime is <a href="https://pyodide.org/">Pyodide</a>, loaded from the jsDelivr CDN. No analytics, no cookies, no fonts from other sites.</p>
   </footer>
 

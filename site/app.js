@@ -14,7 +14,8 @@ const PYODIDE_INTEGRITY =
   "sha384-VR47TfKeAmT7vMej7bwOVg0tHTQLLGMSIpsXtFMCZG5OpKZSIXoSLtGY//qHcxc6";
 const PACKAGE_ARCHIVE = "pkg/aksharkit.zip";
 const PACKAGE_DIR = "/home/pyodide/aksharkit_pkg";
-const TOOLS = ["normalize", "numbers", "dates", "tokenize", "translit"];
+const TOOLS = ["normalize", "numbers", "words", "dates", "calendar", "datemath", "tokenize", "detect", "translit"];
+const MAX_LINK_LENGTH = 1800; // longer inputs are left out of the shareable link
 const DEBOUNCE_MS = 150;
 
 let runPython = null; // set once the library is loaded
@@ -106,7 +107,9 @@ async function boot() {
       "ready",
       "Ready. aksharkit " + info.result.version + " on Python " + info.result.python + ", running in your browser."
     );
-    TOOLS.forEach(update);
+    TOOLS.forEach(function (tool) {
+      update(tool);
+    });
   } catch (error) {
     runPython = null;
     showLoadError(error && error.message ? error.message : String(error));
@@ -154,6 +157,13 @@ function clearOutputs(tool) {
     byId("out-tokenize-tokens").replaceChildren();
     byId("out-tokenize-sentences").replaceChildren();
   }
+  if (tool === "detect") {
+    byId("out-detect-tokens").replaceChildren();
+  }
+  if (tool === "calendar") {
+    byId("out-calendar-head").replaceChildren();
+    byId("out-calendar-weeks").replaceChildren();
+  }
 }
 
 function showError(tool, message) {
@@ -171,6 +181,29 @@ function item(tag, text, className) {
   return el;
 }
 
+function fill(parent, nodes) {
+  parent.replaceChildren.apply(parent, nodes);
+}
+
+function setRows(tool, r) {
+  Object.keys(r).forEach(function (key) {
+    setOut(tool + "." + key, r[key].value, !r[key].ok);
+  });
+}
+
+function percent(share) {
+  return Math.round(share * 1000) / 10 + "%";
+}
+
+const SCRIPT_NAMES = {
+  devanagari: "Devanagari",
+  latin: "Latin",
+  digits: "Digits only",
+  mixed: "Mixed (more than one script)",
+  other: "Another script",
+  none: "Nothing to classify",
+};
+
 const RENDER = {
   normalize: function (r) {
     setOut("normalize.text", r.text);
@@ -182,9 +215,80 @@ const RENDER = {
     );
   },
   numbers: function (r) {
-    Object.keys(r).forEach(function (key) {
-      setOut("numbers." + key, r[key].value, !r[key].ok);
+    setRows("numbers", r);
+  },
+  words: function (r) {
+    setRows("words", r);
+  },
+  datemath: function (r) {
+    setRows("datemath", r);
+  },
+  calendar: function (r) {
+    setOut("calendar.title", r.title);
+    setOut("calendar.span", r.span);
+    setOut("calendar.text", r.text);
+    const table = byId("out-calendar-grid");
+    table.setAttribute("lang", r.lang);
+    const headRow = item("tr", "", "");
+    fill(
+      headRow,
+      r.head.map(function (name) {
+        const cell = item("th", name, "");
+        cell.setAttribute("scope", "col");
+        return cell;
+      })
+    );
+    fill(byId("out-calendar-head"), [headRow]);
+    fill(
+      byId("out-calendar-weeks"),
+      r.weeks.map(function (week) {
+        const row = item("tr", "", "");
+        fill(
+          row,
+          week.map(function (day) {
+            return item("td", day, day ? "" : "blank");
+          })
+        );
+        return row;
+      })
+    );
+  },
+  detect: function (r) {
+    setOut("detect.script", SCRIPT_NAMES[r.script] || r.script);
+    const parts = [];
+    [
+      ["devanagari", "Devanagari"],
+      ["latin", "Latin"],
+      ["digit", "digits"],
+      ["other", "other"],
+    ].forEach(function (pair) {
+      if (r.counts[pair[0]] > 0) {
+        parts.push(pair[1] + " " + percent(r.shares[pair[0]]) + " (" + r.counts[pair[0]] + ")");
+      }
     });
+    setOut("detect.shares", parts.length ? parts.join(" · ") : "No letters or digits.");
+    fill(
+      byId("out-detect-tokens"),
+      r.tokens.map(function (t) {
+        const chip = item("li", t.text, "chip script-" + t.script);
+        chip.setAttribute("title", t.script);
+        if (t.script === "devanagari") {
+          chip.setAttribute("lang", "ne");
+        }
+        return chip;
+      })
+    );
+    let note = "";
+    if (r.counts.latin > 0) {
+      note =
+        "Romanised-Nepali word list: " +
+        percent(r.romanised_score) +
+        " of the Latin-letter words are on it. " +
+        (r.romanised
+          ? "This looks like Nepali typed in Latin letters. That is a rough guess from a short word list, not a language test."
+          : "Not enough to call it romanised Nepali. The check is a rough guess from a short word list.");
+    }
+    setOut("detect.romanised", note);
   },
   dates: function (r) {
     Object.keys(r).forEach(function (key) {
@@ -213,6 +317,7 @@ const RENDER = {
   },
   translit: function (r) {
     setOut("translit.text", r.text);
+    byId("out-translit-text").setAttribute("lang", r.lang);
     setOut(
       "translit.note",
       r.approximate
@@ -222,7 +327,10 @@ const RENDER = {
   },
 };
 
-function update(tool) {
+function update(tool, fromUser) {
+  if (fromUser) {
+    writeState(tool);
+  }
   if (!runPython) {
     return;
   }
@@ -241,6 +349,88 @@ function update(tool) {
   }
 }
 
+/* ---- state in the address ---------------------------------------------------
+ *
+ * The part after "#" is "<tab>" or "<tab>?<field>=<value>&...", so a result
+ * can be shared as a link. Nothing is stored on the device or sent anywhere:
+ * browsers do not send the part after "#" to the server.
+ */
+
+function readState() {
+  const raw = String(location.hash || "").replace(/^#/, "");
+  const cut = raw.indexOf("?");
+  const state = { tab: cut < 0 ? raw : raw.slice(0, cut), fields: {} };
+  if (cut >= 0) {
+    raw
+      .slice(cut + 1)
+      .split("&")
+      .forEach(function (pair) {
+        const eq = pair.indexOf("=");
+        if (eq <= 0) {
+          return;
+        }
+        try {
+          state.fields[decodeURIComponent(pair.slice(0, eq))] = decodeURIComponent(pair.slice(eq + 1));
+        } catch (error) {
+          // a broken escape in a hand-edited link: skip that field
+        }
+      });
+  }
+  return state;
+}
+
+function applyState(state) {
+  const tab = byId("tab-" + state.tab);
+  if (!tab) {
+    return false;
+  }
+  selectTab(tab, false);
+  all('[data-tool="' + state.tab + '"]').forEach(function (el) {
+    const field = el.dataset.field;
+    if (!Object.prototype.hasOwnProperty.call(state.fields, field)) {
+      return;
+    }
+    const value = state.fields[field];
+    if (el.type === "checkbox") {
+      el.checked = value === "1";
+    } else if (el.type === "radio") {
+      if (el.value === value) {
+        el.checked = true;
+      }
+    } else {
+      el.value = value;
+    }
+  });
+  return true;
+}
+
+function stateFor(name) {
+  if (TOOLS.indexOf(name) < 0) {
+    return "#" + name;
+  }
+  const payload = collect(name);
+  const pairs = Object.keys(payload).map(function (field) {
+    const value = payload[field];
+    const text = value === true ? "1" : value === false ? "0" : String(value);
+    return encodeURIComponent(field) + "=" + encodeURIComponent(text);
+  });
+  const hash = "#" + name + "?" + pairs.join("&");
+  return hash.length > MAX_LINK_LENGTH ? "#" + name : hash;
+}
+
+function writeState(name) {
+  if (typeof history === "object" && history && typeof history.replaceState === "function") {
+    history.replaceState(null, "", stateFor(name));
+  }
+}
+
+function currentTabName() {
+  const selected = all('[role="tab"]').filter(function (tab) {
+    return tab.getAttribute("aria-selected") === "true";
+  })[0];
+  return selected ? selected.id.replace("tab-", "") : TOOLS[0];
+}
+
 /* ---- tabs ------------------------------------------------------------------ */
 
 function selectTab(tab, focus) {
@@ -252,6 +442,9 @@ function selectTab(tab, focus) {
   });
   if (focus) {
     tab.focus();
+  }
+  if (typeof tab.scrollIntoView === "function") {
+    tab.scrollIntoView({ block: "nearest", inline: "nearest" });
   }
 }
 
@@ -271,6 +464,7 @@ function onTabKey(event) {
   if (next >= 0) {
     event.preventDefault();
     selectTab(tabs[next], true);
+    writeState(currentTabName());
   }
 }
 
@@ -284,36 +478,77 @@ function debounce(fn, wait) {
   };
 }
 
-function copyOutput(button) {
-  const source = all('[data-out="' + button.dataset.copy + '"]')[0];
-  const text = source ? source.textContent : "";
-  if (!text || !navigator.clipboard) {
+function flash(button, text) {
+  const label = button.dataset.label || button.textContent;
+  button.dataset.label = label;
+  button.textContent = text;
+  setTimeout(function () {
+    button.textContent = label;
+  }, 1200);
+}
+
+function copyText(button, text) {
+  if (!text) {
     return;
   }
-  navigator.clipboard.writeText(text).then(function () {
-    const label = button.textContent;
-    button.textContent = "Copied";
-    setTimeout(function () {
-      button.textContent = label;
-    }, 1200);
+  if (!navigator.clipboard || typeof navigator.clipboard.writeText !== "function") {
+    flash(button, "Copy is not available");
+    return;
+  }
+  navigator.clipboard.writeText(text).then(
+    function () {
+      flash(button, "Copied");
+    },
+    function () {
+      flash(button, "Could not copy");
+    }
+  );
+}
+
+function copyOutput(button) {
+  const source = all('[data-out="' + button.dataset.copy + '"]')[0];
+  copyText(button, source ? source.textContent : "");
+}
+
+function copyList(button) {
+  const list = byId(button.dataset.copyList);
+  const lines = Array.from(list.children).map(function (child) {
+    const note = child.getAttribute("title");
+    return note ? child.textContent + "\t" + note : child.textContent;
   });
+  copyText(button, lines.join("\n"));
+}
+
+function useExample(button) {
+  const target = byId(button.dataset.example);
+  target.value = button.dataset.value;
+  update(target.dataset.tool, true);
+  if (typeof target.focus === "function") {
+    target.focus();
+  }
 }
 
 function init() {
   all('[role="tab"]').forEach(function (tab) {
     tab.addEventListener("click", function () {
       selectTab(tab, false);
+      writeState(currentTabName());
     });
     tab.addEventListener("keydown", onTabKey);
   });
-  const wanted = byId("tab-" + String(location.hash || "").replace("#", ""));
-  if (wanted) {
-    selectTab(wanted, false);
+  applyState(readState());
+  if (typeof globalThis.addEventListener === "function") {
+    globalThis.addEventListener("hashchange", function () {
+      const state = readState();
+      if (applyState(state) && TOOLS.indexOf(state.tab) >= 0) {
+        update(state.tab, false);
+      }
+    });
   }
 
   TOOLS.forEach(function (tool) {
     const refresh = debounce(function () {
-      update(tool);
+      update(tool, true);
     }, DEBOUNCE_MS);
     all('[data-tool="' + tool + '"]').forEach(function (el) {
       el.addEventListener("input", refresh);
@@ -326,6 +561,22 @@ function init() {
       copyOutput(button);
     });
   });
+  all("[data-copy-list]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      copyList(button);
+    });
+  });
+  all("[data-example]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      useExample(button);
+    });
+  });
+  byId("btn-share").addEventListener("click", function () {
+    const name = currentTabName();
+    writeState(name);
+    const base = String(location.href || "").split("#")[0];
+    copyText(byId("btn-share"), base + stateFor(name));
+  });
 
   byId("btn-today").addEventListener("click", function () {
     if (!runPython) {
@@ -335,7 +586,7 @@ function init() {
     if (info.ok && info.result.today_ad) {
       const toAd = byId("dir-bs2ad").checked;
       byId("in-dates").value = toAd ? info.result.today_bs : info.result.today_ad;
-      update("dates");
+      update("dates", true);
     } else {
       showError("dates", "Today is outside the verified table (BS 2000 to 2083).");
     }

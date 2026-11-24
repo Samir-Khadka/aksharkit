@@ -23,6 +23,11 @@ const VOID = new Set(["meta", "link", "input", "br", "hr", "img"]);
 
 /* ---- a very small DOM -------------------------------------------------- */
 
+// dataset.copyList <-> data-copy-list, as in a browser.
+function kebab(key) {
+  return String(key).replace(/[A-Z]/g, (letter) => "-" + letter.toLowerCase());
+}
+
 class Node {
   constructor(tag, attrs) {
     this.tagName = tag;
@@ -36,9 +41,9 @@ class Node {
     this.dataset = new Proxy(
       {},
       {
-        get: (_, key) => self.attrs["data-" + String(key)],
+        get: (_, key) => self.attrs["data-" + kebab(key)],
         set: (_, key, value) => {
-          self.attrs["data-" + String(key)] = String(value);
+          self.attrs["data-" + kebab(key)] = String(value);
           return true;
         },
       }
@@ -238,7 +243,7 @@ async function settle(ms = 30) {
 
 async function openPage(options = {}) {
   const doc = parse(fs.readFileSync(path.join(SITE, "index.html"), "utf-8"));
-  const log = { python: [], calls: [], scripts: [], fetched: [], pyodideOptions: null };
+  const log = { python: [], calls: [], scripts: [], fetched: [], pyodideOptions: null, address: [], windowListeners: {} };
   let cdnFailures = options.cdnFailures || 0;
   const head = doc.all((n) => n.tagName === "head")[0];
   const sandbox = {
@@ -246,8 +251,18 @@ async function openPage(options = {}) {
     setTimeout,
     clearTimeout,
     WebAssembly,
-    location: { hash: options.hash || "" },
-    navigator: { clipboard: { writeText: async (text) => void (log.copied = text) } },
+    location: { hash: options.hash || "", href: "https://example.test/aksharkit/" + (options.hash || "") },
+    history: {
+      replaceState(_state, _title, url) {
+        log.address.push(url);
+        sandbox.location.hash = url;
+        sandbox.location.href = "https://example.test/aksharkit/" + url;
+      },
+    },
+    addEventListener(type, fn) {
+      log.windowListeners[type] = fn;
+    },
+    navigator: options.noClipboard ? {} : { clipboard: { writeText: async (text) => void (log.copied = text) } },
     fetch: async (url) => {
       log.fetched.push(url);
       const file = path.join(SITE, url);
@@ -288,6 +303,7 @@ async function openPage(options = {}) {
   const page = {
     doc,
     log,
+    sandbox,
     $: (id) => {
       const el = sandbox.document.getElementById(id);
       assert.ok(el, "no element with id " + id);
@@ -352,7 +368,8 @@ test("boot loads the pinned Pyodide, unpacks the archive and fills every tab", a
   assert.equal(page.log.unpack.format, "zip");
   assert.ok(page.log.python.some((code) => code.includes(page.log.unpack.extractDir) && code.includes("sys.path")));
   assert.equal(page.log.imported, "aksharkit_playground");
-  assert.deepEqual(page.log.calls, ["info", "normalize", "numbers", "dates", "tokenize", "translit"]);
+  assert.deepEqual(page.log.calls, ["info", "normalize", "numbers", "words", "dates", "calendar", "datemath", "tokenize", "detect", "translit"]);
+  assert.deepEqual(page.log.address, [], "loading the page must not rewrite the address");
 
   assert.equal(page.out("normalize.text"), "राम घर गयो। आज पानी पर्\u200dयो॥");
   assert.match(page.out("normalize.note"), /^Changed: \d+ characters in, \d+ out\.$/);
@@ -367,6 +384,41 @@ test("boot loads the pinned Pyodide, unpacks the archive and fills every tab", a
   assert.equal(page.out("dates.fiscal_year"), "2083/84");
   assert.equal(page.out("translit.text"), "namaste, nepāla rāmro cha| dhanyavāda!");
   assert.match(page.out("translit.note"), /^IAST scheme/);
+  assert.equal(page.$("out-translit-text").attrs.lang, "ne-Latn");
+
+  assert.equal(page.out("words.number"), "1250500");
+  assert.equal(page.out("words.grouped"), "12,50,500");
+  assert.equal(page.out("words.grouped_devanagari"), "१२,५०,५००");
+  assert.equal(page.out("words.respelt"), "बाह्र लाख पचास हजार पाँच सय");
+
+  assert.equal(page.out("calendar.title"), "मंसिर २०८३");
+  assert.equal(page.out("calendar.span"), "29 days: 17 November 2026 to 15 December 2026");
+  assert.match(page.out("calendar.text"), /^मंसिर २०८३\nआइत\tसोम/);
+  assert.equal(page.$("out-calendar-grid").attrs.lang, "ne");
+  const headCells = page.$("out-calendar-head").children[0].children;
+  assert.deepEqual(headCells.map((c) => c.textContent), ["आइत", "सोम", "मङ्गल", "बुध", "बिही", "शुक्र", "शनि"]);
+  assert.ok(headCells.every((c) => c.tagName === "th" && c.attrs.scope === "col"));
+  const weeks = page.$("out-calendar-weeks").children;
+  assert.equal(weeks.length, 5);
+  assert.deepEqual(weeks[0].children.map((c) => c.textContent), ["", "", "१", "२", "३", "४", "५"]);
+  assert.deepEqual(weeks[0].children.map((c) => c.className), ["blank", "blank", "", "", "", "", ""]);
+  assert.deepEqual(weeks[4].children.map((c) => c.textContent), ["२७", "२८", "२९", "", "", "", ""]);
+
+  assert.equal(page.out("datemath.moved"), "2060-04-11");
+  assert.equal(page.out("datemath.until"), "2083-08-07");
+  assert.equal(page.out("datemath.gap"), "23 years, 6 months, 22 days");
+  assert.equal(page.out("datemath.age"), "23");
+  assert.match(page.out("datemath.days"), /^\d+$/);
+
+  assert.equal(page.out("detect.script"), "Mixed (more than one script)");
+  assert.match(page.out("detect.shares"), /^Devanagari [\d.]+% \(\d+\) · Latin [\d.]+% \(13\) · digits [\d.]+% \(10\)$/);
+  const scriptChips = page.$("out-detect-tokens").children;
+  assert.equal(scriptChips[0].textContent, "Facebook");
+  assert.equal(scriptChips[0].className, "chip script-latin");
+  assert.equal(scriptChips[1].textContent, "मा");
+  assert.equal(scriptChips[1].attrs.lang, "ne");
+  assert.equal(scriptChips[1].attrs.title, "devanagari");
+  assert.match(page.out("detect.romanised"), /^Romanised-Nepali word list: 0% of the Latin-letter words are on it\. Not enough/);
 
   const chips = page.$("out-tokenize-tokens").children;
   assert.ok(chips.length > 10);
@@ -443,8 +495,8 @@ test("today button, copy buttons and tabs", async () => {
 
   const tabs = page.doc.all((n) => n.attrs.role === "tab");
   const panels = page.doc.all((n) => n.attrs.role === "tabpanel");
-  assert.equal(tabs.length, 6);
-  assert.equal(panels.length, 6);
+  assert.equal(tabs.length, 10);
+  assert.equal(panels.length, 10);
   const visible = () => panels.filter((p) => !p.hidden).map((p) => p.id);
   assert.deepEqual(visible(), ["panel-normalize"]);
 
@@ -453,10 +505,14 @@ test("today button, copy buttons and tabs", async () => {
   assert.deepEqual(tabs.filter((t) => t.attrs["aria-selected"] === "true").map((t) => t.id), ["tab-dates"]);
   assert.deepEqual(tabs.filter((t) => t.tabIndex === 0).map((t) => t.id), ["tab-dates"]);
 
+  assert.equal(page.log.address.at(-1), "#dates?direction=ad2bs&text=" + page.$("in-dates").value + "&allow_disputed=0");
+
   page.$("tab-dates").dispatch("keydown", { key: "ArrowRight" });
-  assert.deepEqual(visible(), ["panel-tokenize"]);
-  assert.ok(page.$("tab-tokenize").focused);
-  page.$("tab-tokenize").dispatch("keydown", { key: "End" });
+  assert.deepEqual(visible(), ["panel-calendar"]);
+  assert.ok(page.$("tab-calendar").focused);
+  assert.equal(page.log.address.at(-1), "#calendar?text=2083-08&devanagari=1&allow_disputed=0");
+  page.$("tab-calendar").dispatch("keydown", { key: "End" });
+  assert.equal(page.log.address.at(-1), "#preeti");
   assert.deepEqual(visible(), ["panel-preeti"]);
   page.$("tab-preeti").dispatch("keydown", { key: "ArrowRight" });
   assert.deepEqual(visible(), ["panel-normalize"]);
@@ -465,6 +521,161 @@ test("today button, copy buttons and tabs", async () => {
   page.$("tab-preeti").dispatch("keydown", { key: "Home" });
   assert.deepEqual(visible(), ["panel-normalize"]);
   assert.match(page.$("panel-preeti").textContent, /Coming soon — needs a verified mapping/);
+});
+
+test("every result has a working copy button", async () => {
+  const page = await ready();
+  const buttons = page.doc.all((n) => "data-copy" in n.attrs);
+  assert.ok(buttons.length >= 30);
+  for (const button of buttons) {
+    const key = button.attrs["data-copy"];
+    page.log.copied = undefined;
+    button.dispatch("click");
+    await settle(5);
+    assert.equal(page.log.copied, page.out(key), "copy button for " + key);
+    assert.ok(page.log.copied.length > 0, key + " should not be empty");
+    assert.equal(button.textContent, "Copied");
+  }
+  assert.match(page.out("calendar.text"), /\t/);
+
+  const lists = page.doc.all((n) => "data-copy-list" in n.attrs);
+  assert.deepEqual(lists.map((b) => b.attrs["data-copy-list"]), ["out-tokenize-tokens", "out-tokenize-sentences", "out-detect-tokens"]);
+  lists[1].dispatch("click");
+  await settle(5);
+  assert.equal(page.log.copied, "डा. राम आए।\nनेपालको जनसंख्या २,९१,६४,५७८ छ।\nमूल्य रु. 99.50 हो।\nठिक छ?");
+  lists[2].dispatch("click");
+  await settle(5);
+  assert.match(page.log.copied, /^Facebook\tlatin\nमा\tdevanagari\n/);
+
+  await settle(1300);
+  assert.ok(buttons.every((b) => b.textContent === "Copy"), "the label comes back");
+});
+
+test("copying without clipboard access says so instead of failing", async () => {
+  const page = await ready({ noClipboard: true });
+  const button = page.doc.all((n) => n.attrs["data-copy"] === "numbers.words")[0];
+  button.dispatch("click");
+  await settle(5);
+  assert.equal(button.textContent, "Copy is not available");
+});
+
+test("example buttons fill the input and run the tool", async () => {
+  const page = await ready();
+  const examples = page.doc.all((n) => "data-example" in n.attrs);
+  assert.ok(examples.length >= 27);
+  const pick = (target, value) => {
+    const found = examples.find((b) => b.attrs["data-example"] === target && b.attrs["data-value"] === value);
+    assert.ok(found, "no example " + value + " for " + target);
+    return found;
+  };
+
+  pick("in-words", "एक लाख पच्चीस हजार").dispatch("click");
+  assert.equal(page.$("in-words").value, "एक लाख पच्चीस हजार");
+  assert.equal(page.out("words.number"), "125000");
+  assert.ok(page.$("in-words").focused);
+  assert.equal(page.log.address.at(-1), "#words?text=" + encodeURIComponent("एक लाख पच्चीस हजार"));
+
+  pick("in-words", "पाँच सय रुपैयाँ पचास पैसा मात्र").dispatch("click");
+  assert.equal(page.out("words.number"), "500.50");
+  pick("in-calendar", "2083-12").dispatch("click");
+  assert.equal(page.out("calendar.title"), "चैत २०८३");
+  pick("in-detect", "timi kasto cha? malai ramro lagyo").dispatch("click");
+  assert.equal(page.out("detect.script"), "Latin");
+  assert.match(page.out("detect.romanised"), /looks like Nepali typed in Latin letters/);
+  pick("in-datemath", "2083-03-32").dispatch("click");
+  assert.equal(page.out("datemath.moved"), "2083-06-28");
+
+  // Every example on the page is accepted by its tool.
+  for (const button of examples) {
+    button.dispatch("click");
+    const tool = page.$(button.attrs["data-example"]).attrs["data-tool"];
+    assert.ok(page.$("err-" + tool).hidden, button.attrs["data-value"] + ": " + page.$("err-" + tool).textContent);
+  }
+});
+
+test("words to number, calendar and date maths report errors", async () => {
+  const page = await ready();
+  await page.edit("in-words", (el) => (el.value = "एक एक"));
+  assert.match(page.$("err-words").textContent, /cannot follow each other/);
+  assert.equal(page.out("words.number"), "");
+  await page.edit("in-words", (el) => (el.value = "दश"));
+  assert.ok(page.$("err-words").hidden);
+  assert.equal(page.out("words.number"), "10");
+
+  await page.edit("in-calendar", (el) => (el.value = "2062-01"));
+  assert.match(page.$("err-calendar").textContent, /disagree/);
+  assert.equal(page.$("out-calendar-weeks").children.length, 0);
+  assert.equal(page.out("calendar.text"), "");
+  await page.edit("opt-calendar-disputed", (el) => (el.checked = true));
+  assert.ok(page.$("err-calendar").hidden);
+  await page.edit("opt-calendar-ne", (el) => (el.checked = false));
+  assert.equal(page.out("calendar.title"), "Baishakh 2062");
+  assert.equal(page.$("out-calendar-grid").attrs.lang, "en");
+
+  await page.edit("in-datemath-until", (el) => (el.value = "2050-01-01"));
+  assert.ok(page.$("err-datemath").hidden);
+  const gap = page.doc.all((n) => n.attrs["data-out"] === "datemath.gap")[0];
+  assert.ok(gap.classList.contains("failed"));
+  assert.match(gap.textContent, /before the start date/);
+  assert.equal(page.out("datemath.moved"), "2060-04-11");
+  await page.edit("in-datemath-days", (el) => (el.value = "x"));
+  assert.match(page.$("err-datemath").textContent, /whole number/);
+});
+
+test("the address carries the state, so a result can be shared as a link", async () => {
+  const first = await ready();
+  await first.edit("in-numbers", (el) => (el.value = "१२३४"));
+  await first.edit("opt-only", (el) => (el.checked = false));
+  const link = first.log.address.at(-1);
+  assert.equal(link, "#numbers?text=" + encodeURIComponent("१२३४") + "&only=0");
+
+  first.$("tab-numbers").dispatch("click");
+  first.$("btn-share").dispatch("click");
+  await settle(5);
+  assert.equal(first.log.copied, "https://example.test/aksharkit/" + link);
+  assert.equal(first.$("btn-share").textContent, "Copied");
+
+  const second = await ready({ hash: link });
+  const panels = second.doc.all((n) => n.attrs.role === "tabpanel");
+  assert.deepEqual(panels.filter((p) => !p.hidden).map((p) => p.id), ["panel-numbers"]);
+  assert.equal(second.$("in-numbers").value, "१२३४");
+  assert.equal(second.$("opt-only").checked, false);
+  assert.equal(second.out("numbers.grouped"), "1,234");
+  assert.doesNotMatch(second.out("numbers.currency"), /मात्र$/);
+  assert.equal(second.out("dates.bs_iso"), "2083-08-07", "other tabs keep their defaults");
+
+  const third = await ready({ hash: "#translit?direction=devanagari&scheme=simple&text=mero%20ghar" });
+  assert.equal(third.out("translit.text"), "मेरो घर");
+  assert.equal(third.$("out-translit-text").attrs.lang, "ne");
+  assert.ok(third.$("tr-devanagari").checked);
+  assert.ok(!third.$("tr-roman").checked);
+
+  const fourth = await ready({ hash: "#dates?direction=bs2ad&text=2083-01-01&allow_disputed=0" });
+  assert.equal(fourth.out("dates.ad_iso"), "2026-04-14");
+});
+
+test("odd addresses are ignored, long inputs are left out of the link", async () => {
+  for (const hash of ["#nope?text=1", "#numbers?text=%E0%A4%A", "#numbers?=5&&x", "#?", "#numbers?unknown=1"]) {
+    const page = await ready({ hash });
+    assert.equal(page.$("status").dataset.state, "ready", hash);
+    assert.equal(page.out("numbers.grouped"), "12,50,500.50", hash);
+  }
+  const page = await ready();
+  await page.edit("in-normalize", (el) => (el.value = "नेपाल ".repeat(400)));
+  assert.equal(page.log.address.at(-1), "#normalize");
+});
+
+test("a changed address re-reads the state", async () => {
+  const page = await ready();
+  assert.equal(typeof page.log.windowListeners.hashchange, "function");
+  page.sandbox.location.hash = "#words?text=" + encodeURIComponent("दुई करोड");
+  page.log.windowListeners.hashchange();
+  assert.equal(page.out("words.number"), "20000000");
+  const panels = page.doc.all((n) => n.attrs.role === "tabpanel");
+  assert.deepEqual(panels.filter((p) => !p.hidden).map((p) => p.id), ["panel-words"]);
+  page.sandbox.location.hash = "#preeti";
+  page.log.windowListeners.hashchange();
+  assert.deepEqual(panels.filter((p) => !p.hidden).map((p) => p.id), ["panel-preeti"]);
 });
 
 test("a tab named in the address is opened", async () => {
