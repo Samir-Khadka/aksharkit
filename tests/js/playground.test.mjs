@@ -7,7 +7,7 @@
 // page's wiring and the archive, NOT WebAssembly, the CDN or a real browser.
 //
 //   python scripts/build_site.py --out _site
-//   AKSHARKIT_SITE=_site node --test tests/js/
+//   AKSHARKIT_SITE=_site node --test tests/js/playground.test.mjs
 
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -150,6 +150,9 @@ class Node {
   focus() {
     this.focused = true;
   }
+  click() {
+    this.dispatch("click");
+  }
   addEventListener(type, fn) {
     (this.listeners[type] = this.listeners[type] || []).push(fn);
   }
@@ -244,7 +247,7 @@ async function settle(ms = 30) {
 
 async function openPage(options = {}) {
   const doc = parse(fs.readFileSync(path.join(SITE, "index.html"), "utf-8"));
-  const log = { python: [], calls: [], scripts: [], fetched: [], pyodideOptions: null, address: [], windowListeners: {} };
+  const log = { python: [], calls: [], scripts: [], fetched: [], pyodideOptions: null, address: [], windowListeners: {}, blobs: [], downloads: [] };
   let cdnFailures = options.cdnFailures || 0;
   const head = doc.all((n) => n.tagName === "head")[0];
   const sandbox = {
@@ -252,6 +255,17 @@ async function openPage(options = {}) {
     setTimeout,
     clearTimeout,
     WebAssembly,
+    TextDecoder,
+    atob,
+    btoa,
+    Blob,
+    URL: {
+      createObjectURL(blob) {
+        log.blobs.push(blob);
+        return "blob:test/" + log.blobs.length;
+      },
+      revokeObjectURL() {},
+    },
     location: { hash: options.hash || "", href: "https://example.test/aksharkit/" + (options.hash || "") },
     history: {
       replaceState(_state, _title, url) {
@@ -297,6 +311,12 @@ async function openPage(options = {}) {
     getElementById: (id) => doc.all((n) => n.attrs.id === id)[0] || null,
     querySelectorAll: (selector) => doc.all(selectorPredicate(selector)),
     createElement: (tag) => new Node(tag, {}),
+    body: {
+      appendChild(link) {
+        // A real browser saves the file when the link is clicked.
+        link.addEventListener("click", () => log.downloads.push({ name: link.download, href: link.href }));
+      },
+    },
     addEventListener() {},
   };
   vm.createContext(sandbox);
@@ -532,7 +552,7 @@ test("today button, copy buttons and tabs", async () => {
   assert.ok(page.$("tab-calendar").focused);
   assert.equal(page.log.address.at(-1), "#calendar?text=2083-08&devanagari=1&allow_disputed=0");
   page.$("tab-calendar").dispatch("keydown", { key: "End" });
-  assert.equal(page.log.address.at(-1), "#preeti?text=" + encodeURIComponent(page.$("in-preeti").value) + "&unconfirmed=0&strict=0");
+  assert.equal(page.log.address.at(-1), "#preeti?to=unicode&text=" + encodeURIComponent(page.$("in-preeti").value) + "&unconfirmed=0&strict=0");
   assert.deepEqual(visible(), ["panel-preeti"]);
   page.$("tab-preeti").dispatch("keydown", { key: "ArrowRight" });
   assert.deepEqual(visible(), ["panel-normalize"]);
@@ -848,11 +868,11 @@ test("the address follows the tab on screen, even with an edit still pending", a
 
   // The same with an example button on a tab that is no longer on screen.
   page.$("tab-preeti").dispatch("click");
-  assert.equal(page.log.address.at(-1), "#preeti?text=" + encodeURIComponent(page.$("in-preeti").value) + "&unconfirmed=0&strict=0");
+  assert.equal(page.log.address.at(-1), "#preeti?to=unicode&text=" + encodeURIComponent(page.$("in-preeti").value) + "&unconfirmed=0&strict=0");
   page.$("in-words").value = "दुई";
   page.$("in-words").dispatch("input");
   await settle(400);
-  assert.equal(page.log.address.at(-1), "#preeti?text=" + encodeURIComponent(page.$("in-preeti").value) + "&unconfirmed=0&strict=0");
+  assert.equal(page.log.address.at(-1), "#preeti?to=unicode&text=" + encodeURIComponent(page.$("in-preeti").value) + "&unconfirmed=0&strict=0");
   assert.equal(page.out("words.number"), "2");
 
   // Going back shows the edited value in the address.
@@ -916,8 +936,244 @@ test("Preeti: copy button, examples and a shared link", async () => {
   examples[1].dispatch("click");
   await settle(400);
   assert.equal(page.out("preeti.text"), "कार्यक्रम २०८३ साल");
-  assert.match(page.log.address.at(-1), /^#preeti\?text=/);
+  assert.match(page.log.address.at(-1), /^#preeti\?to=unicode&text=/);
 
   // The input is shown in a plain system font, and no Preeti font is loaded.
   assert.match(page.$("in-preeti").attrs.class, /plain-input/);
+});
+
+/* ---- Preeti 0.7: direction, highlighting, files, large text ------------------- */
+
+// A Word file small enough to travel through the fake Pyodide's command line.
+function makeDocx() {
+  const code = `
+import io, sys, zipfile
+ns = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+preeti = '<w:rPr><w:rFonts w:ascii="Preeti" w:hAnsi="Preeti"/></w:rPr>'
+body = ('<w:p><w:r><w:t xml:space="preserve">Report: </w:t></w:r>'
+        '<w:r>' + preeti + '<w:t>g]kfn \u00a5</w:t></w:r></w:p>'
+        '<w:p><w:r>' + preeti + '<w:t>sfo{qmd</w:t></w:r></w:p>')
+buffer = io.BytesIO()
+with zipfile.ZipFile(buffer, "w") as z:
+    z.writestr("[Content_Types].xml", '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"/>')
+    z.writestr("word/document.xml", '<w:document xmlns:w="' + ns + '"><w:body>' + body + '</w:body></w:document>')
+sys.stdout.buffer.write(buffer.getvalue())
+`;
+  const done = spawnSync(PYTHON, ["-c", code]);
+  assert.equal(done.status, 0, String(done.stderr));
+  return done.stdout;
+}
+
+function readDocx(bytes) {
+  const code =
+    "import io, sys, zipfile; sys.stdout.reconfigure(encoding='utf-8'); " +
+    "sys.stdout.write(zipfile.ZipFile(io.BytesIO(sys.stdin.buffer.read())).read('word/document.xml').decode('utf-8'))";
+  const done = spawnSync(PYTHON, ["-c", code], { input: bytes });
+  assert.equal(done.status, 0, String(done.stderr));
+  return done.stdout.toString("utf-8");
+}
+
+function fileOf(name, bytes) {
+  const data = Buffer.from(bytes);
+  return {
+    name,
+    size: data.length,
+    arrayBuffer: async () => data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength),
+  };
+}
+
+async function openFile(page, file) {
+  const input = page.$("file-preeti");
+  input.files = [file];
+  input.dispatch("change");
+  await settle(600);
+}
+
+test("Preeti: what was left alone is highlighted, and the summary says how sure the table is", async () => {
+  const page = await ready({ hash: "#preeti" });
+  const field = page.$("in-preeti");
+  field.value = "g]kfn ¥ sfo{qmd B http://a.np";
+  field.dispatch("input");
+  await settle(400);
+  assert.equal(page.out("preeti.text"), "नेपाल ¥ कार्यक्रम द्य http://a.np");
+  const marks = page.$("out-preeti-text").all((n) => n.tagName === "mark");
+  assert.deepEqual(marks.map((m) => [m.textContent, m.className]), [["¥", "unmapped"]]);
+  assert.equal(
+    page.out("preeti.confidence"),
+    "Of 14 characters to convert: 12 by keys all tables agree on (85.7%), 1 by keys where one table differs (7.1%), 1 left unchanged. 1 web or e-mail address left as written."
+  );
+  // The copy button still gives the whole text, marks or not.
+  page.doc.all((n) => n.attrs["data-copy"] === "preeti.text")[0].dispatch("click");
+  await settle();
+  assert.equal(page.log.copied, "नेपाल ¥ कार्यक्रम द्य http://a.np");
+
+  field.value = "g]kfn";
+  field.dispatch("input");
+  await settle(400);
+  assert.equal(page.$("out-preeti-text").all((n) => n.tagName === "mark").length, 0);
+  assert.equal(page.out("preeti.confidence"), "Of 5 characters to convert: 5 by keys all tables agree on (100%), 0 by keys where one table differs (0%), 0 left unchanged.");
+});
+
+test("Preeti: the other direction, from a link, with its own labels", async () => {
+  const page = await ready({ hash: "#preeti?to=preeti&text=" + encodeURIComponent("नेपाल abc क्ा कर्म") + "&unconfirmed=0&strict=0" });
+  assert.equal(page.$("opt-preeti-to").value, "preeti");
+  assert.equal(page.out("preeti.text"), "g]kfn abc क्ा sd{");
+  assert.equal(page.$("lbl-preeti-text").textContent, "Preeti keystrokes");
+  assert.equal(page.$("lbl-preeti-in-text").textContent, "Unicode text");
+  assert.equal(page.$("out-preeti-text").attrs.lang, "zxx");
+  assert.equal(page.$("in-preeti").attrs.lang, "ne");
+  assert.doesNotMatch(page.$("in-preeti").attrs.class, /plain-input/);
+  assert.ok(page.$("opt-preeti-unconfirmed").disabled);
+  assert.deepEqual(
+    page.$("out-preeti-text").all((n) => n.tagName === "mark").map((m) => m.textContent),
+    ["a", "b", "c", "क्ा"]
+  );
+  assert.equal(
+    page.out("preeti.unmapped"),
+    "Left as they are, no Preeti key (3): a (U+0061) ×1, b (U+0062) ×1, c (U+0063) ×1. Left in Unicode because the keys would not read back as the same text (1): क्ा."
+  );
+  assert.match(page.out("preeti.confidence"), /converted back and gave the same text/);
+
+  // An example is Preeti text, so it switches the direction back.
+  page.doc.all((n) => n.attrs["data-example"] === "in-preeti")[0].dispatch("click");
+  await settle(400);
+  assert.equal(page.$("opt-preeti-to").value, "unicode");
+  assert.equal(page.out("preeti.text"), "विद्यालय र शिक्षा");
+  assert.equal(page.$("lbl-preeti-text").textContent, "Unicode");
+  assert.equal(page.$("out-preeti-text").attrs.lang, "ne");
+  assert.match(page.$("in-preeti").attrs.class, /plain-input/);
+  assert.ok(!page.$("opt-preeti-unconfirmed").disabled);
+
+  page.$("btn-preeti-download").dispatch("click");
+  assert.equal(page.log.downloads.at(-1).name, "aksharkit-unicode.txt");
+  assert.equal(await page.log.blobs.at(-1).text(), "विद्यालय र शिक्षा");
+});
+
+test("Preeti: a text file is opened, converted, downloaded and kept out of the address", async () => {
+  const page = await ready({ hash: "#preeti" });
+  assert.ok(page.$("btn-preeti-download").disabled === false, "the default text has a result to download");
+  await openFile(page, fileOf("patra.txt", Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from("g]kfn\r\n\td]/f] gfd ¥\n", "utf-8")])));
+  assert.equal(page.$("in-preeti").value, "g]kfn\r\n\td]/f] gfd ¥\n", "the byte order mark is dropped");
+  assert.equal(page.out("preeti.text"), "नेपाल\r\n\tमेरो नाम ¥\n");
+  assert.equal(page.out("preeti.file"), "Opened patra.txt (20 characters). Its text is kept out of the address and the shareable link.");
+  assert.equal(page.log.address.at(-1), "#preeti?to=unicode&unconfirmed=0&strict=0");
+  page.$("btn-share").dispatch("click");
+  await settle(5);
+  assert.equal(page.log.copied, "https://example.test/aksharkit/#preeti?to=unicode&unconfirmed=0&strict=0");
+  for (const address of page.log.address) {
+    assert.doesNotMatch(address, /kfn|gfd/, "file text in the address: " + address);
+  }
+
+  page.$("btn-preeti-download").dispatch("click");
+  assert.deepEqual(page.log.downloads.at(-1).name, "patra-unicode.txt");
+  assert.equal(page.log.blobs.at(-1).type, "text/plain;charset=utf-8");
+  assert.equal(await page.log.blobs.at(-1).text(), "नेपाल\r\n\tमेरो नाम ¥\n");
+
+  // Clear puts the file away; typing afterwards is ordinary shared state again.
+  page.$("btn-preeti-clear").dispatch("click");
+  await settle(100);
+  assert.equal(page.$("in-preeti").value, "");
+  assert.equal(page.out("preeti.file"), "");
+  assert.ok(page.$("btn-preeti-download").disabled);
+  await page.edit("in-preeti", (el) => (el.value = "sd{"));
+  assert.equal(page.log.address.at(-1), "#preeti?to=unicode&text=" + encodeURIComponent("sd{") + "&unconfirmed=0&strict=0");
+});
+
+test("Preeti: files that cannot be read say why", async () => {
+  const page = await ready({ hash: "#preeti" });
+  const calls = page.log.calls.length;
+  const error = () => page.$("err-preeti").textContent;
+
+  await openFile(page, fileOf("old.txt", Buffer.from([0x67, 0x5d, 0xa5, 0x6b])));
+  assert.equal(error(), "old.txt is not valid UTF-8. If it came from an older Windows program, choose Windows-1252 and open it again.");
+  assert.ok(!page.$("err-preeti").hidden);
+  assert.equal(page.out("preeti.text"), "");
+
+  page.$("opt-preeti-encoding").value = "windows-1252";
+  await openFile(page, fileOf("old.txt", Buffer.from([0x67, 0x5d, 0xa5, 0x6b])));
+  assert.equal(page.$("in-preeti").value, "g]¥k");
+  assert.equal(page.out("preeti.text"), "ने¥प");
+  assert.ok(page.$("err-preeti").hidden);
+
+  await openFile(page, fileOf("letter.doc", Buffer.from("x")));
+  assert.match(error(), /^letter\.doc is an old \.doc file\./);
+  await openFile(page, fileOf("photo.txt", Buffer.from([0x89, 0x50, 0x00, 0x00])));
+  assert.match(error(), /^photo\.txt does not look like a text file\./);
+  await openFile(page, { name: "huge.txt", size: 2 * 1024 * 1024 + 1, arrayBuffer: async () => assert.fail("must not be read") });
+  assert.match(error(), /^huge\.txt is larger than 2 MB\./);
+  await openFile(page, fileOf("fake.docx", Buffer.from("not a zip")));
+  assert.equal(error(), "fake.docx: this is not a .docx file (it is not a zip archive)");
+  assert.ok(page.$("btn-preeti-download").disabled);
+  assert.equal(page.log.calls.length, calls + 2, "only the readable text file and the fake .docx reached Python");
+});
+
+test("Preeti: a Word file is converted in the page and downloaded as a new file", async () => {
+  const page = await ready({ hash: "#preeti" });
+  await openFile(page, fileOf("Suchana.docx", makeDocx()));
+  assert.equal(page.log.calls.at(-1), "preeti_docx");
+  assert.ok(page.$("err-preeti").hidden, page.$("err-preeti").textContent);
+  assert.equal(
+    page.out("preeti.file"),
+    "Suchana.docx: 2 stretch(es) of Preeti text converted and set to Kalimati; 1 in other fonts left as they were. Press Download result for the new file. Fonts found: (not stated) (1), Preeti (2)."
+  );
+  assert.equal(page.out("preeti.unmapped"), "Left unchanged, no agreed letter (1): ¥ (U+00A5) ×1");
+  assert.match(page.out("preeti.confidence"), /^Of 13 characters to convert: 12 by keys all tables agree on \(92\.3%\)/);
+  assert.equal(page.$("in-preeti").value, "");
+  assert.equal(page.log.address.at(-1), "#preeti?to=unicode&unconfirmed=0&strict=0");
+
+  page.$("btn-preeti-download").dispatch("click");
+  assert.equal(page.log.downloads.at(-1).name, "Suchana-unicode.docx");
+  const blob = page.log.blobs.at(-1);
+  assert.equal(blob.type, "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+  const xml = readDocx(Buffer.from(await blob.arrayBuffer()));
+  assert.match(xml, /<w:t xml:space="preserve">Report: <\/w:t>/);
+  assert.match(xml, /नेपाल ¥/);
+  assert.match(xml, /कार्यक्रम/);
+  assert.match(xml, /w:ascii="Kalimati"/);
+  assert.doesNotMatch(xml, /g\]kfn|Preeti/);
+
+  // Another font name, then a switch: the same file is converted again.
+  page.$("opt-preeti-font").value = "Noto Sans Devanagari";
+  page.$("opt-preeti-font").dispatch("change");
+  await settle(100);
+  assert.match(page.out("preeti.file"), /set to Noto Sans Devanagari;/);
+  await page.edit("opt-preeti-strict", (el) => (el.checked = true));
+  assert.equal(page.log.calls.at(-1), "preeti_docx");
+
+  // Typing in the box puts the Word file away.
+  await page.edit("in-preeti", (el) => (el.value = "g]kfn"));
+  assert.equal(page.log.calls.at(-1), "preeti");
+  assert.equal(page.out("preeti.file"), "");
+  page.$("btn-preeti-download").dispatch("click");
+  assert.equal(page.log.downloads.at(-1).name, "aksharkit-unicode.txt");
+});
+
+test("Preeti: long text waits for the Convert button", async () => {
+  const page = await ready({ hash: "#preeti" });
+  assert.ok(page.$("btn-preeti-convert").hidden);
+  assert.equal(page.out("preeti.size"), "");
+  const calls = page.log.calls.length;
+  const long = "g]kfn /fd|f] 5 . ".repeat(1200); // 20,400 characters
+  const field = page.$("in-preeti");
+  field.value = long;
+  field.dispatch("input");
+  await settle(400);
+  assert.equal(page.log.calls.length, calls, "nothing is converted while typing");
+  assert.ok(!page.$("btn-preeti-convert").hidden);
+  assert.equal(page.out("preeti.text"), "", "the old result is not left under new text");
+  assert.equal(
+    page.out("preeti.size"),
+    "Large text (20400 characters). It is converted when you press Convert, not as you type, and the page may pause while it works."
+  );
+  assert.equal(page.log.address.at(-1), "#preeti", "too long for a link");
+
+  page.$("btn-preeti-convert").dispatch("click");
+  assert.equal(page.log.calls.length, calls + 1);
+  assert.equal(page.out("preeti.text"), "नेपाल राम्रो छ । ".repeat(1200));
+  assert.match(page.out("preeti.size"), /^Large text/);
+
+  await page.edit("in-preeti", (el) => (el.value = "sd{"));
+  assert.ok(page.$("btn-preeti-convert").hidden);
+  assert.equal(page.out("preeti.size"), "");
+  assert.equal(page.out("preeti.text"), "कर्म");
 });

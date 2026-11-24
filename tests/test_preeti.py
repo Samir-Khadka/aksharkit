@@ -425,9 +425,9 @@ def test_result_is_frozen() -> None:
         result.text = "x"  # type: ignore[misc]
 
 
-def test_unicode_to_preeti_is_left_out() -> None:
-    with pytest.raises(NotImplementedError, match="not implemented"):
-        legacy.unicode_to_preeti("नेपाल")
+def test_unicode_to_preeti_exists_since_0_7() -> None:
+    # 0.6 raised NotImplementedError here. tests/test_preeti_v07.py covers it.
+    assert legacy.unicode_to_preeti("नेपाल") == "g]kfn"
 
 
 # --- self-consistency samples: typed from the table, NOT real Preeti text -----
@@ -518,8 +518,8 @@ def _random_inputs(count: int, seed: int) -> list[str]:
 
 def test_any_key_sequence_converts_without_error_or_leaked_markers() -> None:
     for text in _random_inputs(3000, seed=83):
-        for kwargs in ({}, {"include_unconfirmed": True}, {"strict": True}):
-            result = convert_preeti(text, **kwargs)
+        for unconfirmed, strict in ((False, False), (True, False), (False, True)):
+            result = convert_preeti(text, include_unconfirmed=unconfirmed, strict=strict)
             assert "<pre-i>" not in result.text and "<reph>" not in result.text
             assert all(text[item.offset] == item.char for item in result.unmapped)
             offsets = [item.offset for item in result.unmapped]
@@ -576,12 +576,18 @@ def test_cli_report_lists_positions(capsys: pytest.CaptureFixture[str]) -> None:
     assert captured.err.splitlines() == [
         "aksharkit: warning: 3 character(s) had no agreed Preeti entry "
         "and were left unchanged: ¥ (U+00A5) Ý (U+00DD) m (U+006D)",
-        "  position 8: ¥ (U+00A5)",
-        "  position 10: Ý (U+00DD)",
-        "  position 12: m (U+006D)",
+        "  line 1, column 9: ¥ (U+00A5)",
+        "  line 1, column 11: Ý (U+00DD)",
+        "  line 1, column 13: m (U+006D)",
+        "aksharkit: summary: 10 character(s) to convert: 7 by agreed keys (70.0%), "
+        "0 by majority keys (0.0%), 3 left unchanged (30.0%); 0 stretch(es) protected",
     ]
     assert main(["convert", "preeti", "g]kfn", "--quiet", "--report"]) == 0
-    assert capsys.readouterr().err == "aksharkit: every character had an agreed Preeti entry\n"
+    assert capsys.readouterr().err.splitlines() == [
+        "aksharkit: every character had an agreed Preeti entry",
+        "aksharkit: summary: 5 character(s) to convert: 5 by agreed keys (100.0%), "
+        "0 by majority keys (0.0%), 0 left unchanged (0.0%); 0 stretch(es) protected",
+    ]
 
 
 def test_cli_tier_switches(capsys: pytest.CaptureFixture[str]) -> None:
@@ -629,8 +635,8 @@ def test_sources_file_is_valid_and_attributed() -> None:
     assert all(len(key) == 1 for table in data["tables"].values() for key in table)
 
 
-def test_version_is_0_6_0() -> None:
-    assert aksharkit.__version__ == "0.6.0"
+def test_version_is_0_7_0() -> None:
+    assert aksharkit.__version__ == "0.7.0"
     pyproject = (ROOT / "pyproject.toml").read_text("utf-8")
-    assert 'version = "0.6.0"' in pyproject
+    assert 'version = "0.7.0"' in pyproject
     assert 'license-files = ["LICENSE", "NOTICE"]' in pyproject

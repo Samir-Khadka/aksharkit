@@ -342,32 +342,67 @@
     </section>
 
     <section class="panel" role="tabpanel" id="panel-preeti" aria-labelledby="tab-preeti" tabindex="0" hidden>
-      <h2>Preeti to Unicode</h2>
-      <p class="hint">A great deal of older Nepali text was typed in the Preeti font, where the file really holds Latin letters such as <code>g]kfn</code> that only look like <span lang="ne">नेपाल</span> when that font is installed. Paste such text here to get real Unicode.</p>
-      <p class="notice" id="preeti-status"><strong>Experimental.</strong> The key table is the part on which separately published, permissively-licensed tables agree. It has <strong>not yet been checked against real Preeti documents or by a native reader</strong>, so read the result before you rely on it. Keys with no agreed letter are left as they are and listed below, never guessed.</p>
-      <label for="in-preeti">Preeti text <span class="label-note">(shown in an ordinary font, so it looks like Latin letters — that is expected)</span></label>
-      <textarea id="in-preeti" data-tool="preeti" data-field="text" class="plain-input" rows="4" spellcheck="false" autocapitalize="off" autocomplete="off">g]kfn /fd|f] b]z xf] .</textarea>
-      <p class="examples"><span class="examples-label">Try:</span> <button type="button" class="example plain" data-example="in-preeti" data-value="ljBfno / lzIff">ljBfno / lzIff</button> <button type="button" class="example plain" data-example="in-preeti" data-value="sfo{qmd @)*# ;fn">sfo{qmd @)*# ;fn</button> <button type="button" class="example plain" data-example="in-preeti" data-value="k|wfgdGqL sf7df8f}+df x'g'x'G5 .">k|wfgdGqL sf7df8f}+df x'g'x'G5 .</button> <button type="button" class="example plain" data-example="in-preeti" data-value="g]kfn ¥ Ý">g]kfn ¥ Ý</button></p>
+      <h2>Preeti and Unicode</h2>
+      <p class="hint">A great deal of older Nepali text was typed in the Preeti font, where the file really holds Latin letters such as <code>g]kfn</code> that only look like <span lang="ne">नेपाल</span> when that font is installed. Paste such text here, or open a text or Word file, to get real Unicode. The other direction turns Unicode back into Preeti keystrokes.</p>
+      <p class="notice" id="preeti-status"><strong>Experimental.</strong> The key table is the part on which separately published, permissively-licensed tables agree. It has <strong>not yet been checked against real Preeti documents or by a native reader</strong>, so read the result before you rely on it. Keys with no agreed letter are left as they are, highlighted and listed below, never guessed.</p>
       <div class="options">
-        <label class="check"><input type="checkbox" id="opt-preeti-unconfirmed" data-tool="preeti" data-field="unconfirmed"> Also use keys only one table has</label>
-        <label class="check"><input type="checkbox" id="opt-preeti-strict" data-tool="preeti" data-field="strict"> Leave out keys where one table differs</label>
+        <label for="opt-preeti-to">Direction</label>
+        <select id="opt-preeti-to" data-tool="preeti" data-field="to">
+          <option value="unicode" selected>Preeti to Unicode</option>
+          <option value="preeti">Unicode to Preeti</option>
+        </select>
       </div>
-      <p id="err-preeti" class="notice error" role="alert" hidden></p>
-      <div class="result">
-        <div class="result-head">
-          <h3 id="lbl-preeti-text">Unicode</h3>
-          <button type="button" class="copy" data-copy="preeti.text" aria-label="Copy result">Copy</button>
+      <div class="pair">
+        <div class="pair-side">
+          <label for="in-preeti"><span id="lbl-preeti-in-text">Preeti text</span> <span class="label-note" id="lbl-preeti-in-note">(shown in an ordinary font, so it looks like Latin letters — that is expected)</span></label>
+          <textarea id="in-preeti" data-tool="preeti" data-field="text" class="plain-input" rows="6" spellcheck="false" autocapitalize="off" autocomplete="off">g]kfn /fd|f] b]z xf] .</textarea>
+          <p class="examples"><span class="examples-label">Try:</span> <button type="button" class="example plain" data-example="in-preeti" data-value="ljBfno / lzIff">ljBfno / lzIff</button> <button type="button" class="example plain" data-example="in-preeti" data-value="sfo{qmd @)*# ;fn">sfo{qmd @)*# ;fn</button> <button type="button" class="example plain" data-example="in-preeti" data-value="k|wfgdGqL sf7df8f}+df x'g'x'G5 .">k|wfgdGqL sf7df8f}+df x'g'x'G5 .</button> <button type="button" class="example plain" data-example="in-preeti" data-value="g]kfn ¥ Ý">g]kfn ¥ Ý</button></p>
+          <div class="file-row">
+            <label for="file-preeti">Open a file <span class="label-note">(.txt or .docx, up to 2 MB; it is read on this device and sent nowhere)</span></label>
+            <input type="file" id="file-preeti" accept=".txt,.docx,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+            <label for="opt-preeti-encoding">Text file encoding</label>
+            <select id="opt-preeti-encoding">
+              <option value="utf-8" selected>UTF-8</option>
+              <option value="windows-1252">Windows-1252 (older Windows files)</option>
+            </select>
+            <label for="opt-preeti-font">Font for converted Word text <span class="label-note">(named in the file, not included in it)</span></label>
+            <input id="opt-preeti-font" type="text" autocomplete="off" value="Kalimati">
+          </div>
+          <p id="out-preeti-file" data-out="preeti.file" class="note" aria-live="polite"></p>
+          <div class="options">
+            <label class="check"><input type="checkbox" id="opt-preeti-unconfirmed" data-tool="preeti" data-field="unconfirmed"> Also use keys only one table has</label>
+            <label class="check"><input type="checkbox" id="opt-preeti-strict" data-tool="preeti" data-field="strict"> Leave out keys where one table differs</label>
+          </div>
+          <p class="actions">
+            <button type="button" id="btn-preeti-convert" class="button" hidden>Convert</button>
+            <button type="button" id="btn-preeti-clear" class="button ghost">Clear</button>
+          </p>
+          <p id="out-preeti-size" data-out="preeti.size" class="note" aria-live="polite"></p>
         </div>
-        <output id="out-preeti-text" data-out="preeti.text" class="out big" lang="ne" aria-labelledby="lbl-preeti-text" aria-live="polite"></output>
-        <p id="out-preeti-unmapped" data-out="preeti.unmapped" class="note" aria-live="polite"></p>
-        <p id="out-preeti-note" data-out="preeti.note" class="note"></p>
+        <div class="pair-side">
+          <p id="err-preeti" class="notice error" role="alert" hidden></p>
+          <div class="result">
+            <div class="result-head">
+              <h3 id="lbl-preeti-text">Unicode</h3>
+              <button type="button" class="copy" data-copy="preeti.text" aria-label="Copy result">Copy</button>
+            </div>
+            <output id="out-preeti-text" data-out="preeti.text" class="out big tall" lang="ne" aria-labelledby="lbl-preeti-text" aria-live="polite"></output>
+            <p class="actions">
+              <button type="button" id="btn-preeti-download" class="button ghost" disabled>Download result</button>
+            </p>
+            <p id="out-preeti-unmapped" data-out="preeti.unmapped" class="note" aria-live="polite"></p>
+            <p id="out-preeti-confidence" data-out="preeti.confidence" class="note" aria-live="polite"></p>
+            <p id="out-preeti-note" data-out="preeti.note" class="note"></p>
+          </div>
+        </div>
       </div>
+      <p class="note">Web addresses and e-mail addresses in pasted text are left as they are. A Word file is different: only the text set in the Preeti font is converted, everything else in it is kept as it was, and the result is a new file to download. Nothing is guessed about which words are English.</p>
       <p class="note">This page does not load the Preeti font. Have Preeti text with the correct Unicode beside it? That is what would turn this from experimental into checked: <a href="https://github.com/Samir-Khadka/aksharkit/issues">Preeti: help wanted</a> (opens the project's issues page on GitHub).</p>
     </section>
 
     <p class="share">
       <button type="button" id="btn-share" class="button ghost">Copy a link to this result</button>
-      <span class="note">The link holds what you typed, after the <code>#</code>. Browsers do not send that part to any server.</span>
+      <span class="note">The link holds what you typed, after the <code>#</code>, and never the text of a file you opened. Browsers do not send that part to any server.</span>
     </p>
   </main>
 

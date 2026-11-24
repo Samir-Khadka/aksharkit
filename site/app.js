@@ -28,6 +28,17 @@ const PACKAGE_DIR = "/home/pyodide/aksharkit_pkg";
 const TOOLS = ["normalize", "aksharas", "numbers", "words", "dates", "calendar", "datemath", "tokenize", "sort", "detect", "translit", "preeti"];
 const MAX_LINK_LENGTH = 1800; // longer inputs are left out of the shareable link
 const DEBOUNCE_MS = 150;
+const LIVE_LIMIT = 20000; // characters; longer Preeti text waits for the Convert button
+const MAX_FILE_BYTES = 2 * 1024 * 1024;
+
+// What the Preeti tab holds besides its form fields. None of it goes into the
+// address: a file's text stays on this device.
+const preetiFile = {
+  fromFile: false, // the text box was filled from a file
+  name: "", // that file's name, for the download name
+  source: null, // { name, data }: a Word file waiting to be converted, as base64
+  result: null, // { name, bytes }: the converted Word file
+};
 
 let runPython = null; // set once the library is loaded
 let booting = false;
@@ -159,7 +170,8 @@ function setOut(key, text, failed) {
 
 function clearOutputs(tool) {
   all("[data-out]").forEach(function (el) {
-    if (el.dataset.out.split(".")[0] === tool) {
+    // The line about an opened file stays until the file is put away.
+    if (el.dataset.out.split(".")[0] === tool && el.dataset.out !== "preeti.file") {
       el.textContent = "";
       el.classList.toggle("failed", false);
     }
@@ -180,6 +192,10 @@ function clearOutputs(tool) {
   if (tool === "calendar") {
     byId("out-calendar-head").replaceChildren();
     byId("out-calendar-weeks").replaceChildren();
+  }
+  if (tool === "preeti") {
+    preetiFile.result = null;
+    byId("btn-preeti-download").disabled = true;
   }
 }
 
@@ -375,27 +391,319 @@ const RENDER = {
     );
   },
   preeti: function (r) {
-    setOut("preeti.text", r.text);
-    setOut(
-      "preeti.unmapped",
-      r.unmapped.length
-        ? "Left unchanged, no agreed letter (" +
-            r.unmapped_count +
+    showDirection(r.to);
+    setMarked("preeti.text", r.text, r.pieces);
+    const tooMany = r.unmapped_count + (r.skipped_count || 0) > 0 && !r.pieces ? " Too many to highlight." : "";
+    if (r.to === "preeti") {
+      const parts = [];
+      if (r.unmapped.length) {
+        parts.push("Left as they are, no Preeti key (" + r.unmapped_count + "): " + listChars(r.unmapped));
+      }
+      if (r.skipped_count) {
+        parts.push(
+          "Left in Unicode because the keys would not read back as the same text (" +
+            r.skipped_count +
             "): " +
-            r.unmapped
-              .map(function (u) {
-                return u.char + " (" + u.code + ") ×" + u.count;
-              })
-              .join(", ")
-        : r.text
-          ? "Every character had an agreed letter."
+            r.skipped.join(", ") +
+            (r.skipped_count > r.skipped.length ? ", …" : "")
+        );
+      }
+      setOut("preeti.unmapped", parts.length ? parts.join(". ") + "." + tooMany : r.text ? "Every character has a Preeti key." : "");
+      setOut(
+        "preeti.confidence",
+        r.text
+          ? "Every converted word was converted back and gave the same text. The keys chosen are one valid way to type it, not necessarily the way a typist would."
           : ""
-    );
+      );
+    } else {
+      setOut(
+        "preeti.unmapped",
+        r.unmapped.length
+          ? "Left unchanged, no agreed letter (" + r.unmapped_count + "): " + listChars(r.unmapped) + tooMany
+          : r.text
+            ? "Every character had an agreed letter."
+            : ""
+      );
+      setOut("preeti.confidence", confidence(r.stats, r.protected_count));
+    }
     setOut("preeti.note", "Table: " + r.label + ". " + r.entries + " keys in use.");
+    byId("btn-preeti-download").disabled = !r.text;
   },
 };
 
-function update(tool, fromUser) {
+/* ---- Preeti: direction, files, large text ---------------------------------- */
+
+function listChars(chars) {
+  return chars
+    .map(function (u) {
+      return u.char + " (" + u.code + ") ×" + u.count;
+    })
+    .join(", ");
+}
+
+function confidence(stats, protectedCount) {
+  if (!stats || !stats.convertible) {
+    return "";
+  }
+  let text =
+    "Of " +
+    stats.convertible +
+    (stats.convertible === 1 ? " character" : " characters") +
+    " to convert: " +
+    stats.agreed +
+    " by keys all tables agree on (" +
+    percent(stats.agreed_share) +
+    "), " +
+    stats.majority +
+    " by keys where one table differs (" +
+    percent(stats.majority_share) +
+    ")";
+  if (stats.unconfirmed) {
+    text += ", " + stats.unconfirmed + " by keys only one table has";
+  }
+  text += ", " + stats.unmapped + " left unchanged.";
+  if (protectedCount) {
+    text += " " + protectedCount + (protectedCount === 1 ? " web or e-mail address" : " web or e-mail addresses") + " left as written.";
+  }
+  return text;
+}
+
+// Text with the pieces that were left alone marked, so they are easy to find.
+function setMarked(key, text, pieces) {
+  all('[data-out="' + key + '"]').forEach(function (el) {
+    el.classList.toggle("failed", false);
+    if (!pieces) {
+      el.textContent = text;
+      return;
+    }
+    fill(
+      el,
+      pieces.map(function (piece) {
+        return item(piece[1] ? "mark" : "span", piece[0], piece[1] ? "unmapped" : "");
+      })
+    );
+  });
+}
+
+function showDirection(to) {
+  const reverse = to === "preeti";
+  byId("lbl-preeti-in-text").textContent = reverse ? "Unicode text" : "Preeti text";
+  byId("lbl-preeti-in-note").textContent = reverse
+    ? "(Nepali in Devanagari)"
+    : "(shown in an ordinary font, so it looks like Latin letters — that is expected)";
+  byId("lbl-preeti-text").textContent = reverse ? "Preeti keystrokes" : "Unicode";
+  const input = byId("in-preeti");
+  input.classList.toggle("plain-input", !reverse);
+  input.setAttribute("lang", reverse ? "ne" : "zxx");
+  const output = byId("out-preeti-text");
+  output.classList.toggle("plain-input", reverse);
+  output.setAttribute("lang", reverse ? "zxx" : "ne");
+  byId("opt-preeti-unconfirmed").disabled = reverse;
+}
+
+function toBase64(bytes) {
+  let text = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    text += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(text);
+}
+
+function fromBase64(text) {
+  const raw = atob(text);
+  const bytes = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i += 1) {
+    bytes[i] = raw.charCodeAt(i);
+  }
+  return bytes;
+}
+
+function stem(name) {
+  const cut = name.lastIndexOf(".");
+  return (cut > 0 ? name.slice(0, cut) : name) || "aksharkit";
+}
+
+function saveFile(name, data, type) {
+  const url = URL.createObjectURL(new Blob([data], { type: type }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(function () {
+    URL.revokeObjectURL(url);
+  }, 1000);
+}
+
+function forgetPreetiFile() {
+  preetiFile.fromFile = false;
+  preetiFile.name = "";
+  preetiFile.source = null;
+  preetiFile.result = null;
+  byId("file-preeti").value = "";
+  setOut("preeti.file", "");
+}
+
+// Long text is not converted on every keystroke: the conversion runs on the
+// page's own thread, so the page would stop answering while it works.
+function preetiIsLive(force) {
+  const length = byId("in-preeti").value.length;
+  const large = length > LIVE_LIMIT;
+  showDirection(collect("preeti").to);
+  byId("btn-preeti-convert").hidden = !large;
+  if (large && !force) {
+    clearOutputs("preeti");
+    showError("preeti", "");
+  }
+  setOut(
+    "preeti.size",
+    large
+      ? "Large text (" +
+          length +
+          " characters). It is converted when you press Convert, not as you type, and the page may pause while it works."
+      : ""
+  );
+  return !large || Boolean(force);
+}
+
+function convertWordFile() {
+  const source = preetiFile.source;
+  if (!source || !runPython) {
+    return;
+  }
+  const options = collect("preeti");
+  let answer;
+  try {
+    answer = runPython("preeti_docx", {
+      data: source.data,
+      font: byId("opt-preeti-font").value,
+      unconfirmed: options.unconfirmed,
+      strict: options.strict,
+    });
+  } catch (error) {
+    answer = { ok: false, error: "Unexpected error: " + (error && error.message ? error.message : error) };
+  }
+  clearOutputs("preeti");
+  if (!answer.ok) {
+    showError("preeti", source.name + ": " + answer.error);
+    setOut("preeti.file", "");
+    return;
+  }
+  const r = answer.result;
+  showError("preeti", "");
+  preetiFile.result = { name: stem(source.name) + "-unicode.docx", bytes: fromBase64(r.data) };
+  setOut(
+    "preeti.file",
+    source.name +
+      ": " +
+      r.runs_converted +
+      " stretch(es) of Preeti text converted and set to " +
+      r.font +
+      "; " +
+      r.runs_untouched +
+      " in other fonts left as they were. Press Download result for the new file. Fonts found: " +
+      (r.fonts_seen.length
+        ? r.fonts_seen
+            .map(function (font) {
+              return font[0] + " (" + font[1] + ")";
+            })
+            .join(", ")
+        : "none") +
+      "."
+  );
+  setOut(
+    "preeti.unmapped",
+    r.unmapped.length
+      ? "Left unchanged, no agreed letter (" + r.unmapped_count + "): " + listChars(r.unmapped)
+      : r.runs_converted
+        ? "Every character had an agreed letter."
+        : "No text in the Preeti font was found in this file, so nothing was changed."
+  );
+  setOut("preeti.confidence", confidence(r.stats, 0));
+  setOut("preeti.note", "Table: " + r.label + ".");
+  byId("btn-preeti-download").disabled = false;
+}
+
+async function openPreetiFile(file) {
+  if (!file) {
+    return;
+  }
+  const name = String(file.name || "file");
+  const lower = name.toLowerCase();
+  forgetPreetiFile();
+  clearOutputs("preeti");
+  showError("preeti", "");
+  if (file.size > MAX_FILE_BYTES) {
+    showError("preeti", name + " is larger than 2 MB. Use the command line for large files: aksharkit convert preeti.");
+    return;
+  }
+  if (lower.endsWith(".doc")) {
+    showError("preeti", name + " is an old .doc file. Open it in a word processor and save it as .docx first.");
+    return;
+  }
+  let bytes;
+  try {
+    bytes = new Uint8Array(await file.arrayBuffer());
+  } catch (error) {
+    showError("preeti", "Could not read " + name + ".");
+    return;
+  }
+  if (lower.endsWith(".docx")) {
+    byId("in-preeti").value = "";
+    preetiIsLive(false);
+    preetiFile.fromFile = true;
+    preetiFile.name = name;
+    preetiFile.source = { name: name, data: toBase64(bytes) };
+    writeState("preeti");
+    convertWordFile();
+    return;
+  }
+  if (bytes.indexOf(0) >= 0) {
+    showError("preeti", name + " does not look like a text file. Only .txt and .docx files can be opened here.");
+    return;
+  }
+  const encoding = byId("opt-preeti-encoding").value;
+  let text;
+  try {
+    text = new TextDecoder(encoding, { fatal: true }).decode(bytes);
+  } catch (error) {
+    showError(
+      "preeti",
+      encoding === "utf-8"
+        ? name + " is not valid UTF-8. If it came from an older Windows program, choose Windows-1252 and open it again."
+        : name + " could not be read as " + encoding + "."
+    );
+    return;
+  }
+  byId("in-preeti").value = text;
+  preetiFile.fromFile = true;
+  preetiFile.name = name;
+  setOut(
+    "preeti.file",
+    "Opened " + name + " (" + text.length + " characters). Its text is kept out of the address and the shareable link."
+  );
+  update("preeti", true);
+}
+
+function downloadPreeti() {
+  if (preetiFile.result) {
+    saveFile(
+      preetiFile.result.name,
+      preetiFile.result.bytes,
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    );
+    return;
+  }
+  const text = byId("out-preeti-text").textContent;
+  if (!text) {
+    return;
+  }
+  const ending = collect("preeti").to === "preeti" ? "-preeti.txt" : "-unicode.txt";
+  saveFile(stem(preetiFile.name || "aksharkit") + ending, text, "text/plain;charset=utf-8");
+}
+
+function update(tool, fromUser, force) {
   // The address describes the tab on screen. An edit that is still waiting out
   // its debounce when another tab is opened must not put the old tab back.
   if (fromUser && tool === currentTabName()) {
@@ -403,6 +711,15 @@ function update(tool, fromUser) {
   }
   if (!runPython) {
     return;
+  }
+  if (tool === "preeti") {
+    if (preetiFile.source) {
+      convertWordFile();
+      return;
+    }
+    if (!preetiIsLive(force)) {
+      return;
+    }
   }
   let answer;
   try {
@@ -479,6 +796,9 @@ function stateFor(name) {
     return "#" + name;
   }
   const payload = collect(name);
+  if (name === "preeti" && preetiFile.fromFile) {
+    delete payload.text; // a file's text never goes into the address
+  }
   const pairs = Object.keys(payload).map(function (field) {
     const value = payload[field];
     const text = value === true ? "1" : value === false ? "0" : String(value);
@@ -591,6 +911,10 @@ function copyList(button) {
 
 function useExample(button) {
   const target = byId(button.dataset.example);
+  if (target.id === "in-preeti") {
+    forgetPreetiFile();
+    byId("opt-preeti-to").value = "unicode"; // the examples are Preeti keystrokes
+  }
   target.value = button.dataset.value;
   update(target.dataset.tool, true);
   if (typeof target.focus === "function") {
@@ -647,6 +971,31 @@ function init() {
     const base = String(location.href || "").split("#")[0];
     copyText(byId("btn-share"), base + stateFor(name));
   });
+
+  // Typing in the box after a Word file was opened goes back to plain text.
+  byId("in-preeti").addEventListener("input", function () {
+    if (preetiFile.source) {
+      forgetPreetiFile();
+    }
+  });
+  byId("file-preeti").addEventListener("change", function (event) {
+    const files = event.target.files;
+    openPreetiFile(files && files[0]);
+  });
+  byId("opt-preeti-font").addEventListener("change", function () {
+    if (preetiFile.source) {
+      convertWordFile();
+    }
+  });
+  byId("btn-preeti-convert").addEventListener("click", function () {
+    update("preeti", true, true);
+  });
+  byId("btn-preeti-clear").addEventListener("click", function () {
+    forgetPreetiFile();
+    byId("in-preeti").value = "";
+    update("preeti", true);
+  });
+  byId("btn-preeti-download").addEventListener("click", downloadPreeti);
 
   byId("btn-today").addEventListener("click", function () {
     if (!runPython) {

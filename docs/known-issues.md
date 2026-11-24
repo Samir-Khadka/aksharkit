@@ -2,11 +2,13 @@
 
 ## Not implemented
 
-- **Unicode → Preeti** (`legacy.unicode_to_preeti`): raises
-  `NotImplementedError`. Left out because it could not be done reliably.
 - **Legacy fonts other than Preeti** (Kantipur, Himali, Sagarmatha, …).
+- **Old `.doc` files, PDF, spreadsheets, presentations, OpenDocument.** The
+  Preeti converter reads plain text and `.docx` only.
+- **Telling Preeti from English without help.** There is no automatic
+  "skip English words" option: see `docs/preeti.md` for why.
 
-## Preeti to Unicode (experimental, added in 0.6)
+## Preeti and Unicode (experimental, added in 0.6, extended in 0.7)
 
 - **The key table has not been checked against any real Preeti document, and
   no native reader has reviewed it or its output.** It holds what the Preeti
@@ -26,8 +28,37 @@
 - Five keys with no agreement (`¥ ° Ì Ú Ý`) are never converted, and five
   more that only one family has (`¤ © Ò × ‘`) are off by default. They are
   left as they are and reported.
-- It cannot tell Preeti from English: an English word in the input is
-  converted as if it were Preeti.
+- It cannot tell Preeti from English: in plain text an English word is
+  converted as if it were Preeti unless it is protected with `--keep`,
+  `--keep-word` or markers. Only web and e-mail addresses are left alone
+  automatically, and that rule has a known wrong answer: Preeti text shaped
+  like an e-mail address (`s@v.ug`) is left unconverted.
+- **Word files (0.7): only files built by the tests have been converted.**
+  No .docx written by Microsoft Word has been tried and no output has been
+  opened in Microsoft Word (python-docx and LibreOffice opened the output of
+  one test document on the build machine). Fonts that come from a table
+  style, text in drawings and text boxes (DrawingML), and list numbers are
+  not handled; a run with Preeti in only one of its two Latin font slots is
+  left alone and counted. `docs/preeti.md` has the full table.
+- **The font named on converted Word text (Kalimati by default) is only a
+  name.** No font is supplied or checked for; a computer without it shows a
+  substitute.
+- Where a word is cut across runs of a Word file and no cut gives the right
+  text, the stretch is put into its first run, so some letters take that
+  run's formatting. The text itself is right; `report.groups_merged` counts
+  these.
+- **Unicode → Preeti (0.7) is checked only against this package's own
+  table**, by converting every word back. Nobody has looked at its output in
+  the Preeti font, and where several keys give one letter the key is chosen
+  by rule, not by typists' habit. Words that would not convert back the
+  same are left in Unicode and reported; so is every character with no key
+  (all Latin letters and digits among them).
+- The share of characters "converted by agreed keys" in a report says how
+  well-attested the keys used were. It is not a measure of correctness.
+- **Changed in 0.7:** a character with no agreed letter is now copied
+  through exactly; 0.6 passed it through Unicode normalisation with the rest.
+  `--report` prints a line and column instead of a position, and adds a
+  summary line.
 - The reordering rules (short i, reph, the `m` stroke, half forms) were
   written from how Devanagari is stored, and have not been tried on real
   typing. Overstrikes, repeated signs and unusual key orders may come out
@@ -70,10 +101,25 @@
   are not hash-checked by the page. There is no Content-Security-Policy.
 - The "Today" button and `today_bs()` stop working after 13 April 2027,
   when the calendar table ends.
-- **The Preeti tab (0.6) has not been opened in any browser.** It is covered
-  by the Node tests only. Its input box uses the system's monospace font;
-  the page does not load the Preeti font, so pasted Preeti text looks like
-  Latin letters.
+- **The 0.6 Preeti tab was checked once, in one desktop browser, on
+  24 November 2026** (five words, two unmapped characters reported, copy,
+  examples and a shared link). Phone untested. Its input box uses the
+  system's monospace font; the page does not load the Preeti font, so pasted
+  Preeti text looks like Latin letters.
+- **What 0.7 adds to the Preeti tab has not been opened in any browser**:
+  opening `.txt` and `.docx` files, "Download result", the direction switch,
+  highlighting, the Convert button for long text and the side-by-side
+  layout. It is covered by Node tests that fake the page and run ordinary
+  Python. In particular, converting a Word file needs Python's `zipfile` and
+  `xml.parsers.expat` inside Pyodide 0.29.5; they are expected to be there
+  but that was not checked.
+- The conversion runs on the page's own thread. Text over 20,000 characters
+  waits for the Convert button, and the page does not respond while it works.
+  How long that takes in a browser was not measured. Files over 2 MB are
+  refused by the page; use the command line for those.
+- A text file opened in the page goes through the browser's text box, which
+  may change `\r\n` line endings to `\n`. The command line keeps bytes exactly.
+- More than 400 characters left unconverted are listed but not highlighted.
 
 ## Transliteration
 

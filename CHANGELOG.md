@@ -1,5 +1,107 @@
 # Changelog
 
+## 0.7.0 — 24 November 2026
+
+Pushed and deployed to the playground on 24 November 2026. Not released on PyPI.
+
+Everything below makes the Preeti converter more usable. **None of it makes
+it more verified**: the key table is the 0.6 table, still experimental and
+still unchecked against real Preeti documents or by a native reader.
+
+### Added
+
+- **Word files** (`aksharkit.legacy_docx`, standard library only):
+  `convert_docx(src, dst, *, font="Kalimati", source_fonts=("Preeti",),
+  overwrite=False, ...)` and `convert_docx_bytes(data, ...)` convert only the
+  runs set in the Preeti font and return a `DocxReport` (runs converted and
+  left alone, paragraphs changed, fonts found, unmapped characters with their
+  part and paragraph, key statistics). The font is taken from the run, its
+  character style, the paragraph style, the styles they are based on, the
+  document defaults and the theme. Body, tables, headers, footers, footnotes,
+  endnotes and comments are read. Converted runs get the Unicode font name
+  on `w:ascii`, `w:hAnsi` and `w:cs`, and their complex-script bold, italic
+  and size are made to match the ordinary ones. Everything else in the file
+  is copied byte for byte. Words cut across several runs are converted as
+  one stretch and shared back out. The input is never written to.
+- `aksharkit convert preeti --docx in.docx -o out.docx [--font NAME]
+  [--source-font NAME] [--report]`.
+- **Text files and batches**: `-i/--input FILE` (repeatable, `-` for standard
+  input), `-o/--output FILE`, `--out-dir DIR`, `--force`, `--encoding`.
+  Line endings, tabs and blank lines are kept exactly; a UTF-8 byte-order
+  mark is accepted; an existing output is refused without `--force`, and the
+  output may never be the input.
+- **Leaving parts alone**: web and e-mail addresses in plain text are kept
+  automatically (`keep_links`, `--no-keep-links`); `keep=` / `--keep REGEX`,
+  `keep_words=` / `--keep-word WORD` and `markers=` / `--markers OPEN CLOSE`
+  protect whatever you name. Protected stretches are listed in
+  `PreetiResult.protected`.
+- **Unicode → Preeti**: `encode_preeti(text)` returns a `PreetiEncodeResult`
+  (`.text`, `.unmapped`, `.skipped`, `.complete`); `unicode_to_preeti(text)`
+  returns the text; `--to preeti` on the command line. A word is written as
+  keys only if converting it back gives the normalised input; otherwise it
+  is left in Unicode and reported. Characters with no key are reported, never
+  guessed.
+- **Fuller reports**: every `UnmappedChar` has `.line`, `.column` and
+  `.output_offset`; `PreetiResult.stats` (`PreetiStats`) counts characters
+  converted by agreed, majority and one-family keys and gives their shares;
+  `.as_dict()` on every result; `--json`; `--fail-on-unmapped`.
+- **Playground, Preeti tab**: open a `.txt` or `.docx` file and download the
+  result, all inside the browser; direction switch; characters left alone
+  are highlighted; a line saying how well-attested the keys used were; input
+  and output side by side on wide screens and stacked on narrow ones; text
+  over 20,000 characters waits for a Convert button. A file's text is never
+  put in the address.
+- The playground archive now carries `LICENSE` and `NOTICE`.
+- TEXT may come before or after the options of `aksharkit convert`.
+
+### Changed
+
+- `legacy.unicode_to_preeti` converts instead of raising
+  `NotImplementedError`.
+- A character with no agreed letter is copied through exactly. In 0.6 it
+  went through Unicode normalisation with the rest of the text.
+- `--report` prints `line L, column C` for each unmapped character instead of
+  `position N`, and adds a summary line.
+- Old shared links to the Preeti tab still open; new ones also carry the
+  direction (`to=unicode`).
+- Docs: the 0.6 Preeti tab was checked once in a desktop browser on
+  24 November 2026 (after 0.6.0 was written up); README, ROADMAP and known
+  issues now say so.
+
+### Left out on purpose
+
+- **An automatic "skip English words" option.** Preeti words are plain ASCII
+  letters (`dfof`, `sdn`, `gfd`) and English words convert to
+  plausible-looking Devanagari, so no rule without a dictionary can tell
+  them apart, and its mistakes would be silent.
+- No Preeti font is bundled, loaded or linked, and no Unicode font either.
+- No new dependency. Nothing was taken from GPL or non-commercial sources.
+
+### Not verified
+
+- **No real Preeti document has been converted**, as in 0.6: no real Preeti
+  text file, and **no Word file written by Microsoft Word**. Every .docx in
+  the tests is built by the tests. No output has been opened in Microsoft
+  Word. On the build machine python-docx 1.1.0 and LibreOffice opened the
+  output of one mixed test document; that shows the file is well formed,
+  not that Word shows it as intended.
+- **Whether the default font name (Kalimati) is present on readers'
+  computers** was not checked, nor how Word substitutes when it is not.
+- **Unicode → Preeti output has never been seen in the Preeti font.** It is
+  checked only by converting back with the same table, so a mistake shared by
+  both directions would not show. Which of several equivalent keys a typist
+  would use is not known; the choice is by rule.
+- **Nothing new in the playground has been opened in a browser**, on any
+  device, or run in real Pyodide. The Node tests fake the page and run the
+  archive with ordinary Python. That `zipfile` and `xml.parsers.expat` work
+  inside Pyodide 0.29.5 is expected, not checked. How long a large
+  conversion blocks the page was not measured.
+- No native reader has reviewed the table or any output; where the four
+  source tables came from is still unknown.
+- .docx cases not handled: fonts from table styles, DrawingML text, list
+  numbers; see `docs/preeti.md`.
+- Not pushed, not deployed, not released.
+
 ## 0.6.0 — 24 November 2026
 
 Pushed and deployed to the playground on 24 November 2026. Not released on PyPI.

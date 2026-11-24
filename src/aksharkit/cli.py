@@ -8,8 +8,10 @@ import json
 import re
 import sys
 from collections.abc import Sequence
+from pathlib import Path
+from typing import Any
 
-from . import __version__, dates, detect, legacy
+from . import __version__, dates, detect, legacy, legacy_docx
 from ._errors import DataNotVerifiedError
 from .akshara import akshara_count, akshara_spans, truncate
 from .collate import sorted_nepali
@@ -100,21 +102,102 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser(
         "convert",
-        help="Preeti legacy-font text to Unicode (experimental, unchecked key table)",
+        help="Preeti legacy-font text or Word files to Unicode (experimental, unchecked key table)",
         description=(
-            "Convert text typed in the Preeti font to Unicode. Status: "
+            "Convert text typed in the Preeti font to Unicode, or Unicode back to Preeti "
+            "keys. Status: "
             + legacy.PREETI_LABEL
             + ". Characters with no agreed entry are left unchanged and named on "
-            "standard error; the exit code stays 0. Put options after TEXT; use - for "
-            "TEXT to read standard input."
+            "standard error; the exit code stays 0 unless --fail-on-unmapped is given. "
+            "Use - for TEXT to read standard input. Web and "
+            "e-mail addresses in plain text are left alone. An input file is never "
+            "written to."
         ),
     )
     p.add_argument("font", choices=legacy.SUPPORTED_FONTS)
     p.add_argument("text", nargs="?")
     p.add_argument(
+        "-i",
+        "--input",
+        action="append",
+        metavar="FILE",
+        help="read a plain-text file (- for standard input); repeat with --out-dir for several",
+    )
+    p.add_argument(
+        "--docx",
+        action="append",
+        metavar="FILE",
+        help="convert the Preeti runs of a Word .docx file; needs -o or --out-dir",
+    )
+    p.add_argument("-o", "--output", metavar="FILE", help="write the result to FILE")
+    p.add_argument(
+        "--out-dir", metavar="DIR", help="write each input to DIR under its own file name"
+    )
+    p.add_argument("--force", action="store_true", help="replace an output file that exists")
+    p.add_argument(
+        "--encoding",
+        default="utf-8",
+        help="encoding of -i files (default utf-8, a byte-order mark is accepted); "
+        "old Preeti text files are often cp1252",
+    )
+    p.add_argument(
+        "--to",
+        choices=("unicode", "preeti"),
+        default="unicode",
+        help="direction: Preeti to Unicode (default) or Unicode to Preeti keys",
+    )
+    p.add_argument(
+        "--keep",
+        action="append",
+        metavar="REGEX",
+        help="leave every match of this regular expression unconverted (repeatable)",
+    )
+    p.add_argument(
+        "--keep-word",
+        action="append",
+        metavar="WORD",
+        help="leave this word unconverted where it stands on its own (repeatable)",
+    )
+    p.add_argument(
+        "--markers",
+        nargs=2,
+        metavar=("OPEN", "CLOSE"),
+        help="leave text between OPEN and CLOSE unconverted and remove the markers",
+    )
+    p.add_argument(
+        "--no-keep-links",
+        action="store_true",
+        help="convert web and e-mail addresses too (plain text only)",
+    )
+    p.add_argument(
+        "--font",
+        dest="docx_font",
+        default=legacy_docx.DEFAULT_DOCX_FONT,
+        metavar="NAME",
+        help="font name to put on converted .docx runs "
+        f"(default {legacy_docx.DEFAULT_DOCX_FONT}; the font is not supplied)",
+    )
+    p.add_argument(
+        "--source-font",
+        action="append",
+        metavar="NAME",
+        help="font name to treat as Preeti in a .docx (default Preeti; repeatable)",
+    )
+    p.add_argument(
         "--report",
         action="store_true",
-        help="list every unmapped character and its position on standard error",
+        help="list every unmapped character with its line and column, and a summary, "
+        "on standard error",
+    )
+    p.add_argument(
+        "--json",
+        action="store_true",
+        help="print a JSON report on standard output (it holds the text unless -o is used)",
+    )
+    p.add_argument(
+        "--fail-on-unmapped",
+        action="store_true",
+        help="exit with status 1 when any character was left unconverted",
     )
     p.add_argument(
         "--include-unconfirmed",
@@ -172,7 +255,7 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _run(args: argparse.Namespace) -> str:
+def _run(args: argparse.Namespace) -> str | None:
     command: str = args.command
     if command == "normalize":
         return normalize(_read(args.text), joiners=args.joiners, danda=not args.no_danda)
@@ -226,26 +309,319 @@ def _run(args: argparse.Namespace) -> str:
     raise AssertionError(f"unhandled command {command!r}")  # pragma: no cover
 
 
-def _run_convert(args: argparse.Namespace) -> str:
-    """Convert Preeti text; warnings go to standard error, the text is returned."""
-    result = legacy.convert_preeti(
-        _read(args.text), include_unconfirmed=args.include_unconfirmed, strict=args.strict
-    )
-    if not args.quiet:
-        print(f"aksharkit: note: Preeti conversion is {legacy.PREETI_LABEL}", file=sys.stderr)
+def _percent(part: int, whole: int) -> str:
+    return f"{100 * part / whole:.1f}%" if whole else "0.0%"
+
+
+def _keep_options(args: argparse.Namespace) -> dict[str, Any]:
+    return {
+        "keep": args.keep,
+        "keep_words": args.keep_word,
+    }
+
+
+def _read_input(name: str, encoding: str) -> str:
+    """Read a text input exactly: no line-ending changes, a byte-order mark dropped."""
+    if name == "-":
+        buffer = getattr(sys.stdin, "buffer", None)
+        if buffer is None:
+            return str(sys.stdin.read())
+        data = buffer.read()
+        shown = "standard input"
+    else:
+        path = Path(name)
+        if path.is_dir():
+            raise ValueError(f"{name} is a directory, not a file")
+        try:
+            data = path.read_bytes()
+        except OSError as error:
+            raise ValueError(f"cannot read {name}: {error.strerror or error}") from error
+        shown = name
+    if data[:4] == b"\xd0\xcf\x11\xe0" or data[:4] == b"PK\x03\x04":
+        raise ValueError(
+            f"{shown} is not plain text (it looks like a Word or zip file); "
+            "for a .docx file use --docx"
+        )
+    codec = "utf-8-sig" if encoding.lower().replace("_", "-") in ("utf-8", "utf8") else encoding
+    try:
+        return str(data.decode(codec))
+    except LookupError as error:
+        raise ValueError(f"unknown encoding {encoding!r}") from error
+    except UnicodeDecodeError as error:
+        hint = (
+            "; text saved by an old program is often Windows-1252: try --encoding cp1252"
+            if codec == "utf-8-sig"
+            else ""
+        )
+        raise ValueError(f"{shown} is not valid {encoding} (byte {error.start}){hint}") from error
+
+
+def _check_output(target: Path, source: str | None, force: bool) -> None:
+    """Refuse to write over the input, or over an existing file without --force."""
+    if target.is_dir():
+        raise ValueError(f"the output {target} is a directory")
+    if source is not None and source != "-":
+        origin = Path(source)
+        same = (
+            target.exists() and origin.exists() and target.samefile(origin)
+        ) or target.resolve() == origin.resolve()
+        if same:
+            raise ValueError(f"the output file is the input file ({source}); choose another name")
+    if target.exists() and not force:
+        raise ValueError(f"the output file {target} already exists; use --force to replace it")
+    if not target.parent.is_dir():
+        raise ValueError(f"the output directory {target.parent} does not exist")
+
+
+def _write_stdout(text: str) -> None:
+    """Write ``text`` exactly: no added newline, no line-ending translation."""
+    sys.stdout.flush()
+    buffer = getattr(sys.stdout, "buffer", None)
+    if buffer is None:
+        sys.stdout.write(text)
+    else:
+        buffer.write(text.encode("utf-8"))
+        buffer.flush()
+
+
+def _warn_text(result: legacy.PreetiResult | legacy.PreetiEncodeResult, report: bool) -> None:
+    to_preeti = isinstance(result, legacy.PreetiEncodeResult)
     if result.unmapped:
         shown = " ".join(_describe_char(ch) for ch in result.unmapped_chars)
+        what = "Preeti key" if to_preeti else "agreed Preeti entry"
         print(
-            f"aksharkit: warning: {len(result.unmapped)} character(s) had no agreed "
+            f"aksharkit: warning: {len(result.unmapped)} character(s) had no {what} "
+            f"and were left unchanged: {shown}",
+            file=sys.stderr,
+        )
+        if report:
+            for item in result.unmapped:
+                print(
+                    f"  line {item.line}, column {item.column}: {_describe_char(item.char)}",
+                    file=sys.stderr,
+                )
+    if isinstance(result, legacy.PreetiEncodeResult):
+        if result.skipped:
+            print(
+                f"aksharkit: warning: {len(result.skipped)} word(s) were left in Unicode "
+                "because their Preeti keys did not convert back to the same text",
+                file=sys.stderr,
+            )
+            if report:
+                for span in result.skipped:
+                    print(f"  line {span.line}, column {span.column}: {span.text}", file=sys.stderr)
+        if report:
+            if result.complete:
+                print(
+                    "aksharkit: every character was written as Preeti keys that convert "
+                    "back to the same text",
+                    file=sys.stderr,
+                )
+            print(
+                f"aksharkit: summary: {result.encoded} character(s) written as keys, "
+                f"{len(result.unmapped)} with no key, {len(result.skipped)} word(s) skipped, "
+                f"{len(result.protected)} stretch(es) protected",
+                file=sys.stderr,
+            )
+        return
+    if report:
+        if not result.unmapped:
+            print("aksharkit: every character had an agreed Preeti entry", file=sys.stderr)
+        _summary(result.stats, len(result.protected))
+
+
+def _summary(stats: legacy.PreetiStats, protected_spans: int | None = None) -> None:
+    whole = stats.convertible
+    line = (
+        f"aksharkit: summary: {whole} character(s) to convert: "
+        f"{stats.agreed} by agreed keys ({_percent(stats.agreed, whole)}), "
+        f"{stats.majority} by majority keys ({_percent(stats.majority, whole)}), "
+    )
+    if stats.unconfirmed:
+        line += f"{stats.unconfirmed} by unconfirmed keys ({_percent(stats.unconfirmed, whole)}), "
+    line += f"{stats.unmapped} left unchanged ({_percent(stats.unmapped, whole)})"
+    if protected_spans is not None:
+        line += f"; {protected_spans} stretch(es) protected"
+    print(line, file=sys.stderr)
+
+
+def _convert_text(
+    text: str, args: argparse.Namespace
+) -> legacy.PreetiResult | legacy.PreetiEncodeResult:
+    markers = (args.markers[0], args.markers[1]) if args.markers else None
+    if args.to == "preeti":
+        if args.include_unconfirmed:
+            raise ValueError("--include-unconfirmed has no meaning with --to preeti")
+        return legacy.encode_preeti(
+            text,
+            strict=args.strict,
+            keep_links=not args.no_keep_links,
+            markers=markers,
+            **_keep_options(args),
+        )
+    return legacy.convert_preeti(
+        text,
+        include_unconfirmed=args.include_unconfirmed,
+        strict=args.strict,
+        keep_links=not args.no_keep_links,
+        markers=markers,
+        **_keep_options(args),
+    )
+
+
+def _convert_docx(source: str, target: Path, args: argparse.Namespace) -> legacy_docx.DocxReport:
+    if not source.lower().endswith(".docx"):
+        raise ValueError(
+            f"{source} does not end in .docx; an old .doc file must be saved as .docx first"
+        )
+    if not Path(source).is_file():
+        raise ValueError(f"no such file: {source}")
+    _check_output(target, source, args.force)
+    report = legacy_docx.convert_docx(
+        source,
+        target,
+        overwrite=args.force,
+        font=args.docx_font,
+        source_fonts=args.source_font or ("Preeti",),
+        include_unconfirmed=args.include_unconfirmed,
+        strict=args.strict,
+        keep_links=False,
+        **_keep_options(args),
+    )
+    fonts = ", ".join(f"{name} ({count})" for name, count in report.fonts_seen.items()) or "none"
+    if not report.runs_converted:
+        wanted = ", ".join(report.source_fonts)
+        print(
+            f"aksharkit: warning: no run of {source} uses the font {wanted}; nothing was "
+            f"converted. Fonts found on text runs: {fonts}",
+            file=sys.stderr,
+        )
+    if report.runs_partial_font:
+        print(
+            f"aksharkit: warning: {report.runs_partial_font} run(s) use Preeti for only part "
+            "of their characters and were left alone",
+            file=sys.stderr,
+        )
+    if report.unmapped:
+        shown = " ".join(_describe_char(ch) for ch in report.unmapped_chars)
+        print(
+            f"aksharkit: warning: {len(report.unmapped)} character(s) had no agreed "
             f"Preeti entry and were left unchanged: {shown}",
             file=sys.stderr,
         )
         if args.report:
-            for item in result.unmapped:
-                print(f"  position {item.offset}: {_describe_char(item.char)}", file=sys.stderr)
-    elif args.report:
-        print("aksharkit: every character had an agreed Preeti entry", file=sys.stderr)
-    return result.text
+            for item in report.unmapped:
+                print(
+                    f"  {item.part}, paragraph {item.paragraph}: {_describe_char(item.char)}",
+                    file=sys.stderr,
+                )
+    if args.report:
+        if report.runs_converted and not report.unmapped:
+            print("aksharkit: every character had an agreed Preeti entry", file=sys.stderr)
+        print(
+            f"aksharkit: docx: {report.runs_converted} run(s) converted and set to "
+            f"{report.font}, {report.runs_untouched} run(s) in other fonts left as they were, "
+            f"{report.paragraphs_changed} paragraph(s) changed, "
+            f"{report.boundary_moves} run boundary move(s); parts read: "
+            f"{', '.join(report.parts)}",
+            file=sys.stderr,
+        )
+        print(f"aksharkit: docx: fonts found on text runs: {fonts}", file=sys.stderr)
+        _summary(report.stats)
+    return report
+
+
+def _run_convert(args: argparse.Namespace) -> str | None:
+    """Convert Preeti text or files; warnings go to standard error."""
+    inputs = args.input or []
+    documents = args.docx or []
+    if args.text is not None and (inputs or documents):
+        raise ValueError("give TEXT, or -i FILE, or --docx FILE, not several of them")
+    if args.output and args.out_dir:
+        raise ValueError("give -o FILE or --out-dir DIR, not both")
+    if documents and args.to == "preeti":
+        raise ValueError("--to preeti works on plain text only, not on .docx files")
+    if documents and (args.markers or args.no_keep_links):
+        raise ValueError("--markers and --no-keep-links apply to plain text, not to .docx files")
+    if inputs.count("-") > 1:
+        raise ValueError("standard input can be read only once")
+    many = len(inputs) + len(documents) > 1
+    if many and not args.out_dir:
+        raise ValueError("several input files need --out-dir DIR")
+    if documents and not (args.output or args.out_dir):
+        raise ValueError("--docx needs -o FILE (or --out-dir DIR): a Word file is not printed")
+    out_dir = Path(args.out_dir) if args.out_dir else None
+    if out_dir is not None:
+        if not out_dir.is_dir():
+            raise ValueError(f"the output directory {out_dir} does not exist")
+        if "-" in inputs:
+            raise ValueError("standard input cannot be used with --out-dir")
+        names = [Path(name).name for name in [*inputs, *documents]]
+        if len(set(names)) != len(names):
+            raise ValueError("two input files have the same name; they would overwrite each other")
+    if not args.quiet:
+        print(f"aksharkit: note: Preeti conversion is {legacy.PREETI_LABEL}", file=sys.stderr)
+
+    reports: list[dict[str, Any]] = []
+    printed: str | None = None
+    left = False
+
+    def target_for(source: str) -> Path | None:
+        if out_dir is not None:
+            return out_dir / Path(source).name
+        return Path(args.output) if args.output else None
+
+    for source in inputs:
+        text = _read_input(source, args.encoding)
+        target = target_for(source)
+        if target is not None:
+            _check_output(target, source, args.force)
+        if many:
+            print(f"aksharkit: file {source}", file=sys.stderr)
+        result = _convert_text(text, args)
+        _warn_text(result, args.report)
+        left = left or not result.complete
+        entry = result.as_dict()
+        entry["input"] = "standard input" if source == "-" else source
+        if target is not None:
+            target.write_bytes(result.text.encode("utf-8"))
+            entry["output"] = str(target)
+            del entry["text"]
+        elif not args.json:
+            _write_stdout(result.text)
+        reports.append(entry)
+    for source in documents:
+        target = target_for(source)
+        assert target is not None
+        if many:
+            print(f"aksharkit: file {source}", file=sys.stderr)
+        report = _convert_docx(source, target, args)
+        left = left or not report.complete
+        entry = report.as_dict()
+        entry["input"] = source
+        entry["output"] = str(target)
+        reports.append(entry)
+    if not inputs and not documents:
+        if args.out_dir:
+            raise ValueError("--out-dir needs input files (-i FILE or --docx FILE)")
+        result = _convert_text(_read(args.text), args)
+        _warn_text(result, args.report)
+        left = not result.complete
+        entry = result.as_dict()
+        if args.output:
+            target = Path(args.output)
+            _check_output(target, None, args.force)
+            target.write_bytes((result.text + "\n").encode("utf-8"))
+            entry["output"] = str(target)
+            del entry["text"]
+        elif not args.json:
+            printed = result.text
+        reports.append(entry)
+    args.left_unconverted = bool(args.fail_on_unmapped and left)
+    if args.json:
+        payload: Any = reports[0] if len(reports) == 1 else {"files": reports}
+        return json.dumps(payload, ensure_ascii=False, indent=2)
+    return printed
 
 
 def _describe_char(ch: str) -> str:
@@ -378,7 +754,14 @@ def _run_date(args: argparse.Namespace) -> str:
 def main(argv: Sequence[str] | None = None) -> int:
     """Entry point. Returns the process exit code."""
     parser = build_parser()
-    args = parser.parse_args(argv)
+    args, extra = parser.parse_known_args(argv)
+    if extra:
+        # argparse gives up on an optional TEXT that comes after an option
+        # ("convert preeti --quiet TEXT"). One left-over word is that text.
+        text_first = args.command == "convert" and args.text is None and len(extra) == 1
+        if not text_first or (extra[0].startswith("-") and extra[0] != "-"):
+            parser.error("unrecognized arguments: " + " ".join(extra))
+        args.text = extra[0]
     try:
         output = _run(args)
     except DataNotVerifiedError as exc:
@@ -387,8 +770,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     except (ValueError, TypeError, NotImplementedError) as exc:
         print(f"aksharkit: error: {exc}", file=sys.stderr)
         return 2
-    print(output)
-    return 0
+    if output is not None:
+        print(output)
+    return 1 if getattr(args, "left_unconverted", False) else 0
 
 
 if __name__ == "__main__":  # pragma: no cover

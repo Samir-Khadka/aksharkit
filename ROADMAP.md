@@ -7,7 +7,7 @@ targets, not promises.
 | --- | --- | --- | --- |
 | 0. Setup | 1 | Package skeleton, licence, CI workflow, lint and type checks | Done; CI runs on Python 3.10 to 3.13 |
 | 1. Basics | 2–3 | Normaliser, numerals, number to words, tokeniser, sentence splitter, stopwords | Done (v0.1); words → number and script detection added in v0.4; akshara segmentation, alphabetical order and ordinals 1–100 added in v0.5; spellings and sort order await native-speaker review |
-| 2. Preeti converter + playground | 4–5 | Preeti → Unicode with a verified glyph table and a public test set; browser playground | Playground built (v0.3), live and checked once in a desktop browser (24 Nov 2026); v0.4 adds four tabs, copy buttons, examples and shareable links, deployed 24 Nov 2026 and checked once in a desktop browser the same day, phone untested; v0.5 adds Aksharas and Sort tabs, not yet opened in any browser. Preeti: **experimental converter in v0.6** — key table from what three families of MIT-licensed tables agree on, own reordering code, playground tab on; not checked against real Preeti documents or by a native reader, and the public test set is still empty |
+| 2. Preeti converter + playground | 4–5 | Preeti → Unicode with a verified glyph table and a public test set; browser playground | Playground built (v0.3), live and checked once in a desktop browser (24 Nov 2026); v0.4 adds four tabs, copy buttons, examples and shareable links, deployed 24 Nov 2026 and checked once in a desktop browser the same day, phone untested; v0.5 adds Aksharas and Sort tabs, checked once in a desktop browser on 24 Nov 2026. Preeti: **experimental converter in v0.6** — key table from what three families of MIT-licensed tables agree on, own reordering code, playground tab on; not checked against real Preeti documents or by a native reader, and the public test set is still empty. v0.6 tab checked once in a desktop browser on 24 Nov 2026. **v0.7 (built locally)** adds Word (.docx) and text files, protected stretches, Unicode → Preeti that only writes what converts back exactly, line and column reports, JSON, and file open and download in the playground tab; none of it tried on a real Preeti document, a Word-made file or in a browser |
 | 3. Dates | 6–7 | BS ↔ AD conversion from a verified calendar table; formatting | Done for BS 2000–2083 (v0.2); date arithmetic, age and month grid added in v0.4; format patterns and month-name parsing added in v0.5; 2084 onwards and one disputed month of 2062 are open |
 | 4. First PyPI release | 8 | Documentation pass, first PyPI release | Not started |
 | 5. Transliteration + spell check | 9–12 | Romanised ↔ Devanagari; basic spell checking | Transliteration done (v0.3): `iast` exact, `simple` approximate, spellings await review. Spell check not started |
@@ -24,8 +24,15 @@ targets, not promises.
    each). Not done; nothing has been sent to anyone.
 4. Settling the 5 disputed and 5 one-family keys, ideally by looking at what
    the font draws for each.
-5. The Preeti tab opened in a real browser and on a phone.
-6. Unicode → Preeti, and other legacy fonts, only after the above.
+5. The 0.6 Preeti tab was checked once in a desktop browser on 24 Nov 2026.
+   Still to do: a phone, and everything the 0.7 tab adds (files, Word
+   files, the other direction), which has not been opened in a browser.
+6. A .docx written by Microsoft Word, with Preeti text in it, put through
+   `convert_docx` and the result opened in Word. v0.7 has only seen files
+   built by its own tests.
+7. Someone looking at Unicode → Preeti output in the Preeti font. v0.7
+   checks it only by converting back with the same table.
+8. Table styles and DrawingML text in .docx files; other legacy fonts.
 
 npttf2utf (GPL-3.0), 2utf8 and npm `preeti` (both non-commercial) cannot be
 copied and were not opened.
@@ -36,7 +43,8 @@ copied and were not opened.
 2. Desktop checks of v0.3 and v0.4 done 24 Nov 2026 (every tab; for v0.4
    also copy, examples and a shared link after a reload). Still to do: a
    real phone, other browsers, the error state, a screen reader; and for
-   v0.5 everything, since its new tabs have not been opened in a browser.
+   v0.5 and v0.6 were each checked once on a desktop on 24 Nov 2026; the
+   v0.7 Preeti tab additions have not been opened in a browser.
 3. Decide whether to add a Content-Security-Policy once it has been seen
    working.
 

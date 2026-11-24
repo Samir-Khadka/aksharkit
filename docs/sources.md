@@ -88,7 +88,11 @@ From 0.6 `src/aksharkit/data/font_preeti.json` holds a table, labelled
 table families (4 projects), not yet checked against real Preeti documents
 or by a native reader**. The full account, with the agreement counts, the
 keys where tables differ and the reordering rules, is in
-[preeti.md](preeti.md). In short:
+[preeti.md](preeti.md). Version 0.7 changed no entry of the table and
+consulted no new source: its Word-file handling, protection rules and
+Unicode → Preeti direction are aksharkit's own code on top of the same table,
+and the reverse direction is derived from the table, not from another
+converter. In short:
 
 - On 24 November 2026 the Preeti tables of four MIT-licensed projects were
   read as text at pinned commits: nepali-unicoder, nepalikit,

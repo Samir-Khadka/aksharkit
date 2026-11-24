@@ -5,9 +5,10 @@ alphabetical sorting, numerals, number words in both directions, ordinals,
 tokenisation, script detection, Bikram Sambat dates with formatting, parsing
 and arithmetic (BS 2000-2083) and transliteration (a reversible IAST-style
 scheme and an approximate plain-ASCII one).
-Experimental: Preeti legacy-font text to Unicode. Its key table is agreed
-between permissively-licensed tables but has not been checked against real
-Preeti documents; characters with no agreed entry are reported, not guessed.
+Experimental: Preeti legacy-font text to Unicode and back, in plain text and
+in Word (.docx) files. Its key table is agreed between permissively-licensed
+tables but has not been checked against real Preeti documents; characters
+with no agreed entry are reported, not guessed.
 """
 
 from __future__ import annotations
@@ -43,7 +44,17 @@ from .detect import (
     script_shares,
     token_scripts,
 )
-from .legacy import PreetiResult, UnmappedChar, convert_preeti, preeti_to_unicode
+from .legacy import (
+    PreetiEncodeResult,
+    PreetiResult,
+    PreetiStats,
+    UnmappedChar,
+    convert_preeti,
+    encode_preeti,
+    preeti_to_unicode,
+    unicode_to_preeti,
+)
+from .legacy_docx import DocxReport, convert_docx, convert_docx_bytes
 from .normalize import normalize
 from .numerals import format_number, parse_number, to_ascii_digits, to_devanagari_digits
 from .stopwords import STOPWORDS, is_stopword, remove_stopwords
@@ -57,7 +68,7 @@ from .words import (
     parse_words,
 )
 
-__version__ = "0.6.0"
+__version__ = "0.7.0"
 
 __all__ = [
     "STOPWORDS",
@@ -67,7 +78,10 @@ __all__ = [
     "DataNotVerifiedError",
     "DateRangeError",
     "DisputedDateError",
+    "DocxReport",
+    "PreetiEncodeResult",
     "PreetiResult",
+    "PreetiStats",
     "Token",
     "UnmappedChar",
     "__version__",
@@ -79,12 +93,15 @@ __all__ = [
     "akshara_spans",
     "aksharas",
     "bs_to_ad",
+    "convert_docx",
+    "convert_docx_bytes",
     "convert_preeti",
     "currency_to_words",
     "days_between",
     "days_in_month",
     "detect_script",
     "difference",
+    "encode_preeti",
     "fiscal_year",
     "format_bs",
     "format_month_calendar",
@@ -116,4 +133,5 @@ __all__ = [
     "tokenize",
     "tokenize_spans",
     "truncate",
+    "unicode_to_preeti",
 ]

@@ -698,3 +698,68 @@ code {
   color: var(--ink-soft);
   font-weight: 400;
 }
+
+/* ---- Preeti: input beside output on wide screens, stacked on phones ---- */
+
+.pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+}
+
+.pair-side {
+  min-width: 0;
+}
+
+.out.big.tall {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.out.plain-input {
+  font-size: 1rem;
+}
+
+mark.unmapped {
+  padding: 0 0.15em;
+  border-radius: 4px;
+  background: var(--gold-soft);
+  color: var(--error);
+  box-shadow: inset 0 -2px 0 var(--gold);
+}
+
+.file-row {
+  margin: 0.5rem 0;
+}
+
+.file-row input[type="file"] {
+  display: block;
+  max-width: 100%;
+  min-height: 2.75rem;
+  margin-bottom: 0.5rem;
+  font: inherit;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 0.6rem 0;
+}
+
+.button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+@media (min-width: 60rem) {
+  .pair {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 1.5rem;
+    align-items: start;
+  }
+
+  .pair .result {
+    margin-top: 0;
+  }
+}

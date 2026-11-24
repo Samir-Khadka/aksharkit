@@ -12,8 +12,10 @@ Nothing here runs a browser or WebAssembly. What is checked:
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import importlib.util
+import io
 import json
 import os
 import re
@@ -447,7 +449,9 @@ def test_every_tool_the_page_uses_exists() -> None:
     assert tools is not None
     names = re.findall(r'"([a-z]+)"', tools.group(1))
     assert names == PAGE_TOOLS
-    assert set(names) | {"info"} == set(glue.TOOLS)
+    # "preeti_docx" belongs to the Preeti tab: it runs when a Word file is opened.
+    assert set(names) | {"info", "preeti_docx"} == set(glue.TOOLS)
+    assert 'runPython("preeti_docx", {' in APP
 
 
 # --- the archive ------------------------------------------------------------------
@@ -492,18 +496,20 @@ def test_archive_is_the_package_as_it_is_in_src(built: Path) -> None:
         names = archive.namelist()
         assert archive.testzip() is None
         for name in names:
-            source = (
-                SITE / "playground.py"
-                if name == "aksharkit_playground.py"
-                else package / name.removeprefix("aksharkit/")
-            )
+            if name == "aksharkit_playground.py":
+                source = SITE / "playground.py"
+            elif name in ("LICENSE", "NOTICE"):
+                source = ROOT / name
+            else:
+                source = package / name.removeprefix("aksharkit/")
             assert archive.read(name) == source.read_bytes(), name
     expected = {
         "aksharkit/" + p.relative_to(package).as_posix()
         for p in package.rglob("*")
         if p.is_file() and "__pycache__" not in p.parts
     }
-    assert set(names) == expected | {"aksharkit_playground.py"}
+    assert set(names) == expected | {"aksharkit_playground.py", "LICENSE", "NOTICE"}
+    assert "aksharkit/legacy_docx.py" in names
     assert len(names) == len(set(names))
     assert {"aksharkit/py.typed", "aksharkit/data/bs_calendar.json"} <= set(names)
     assert not any(n.endswith((".pyc", ".pyo")) for n in names)
@@ -897,3 +903,102 @@ def test_preeti_panel_is_labelled_experimental_and_uses_no_preeti_font() -> None
         assert "@font-face" not in text
         assert not re.search(r"font-family:[^;]*preeti", text, re.IGNORECASE)
     assert ".plain-input" in STYLE and "ui-monospace" in STYLE
+
+
+def test_preeti_tool_marks_what_it_left_alone_and_says_how_sure_it_is() -> None:
+    out = result("preeti", text="g]kfn ¥ sfo{qmd\nB http://a.np")
+    assert out["to"] == "unicode"
+    assert out["text"] == "नेपाल ¥ कार्यक्रम\nद्य http://a.np"
+    assert out["pieces"] == [["नेपाल ", False], ["¥", True], [" कार्यक्रम\nद्य http://a.np", False]]
+    assert "".join(piece for piece, _ in out["pieces"]) == out["text"]
+    assert out["protected_count"] == 1
+    stats = out["stats"]
+    assert (stats["convertible"], stats["agreed"], stats["majority"], stats["unmapped"]) == (
+        14,
+        12,
+        1,
+        1,
+    )
+    assert stats["agreed_share"] == pytest.approx(12 / 14)
+    assert result("preeti", text="g]kfn")["pieces"] is None
+    # Far too many marks to be useful: the text comes back plain.
+    crowded = result("preeti", text="¥" * 401)
+    assert crowded["pieces"] is None and crowded["unmapped_count"] == 401
+    assert len(result("preeti", text="¥ " * 400)["pieces"]) == 800
+
+
+def test_preeti_tool_other_direction() -> None:
+    out = result("preeti", text="नेपाल abc क्ा कर्म", to="preeti")
+    assert out["to"] == "preeti"
+    assert out["text"] == "g]kfn abc क्ा sd{"
+    assert out["unmapped_count"] == 3 and out["skipped"] == ["क्ा"] and out["skipped_count"] == 1
+    assert [piece for piece, marked in out["pieces"] if marked] == ["a", "b", "c", "क्ा"]
+    assert "".join(piece for piece, _ in out["pieces"]) == out["text"]
+    back = result("preeti", text=result("preeti", text="विद्यार्थी २०८३", to="preeti")["text"])
+    assert back["text"] == "विद्यार्थी २०८३"
+    bad = call("preeti", text="क", to="sideways")
+    assert not bad["ok"] and bad["kind"] == "ValueError"
+
+
+def _docx(body: str) -> bytes:
+    ns = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+    files = {
+        "[Content_Types].xml": (
+            '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+            '<Default Extension="xml" ContentType="application/xml"/></Types>'
+        ),
+        "word/document.xml": f'<w:document xmlns:w="{ns}"><w:body>{body}</w:body></w:document>',
+    }
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        for name, text in files.items():
+            archive.writestr(name, text)
+    return buffer.getvalue()
+
+
+def test_preeti_docx_tool_round_trips_a_word_file_as_base64() -> None:
+    preeti = '<w:rPr><w:rFonts w:ascii="Preeti" w:hAnsi="Preeti"/></w:rPr>'
+    body = (
+        f"<w:p><w:r><w:t>Report: </w:t></w:r><w:r>{preeti}<w:t>g]kfn ¥</w:t></w:r></w:p>"
+        f"<w:p><w:r>{preeti}<w:t>sfo{{qmd</w:t></w:r></w:p>"
+    )
+    data = base64.b64encode(_docx(body)).decode("ascii")
+    out = result("preeti_docx", data=data)
+    assert (out["runs_converted"], out["runs_untouched"], out["font"]) == (2, 1, "Kalimati")
+    assert out["unmapped"] == [{"char": "¥", "code": "U+00A5", "count": 1}]
+    assert ["Preeti", 2] in out["fonts_seen"]
+    assert out["stats"]["unmapped"] == 1 and out["label"] == aksharkit.legacy.PREETI_LABEL
+    with zipfile.ZipFile(io.BytesIO(base64.b64decode(out["data"]))) as archive:
+        xml = archive.read("word/document.xml").decode("utf-8")
+    assert "<w:t>Report: </w:t>" in xml
+    assert "नेपाल ¥" in xml and "कार्यक्रम" in xml and "g]kfn" not in xml
+    assert 'w:ascii="Kalimati"' in xml
+
+    mangal = result("preeti_docx", data=data, font=" Mangal ")
+    assert mangal["font"] == "Mangal"
+    with zipfile.ZipFile(io.BytesIO(base64.b64decode(mangal["data"]))) as archive:
+        assert b'w:ascii="Mangal"' in archive.read("word/document.xml")
+    for bad, fragment in (("!!", "did not arrive whole"), ("aGVsbG8=", "not a .docx file")):
+        answer = call("preeti_docx", data=bad)
+        assert not answer["ok"] and fragment in answer["error"], answer
+
+
+def test_preeti_tab_opens_files_downloads_and_keeps_file_text_out_of_the_address() -> None:
+    start = INDEX.index('id="panel-preeti"')
+    panel = INDEX[start : INDEX.index("</section>", start)]
+    assert '<input type="file" id="file-preeti" accept=".txt,.docx,' in panel
+    assert 'id="btn-preeti-download"' in panel and ">Download result</button>" in panel
+    assert 'id="btn-preeti-convert"' in panel and 'id="opt-preeti-to"' in panel
+    assert "sent nowhere" in panel and "named in the file, not included in it" in panel
+    # The file input, the encoding and the font are not part of the shared state.
+    for control in ("file-preeti", "opt-preeti-encoding", "opt-preeti-font"):
+        tag = re.search(rf'<(?:input|select)[^>]*id="{control}"[^>]*>', panel)
+        assert tag is not None and "data-tool" not in tag.group(0), control
+    assert "delete payload.text; // a file's text never goes into the address" in APP
+    assert "const LIVE_LIMIT = 20000;" in APP and "const MAX_FILE_BYTES = 2 * 1024 * 1024;" in APP
+    assert "URL.createObjectURL(new Blob([data]" in APP
+    assert "FileReader" not in APP and "localStorage" not in APP
+    # Side by side only on wide screens; one column is the default.
+    assert "grid-template-columns: minmax(0, 1fr);" in STYLE.split("@media (min-width: 60rem)")[0]
+    assert "minmax(0, 1fr) minmax(0, 1fr)" in STYLE.split("@media (min-width: 60rem)")[1]
+    assert "mark.unmapped" in STYLE

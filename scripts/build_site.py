@@ -4,8 +4,9 @@
     python -m http.server --directory _site   # then open http://localhost:8000
 
 The output is ``site/`` (minus the Python glue) plus ``pkg/aksharkit.zip``:
-the library's own source files and ``site/playground.py`` (stored as
-``aksharkit_playground.py``). The page unpacks that archive inside Pyodide,
+the library's own source files, ``site/playground.py`` (stored as
+``aksharkit_playground.py``) and the ``LICENSE`` and ``NOTICE`` files, which
+the MIT licence asks to travel with the code. The page unpacks that archive inside Pyodide,
 so the playground always runs the code in this repository.
 
 Standard library only. The archive is reproducible: files are sorted and
@@ -27,6 +28,7 @@ PACKAGE = ROOT / "src" / "aksharkit"
 SITE = ROOT / "site"
 GLUE = SITE / "playground.py"
 GLUE_NAME = "aksharkit_playground.py"
+LEGAL = ("LICENSE", "NOTICE")
 ARCHIVE = "pkg/aksharkit.zip"
 MANIFEST = "pkg/manifest.json"
 _FIXED_TIME = (2026, 1, 1, 0, 0, 0)
@@ -71,6 +73,9 @@ def build_archive(target: Path) -> list[str]:
             names.append(name)
         _add(archive, GLUE_NAME, GLUE.read_bytes())
         names.append(GLUE_NAME)
+        for name in LEGAL:
+            _add(archive, name, (ROOT / name).read_bytes())
+            names.append(name)
     return names
 
 

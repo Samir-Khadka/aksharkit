@@ -10,6 +10,7 @@ adds it to the archive the page loads, as ``aksharkit_playground.py``.
 
 from __future__ import annotations
 
+import base64
 import datetime as _dt
 import json
 import re
@@ -186,30 +187,125 @@ def _translit(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _preeti(payload: dict[str, Any]) -> dict[str, Any]:
-    include_unconfirmed = bool(payload.get("unconfirmed", False))
-    strict = bool(payload.get("strict", False))
-    result = ak.convert_preeti(
-        str(payload.get("text", "")), include_unconfirmed=include_unconfirmed, strict=strict
-    )
+# Above this many marked stretches the page shows the text plain: thousands of
+# highlighted pieces are slow to draw and no longer help anyone read.
+_MAX_MARKS = 400
+
+
+def _pieces(text: str, marks: list[tuple[int, int]]) -> list[list[Any]] | None:
+    """Split ``text`` into ``[piece, marked]`` pairs, or None when too many."""
+    marks = sorted(mark for mark in marks if mark[0] >= 0 and mark[1] > 0)
+    if not marks or len(marks) > _MAX_MARKS:
+        return None
+    pieces: list[list[Any]] = []
+    at = 0
+    for start, length in marks:
+        if start < at:
+            continue
+        if start > at:
+            pieces.append([text[at:start], False])
+        pieces.append([text[start : start + length], True])
+        at = start + length
+    if at < len(text):
+        pieces.append([text[at:], False])
+    return pieces
+
+
+def _char_counts(chars: list[str]) -> list[dict[str, Any]]:
     counts: dict[str, int] = {}
-    for item in result.unmapped:
-        counts[item.char] = counts.get(item.char, 0) + 1
+    for ch in chars:
+        counts[ch] = counts.get(ch, 0) + 1
+    return [
+        {"char": ch if ch.isprintable() else "?", "code": f"U+{ord(ch):04X}", "count": count}
+        for ch, count in counts.items()
+    ]
+
+
+def _preeti_options(payload: dict[str, Any]) -> tuple[bool, bool]:
+    return bool(payload.get("unconfirmed", False)), bool(payload.get("strict", False))
+
+
+def _preeti(payload: dict[str, Any]) -> dict[str, Any]:
+    include_unconfirmed, strict = _preeti_options(payload)
+    text = str(payload.get("text", ""))
+    direction = str(payload.get("to", "unicode"))
+    label = legacy.PREETI_LABEL
+    entries = len(legacy.load_font_map(include_unconfirmed=include_unconfirmed, strict=strict))
+    if direction == "preeti":
+        encoded = ak.encode_preeti(text, strict=strict)
+        marks = [(item.output_offset, 1) for item in encoded.unmapped]
+        marks += [(span.output_offset, len(span.text)) for span in encoded.skipped]
+        return {
+            "to": "preeti",
+            "text": encoded.text,
+            "pieces": _pieces(encoded.text, marks),
+            "unmapped": _char_counts([item.char for item in encoded.unmapped]),
+            "unmapped_count": len(encoded.unmapped),
+            "skipped": [span.text for span in encoded.skipped[:20]],
+            "skipped_count": len(encoded.skipped),
+            "protected_count": len(encoded.protected),
+            "encoded": encoded.encoded,
+            "label": label,
+            "entries": entries,
+        }
+    if direction != "unicode":
+        raise ValueError(f"unknown direction {direction!r}")
+    result = ak.convert_preeti(text, include_unconfirmed=include_unconfirmed, strict=strict)
+    stats = result.stats
     return {
+        "to": "unicode",
         "text": result.text,
-        "unmapped": [
-            {
-                "char": ch if ch.isprintable() else "?",
-                "code": f"U+{ord(ch):04X}",
-                "count": count,
-            }
-            for ch, count in counts.items()
-        ],
+        "pieces": _pieces(result.text, [(item.output_offset, 1) for item in result.unmapped]),
+        "unmapped": _char_counts([item.char for item in result.unmapped]),
         "unmapped_count": len(result.unmapped),
+        "protected_count": len(result.protected),
+        "stats": {
+            "convertible": stats.convertible,
+            "agreed": stats.agreed,
+            "majority": stats.majority,
+            "unconfirmed": stats.unconfirmed,
+            "unmapped": stats.unmapped,
+            "agreed_share": stats.share("agreed"),
+            "majority_share": stats.share("majority"),
+        },
+        "label": label,
+        "entries": entries,
+    }
+
+
+def _preeti_docx(payload: dict[str, Any]) -> dict[str, Any]:
+    """Convert a Word file sent as base64 and send the new file back the same way."""
+    include_unconfirmed, strict = _preeti_options(payload)
+    try:
+        data = base64.b64decode(str(payload.get("data", "")), validate=True)
+    except ValueError as exc:
+        raise ValueError("the file did not arrive whole; choose it again") from exc
+    options: dict[str, Any] = {"include_unconfirmed": include_unconfirmed, "strict": strict}
+    font = str(payload.get("font", "")).strip()
+    if font:
+        options["font"] = font
+    converted, report = ak.convert_docx_bytes(data, **options)
+    stats = report.stats
+    return {
+        "data": base64.b64encode(converted).decode("ascii"),
+        "font": report.font,
+        "runs_converted": report.runs_converted,
+        "runs_untouched": report.runs_untouched,
+        "runs_partial_font": report.runs_partial_font,
+        "paragraphs_changed": report.paragraphs_changed,
+        "parts": list(report.parts),
+        "fonts_seen": [[name, count] for name, count in sorted(report.fonts_seen.items())],
+        "unmapped": _char_counts([item.char for item in report.unmapped]),
+        "unmapped_count": len(report.unmapped),
+        "stats": {
+            "convertible": stats.convertible,
+            "agreed": stats.agreed,
+            "majority": stats.majority,
+            "unmapped": stats.unmapped,
+            "agreed_share": stats.share("agreed"),
+            "majority_share": stats.share("majority"),
+        },
         "label": legacy.PREETI_LABEL,
-        "entries": len(
-            legacy.load_font_map(include_unconfirmed=include_unconfirmed, strict=strict)
-        ),
     }
 
 
@@ -324,6 +420,7 @@ TOOLS: dict[str, Callable[[dict[str, Any]], dict[str, Any]]] = {
     "detect": _detect,
     "translit": _translit,
     "preeti": _preeti,
+    "preeti_docx": _preeti_docx,
 }
 
 

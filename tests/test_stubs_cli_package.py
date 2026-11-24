@@ -13,7 +13,7 @@ from aksharkit import DataNotVerifiedError, dates, legacy
 from aksharkit._data import load_table, require_verified
 from aksharkit.cli import main
 
-# --- legacy fonts: Preeti is experimental, the reverse direction is absent --
+# --- legacy fonts: Preeti is experimental, in both directions ---------------
 
 
 def test_preeti_table_is_experimental_and_names_its_sources() -> None:
@@ -23,9 +23,10 @@ def test_preeti_table_is_experimental_and_names_its_sources() -> None:
     assert table["mapping"]
 
 
-def test_unicode_to_preeti_is_not_implemented() -> None:
-    with pytest.raises(NotImplementedError, match="not implemented"):
-        legacy.unicode_to_preeti("नेपाल")
+def test_unicode_to_preeti_reports_instead_of_guessing() -> None:
+    result = legacy.encode_preeti("नेपाल abc")
+    assert result.text == "g]kfn abc"
+    assert result.unmapped_chars == ("a", "b", "c")
 
 
 def test_unknown_font_is_a_value_error() -> None:

@@ -1,4 +1,4 @@
-# Preeti to Unicode (experimental)
+# Preeti and Unicode (experimental)
 
 > **Status: experimental — mapping agreed by at least 2 of 3
 > permissively-licensed table families (4 projects), not yet checked against
@@ -6,7 +6,11 @@
 
 Preeti is a legacy font: a file typed in it holds Latin letters and symbols
 (`g]kfn`) that only look like Nepali (`नेपाल`) while that font is installed.
-`aksharkit.legacy` turns such text into Unicode.
+`aksharkit.legacy` turns such text into Unicode, and Unicode back into Preeti
+keys. Version 0.7 adds Word (.docx) files, text files, protected stretches,
+the other direction and fuller reports. **None of that changes the status
+above:** the key table is the 0.6 table, and it is still unchecked against
+real documents.
 
 ```python
 from aksharkit import convert_preeti, preeti_to_unicode
@@ -15,23 +19,263 @@ preeti_to_unicode("g]kfn")  # 'नेपाल'
 
 result = convert_preeti("sfo{qmd ¥")
 result.text  # 'कार्यक्रम ¥'
-result.unmapped  # (UnmappedChar(char='¥', offset=8),)
+result.unmapped  # (UnmappedChar(char='¥', offset=8),)  also .line, .column, .output_offset
 result.complete  # False
+result.stats  # PreetiStats(agreed=7, majority=0, unconfirmed=0, unmapped=1, untouched=1, protected=0)
 ```
 
 ```console
 $ aksharkit convert preeti 'd]/f] gfd ;ld/ xf] .' --quiet
 मेरो नाम समिर हो ।
-$ echo 'sfo{qmd ¥' | aksharkit convert preeti - --quiet --report
-कार्यक्रम ¥
+$ aksharkit convert preeti -i patra.txt -o patra-unicode.txt --report
+aksharkit: note: Preeti conversion is experimental — mapping agreed by at least 2 of 3 permissively-licensed table families (4 projects), not yet checked against real Preeti documents or by a native reader
 aksharkit: warning: 1 character(s) had no agreed Preeti entry and were left unchanged: ¥ (U+00A5)
-  position 8: ¥ (U+00A5)
+  line 3, column 10: ¥ (U+00A5)
+aksharkit: summary: 34 character(s) to convert: 32 by agreed keys (94.1%), 1 by majority keys (2.9%), 1 left unchanged (2.9%); 2 stretch(es) protected
 ```
 
-The warning goes to standard error and the exit code stays 0. Options go
-after the text. `--quiet` hides the one-line experimental notice, `--report`
-lists each unmapped character with its position, `--include-unconfirmed` and
-`--strict` change which keys are used (below).
+Notes and warnings go to standard error and the exit code stays 0, unless
+`--fail-on-unmapped` is given (then 1 when anything was left unconverted).
+An error (a missing file, an output that already exists) exits with 2.
+
+## Word files (.docx)
+
+```python
+from aksharkit import convert_docx
+
+report = convert_docx("suchana.docx", "suchana-unicode.docx")
+report.runs_converted, report.runs_untouched  # (11, 6)
+report.unmapped  # (DocxUnmapped(part='word/document.xml', paragraph=2, char='¥'), ...)
+report.stats.share("agreed")  # 0.959...
+```
+
+```console
+$ aksharkit convert preeti --docx suchana.docx -o suchana-unicode.docx --report
+aksharkit: warning: 2 character(s) had no agreed Preeti entry and were left unchanged: ¥ (U+00A5) Ý (U+00DD)
+  word/document.xml, paragraph 2: ¥ (U+00A5)
+  word/document.xml, paragraph 2: Ý (U+00DD)
+aksharkit: docx: 11 run(s) converted and set to Kalimati, 6 run(s) in other fonts left as they were, 7 paragraph(s) changed, 0 run boundary move(s); parts read: word/document.xml, word/header1.xml, word/footer1.xml, word/footnotes.xml
+aksharkit: docx: fonts found on text runs: Calibri (6), Preeti (11)
+aksharkit: summary: 74 character(s) to convert: 71 by agreed keys (95.9%), 1 by majority keys (1.4%), 2 left unchanged (2.7%)
+```
+
+(The experimental notice line is left out above. The document in this
+example was built by the project's own test code, not written in Word.)
+
+Standard library only (`zipfile` and the `expat` parser); python-docx is not
+needed. `convert_docx_bytes(data)` does the same on bytes and returns
+`(new_bytes, report)`.
+
+**What is converted.** Only the text of runs whose font is Preeti. Everything
+else in the file — English runs, other fonts, pictures, styles, settings,
+every other part of the archive — is copied through byte for byte. The
+changes are made in place in the XML text, so nothing is re-serialised.
+
+**What "its font is Preeti" means.** A run counts when both its `w:ascii` and
+`w:hAnsi` fonts resolve to Preeti (the name is compared without regard to
+case; `source_fonts=("Preeti", "PREETI Normal")` or `--source-font` adds
+others). The font is looked up in this order:
+
+| Where the font is stated | Handled |
+| --- | --- |
+| `w:rFonts` on the run itself | Yes |
+| The run's character style (`w:rStyle`), and the styles it is based on | Yes |
+| The paragraph's style (`w:pStyle`), the styles it is based on, and the default paragraph style when none is named | Yes |
+| Document defaults (`w:docDefaults`) | Yes |
+| Theme fonts (`w:asciiTheme` and so on), read from `word/theme/theme1.xml` | Yes |
+| Table styles, and table-level conditional formatting | **No** |
+| Numbering definitions (the font of a list number or bullet) | **No** — list labels are not runs and are never touched |
+| Fonts inside a tracked formatting change (`w:rPrChange`) | Ignored; the current font is used and the tracked change is kept whole |
+| The paragraph mark's own properties | Ignored (they hold no text) |
+| A run with Preeti in only one of `w:ascii` and `w:hAnsi` | **Left alone**, and counted in `report.runs_partial_font` |
+| A run with Preeti only as its complex-script font (`w:cs`) | **Left alone**, counted with the other fonts |
+| Text in drawings and text boxes written as DrawingML (`a:t`), charts, SmartArt | **No** |
+| Field codes (`w:instrText`) and deleted text in tracked changes (`w:delText`) | Left alone on purpose |
+
+`report.fonts_seen` lists the Latin (`w:ascii`) font of every text run with a count, so a
+document whose Preeti text hides under another name ("PREETI", "Preeti
+Normal") shows up at once.
+
+**Parts read.** The body with its tables (`word/document.xml`), headers,
+footers, footnotes, endnotes and comments. A file that is not a zip, an old
+`.doc` file, a password-protected file and a part that is not UTF-8 are
+refused with a message.
+
+**The font put on converted text.** Converted runs get
+`w:ascii`, `w:hAnsi` and `w:cs` set to **Kalimati** by default
+(`font="Noto Sans Devanagari"` or `--font` to choose another); `w:eastAsia`
+is kept. Only the *name* is written: aksharkit does not ship, embed or check
+for any font. If the reader's computer has no font of that name, the word
+processor substitutes one of its own. Kalimati is a common Unicode
+Devanagari font name in Nepal; it is a default, not a recommendation tested
+on real machines. Word draws Devanagari with the
+"complex script" bold, italic and size, so where those differ from the
+ordinary ones they are copied across (`w:bCs`, `w:iCs`, `w:szCs`); every other
+property of the run is left as it was.
+
+**Words split across runs.** Word often cuts one word into several runs
+(`lj` + `Bf` + `yL{`), and Preeti's short i and reph have to move across the
+cut. Runs of Preeti text that follow each other in a paragraph are converted
+as one stretch, then the result is shared back out so that every run keeps
+its own formatting. Where a letter and its sign would land in different runs,
+the fewest leading characters are moved to the run before
+(`report.boundary_moves`). If no cut gives the right text, the whole stretch
+goes into its first run (`report.groups_merged`); that changes which
+formatting some letters carry, never the text. A tab, a line break, a
+picture or a run in another font ends the stretch. The tests check, for 300
+random splits, that the joined text is exactly what converting the whole
+stretch gives.
+
+**Never overwrites.** `convert_docx` refuses when the output is the input,
+and when the output exists unless `overwrite=True` (`--force`).
+
+**Not checked:** no document produced by Microsoft Word has been through
+this, and no output has been opened in Microsoft Word. The test documents
+are built by the tests themselves. On the build machine python-docx and
+LibreOffice both opened the output of the mixed test document.
+
+## Text files and batches
+
+```console
+$ aksharkit convert preeti -i in.txt -o out.txt            # one file
+$ aksharkit convert preeti -i a.txt -i b.txt --out-dir out # several, same names
+$ aksharkit convert preeti - < in.txt > out.txt            # standard input and output
+$ aksharkit convert preeti -i old.txt --encoding cp1252 -o out.txt
+```
+
+Line breaks (`\n` and `\r\n`), tabs, blank lines and runs of spaces come out
+as they went in, and nothing is added at the end of a file. Files are read as
+UTF-8, with or without a byte-order mark; text that is not valid UTF-8 is
+refused with a message that names `--encoding` (older Preeti text files are
+often cp1252). The output is UTF-8 without a byte-order mark. An input file
+is never written to, an existing output is refused without `--force`, and a
+zip or other binary file given to `-i` is refused.
+
+## Leaving parts of the text alone
+
+Preeti text is Latin letters, so the converter cannot see which words are
+English. It never guesses. What it offers instead:
+
+| What | How | Applies to |
+| --- | --- | --- |
+| Web addresses (`http://`, `https://`, `www.`) and e-mail addresses | Left alone automatically; `keep_links=False` or `--no-keep-links` turns it off | Plain text. In a .docx it is off unless `keep_links=True`, because there the font already says what is Preeti |
+| Anything matching a pattern | `keep=r"[A-Z]+-\d+"` or `--keep REGEX` (repeatable) | Both |
+| Whole words | `keep_words=["Kathmandu"]` or `--keep-word WORD` (repeatable) | Both |
+| Marked stretches | `markers=("[[", "]]")` or `--markers '[[' ']]'`: the text between is kept and the markers are removed | Plain text |
+
+```console
+$ aksharkit convert preeti 'g]kfn [[Kathmandu Post]] df' --markers '[[' ']]' --quiet
+नेपाल Kathmandu Post मा
+$ aksharkit convert preeti 'ID AB-123 g]kfn' --keep '[A-Z]+-\d+' --keep-word ID --quiet
+ID AB-123 नेपाल
+```
+
+Protected stretches are listed in `result.protected` with their place and the
+reason (`link`, `keep`, `word`, `marker`). An opening marker with no closing
+one is an error that names the line and column.
+
+**Known wrong answer.** Preeti text that happens to have the shape of an
+e-mail address is left alone: `s@v.ug` is kept as it is, although typed in
+Preeti it would be Nepali. Use `--no-keep-links` for text with no addresses
+in it.
+
+**Why there is no "skip English words" switch.** One was considered and left
+out. Ordinary Preeti words are made of plain ASCII letters (`dfof` is माया,
+`sdn` is कमल, `gfd` is नाम), and ordinary English words convert to
+plausible-looking Devanagari (`the cat` becomes तजभ अबत). Without a
+dictionary of both languages no rule tells them apart, and a rule that is
+wrong silently in either direction is worse than none.
+
+## Unicode to Preeti
+
+```python
+from aksharkit import encode_preeti, unicode_to_preeti
+
+unicode_to_preeti("विद्यार्थी")  # 'ljBfyL{'
+result = encode_preeti("नेपाल abc क्ा कर्म")
+result.text  # 'g]kfn abc क्ा sd{'
+result.unmapped_chars  # ('a', 'b', 'c')   no Preeti key: left as they are
+[span.text for span in result.skipped]  # ['क्ा']   would not read back the same
+```
+
+```console
+$ aksharkit convert preeti --to preeti 'नेपाल राम्रो देश हो । कर्म abc' --quiet --report
+g]kfn /fd|f] b]z xf] . sd{ abc
+aksharkit: warning: 3 character(s) had no Preeti key and were left unchanged: a (U+0061) b (U+0062) c (U+0063)
+  line 1, column 28: a (U+0061)
+  line 1, column 29: b (U+0062)
+  line 1, column 30: c (U+0063)
+aksharkit: summary: 21 character(s) written as keys, 3 with no key, 0 word(s) skipped, 0 stretch(es) protected
+```
+
+What it promises is narrow and checked: **every word it writes as keys
+converts back, with `convert_preeti`, to the normalised form of what went
+in.** Each word is converted back before it is accepted; a word that does not
+come back the same is left in Unicode and listed in `result.skipped`. A
+character with no key in the table is left as it is and listed in
+`result.unmapped`. Nothing is guessed. The tests run this round trip over
+every consonant with every vowel sign, every conjunct and sequence in the
+table, reph and short i on clusters, digits, punctuation, 6,000 random
+well-formed strings and 4,000 strings of random Devanagari characters (for
+those, the check is that nothing is ever read back differently).
+
+What it does not promise:
+
+- **That the keys are the ones a typist would use.** Where several keys give
+  the same letter, one is chosen by rule: the key more table families agree
+  on, then the shorter, then ASCII before other characters. The result is one
+  valid way to type the text.
+- **That it looks right in the Preeti font.** Nobody has looked. Round-trip
+  through this package's own table is the only check, so a mistake shared by
+  both directions would not show.
+- Letters outside the table (ॐ, ऋ, ङ्ग and other conjuncts with no agreed
+  key) are reported, not approximated. Keys from the `unconfirmed` and
+  `disputed` lists are never written; `strict=True` also avoids the four
+  `majority` keys.
+- Latin letters and digits have no Preeti key (those keys mean something
+  else), so English in the input is reported as unmapped.
+
+## Reports
+
+`convert_preeti(...).as_dict()`, `encode_preeti(...).as_dict()` and
+`DocxReport.as_dict()` give plain data, and `--json` prints it:
+
+```console
+$ aksharkit convert preeti - --quiet --json < patra.txt
+{
+  "direction": "preeti-to-unicode",
+  "status": "experimental — mapping agreed by at least 2 of 3 ...",
+  "complete": false,
+  "text": "नेपाल राम्रो देश हो ।\r\n\r\n\tविद्यार्थी ¥ कार्यक्रम\n...",
+  "stats": {"agreed": 32, "majority": 1, "unconfirmed": 0, "unmapped": 1, "untouched": 14,
+            "protected": 41, "convertible": 34, "share_agreed": 0.9412, "share_majority": 0.0294, ...},
+  "unmapped": [{"char": "¥", "codepoint": "U+00A5", "offset": 35, "line": 3, "column": 10, "output_offset": 37}],
+  "unmapped_counts": [{"char": "¥", "codepoint": "U+00A5", "count": 1}],
+  "protected": [{"start": 45, "end": 70, "text": "https://example.com/a?b=1", "reason": "link", ...}, ...]
+}
+```
+
+(Shortened here.) Lines and columns count from 1; a column is a character,
+not a byte. `output_offset` is the character's place in the result.
+
+**What the shares mean.** `stats` counts input characters: `agreed` were
+converted by keys two or more table families agree on, `majority` by the four
+keys where another table differs, `unconfirmed` by one-family keys (only with
+`include_unconfirmed=True`), `unmapped` were left as they were. White space
+and protected text are not counted. A high `agreed` share says the text used
+well-attested keys. **It does not say the result is correct**: the table
+itself is unchecked.
+
+## The playground
+
+The Preeti tab of the [playground](https://samir-khadka.com.np/aksharkit/)
+runs the same code in the browser. From 0.7 it can open a `.txt` or `.docx`
+file (up to 2 MB, read on the device and sent nowhere), download the result,
+switch direction, and it marks the characters it left alone. Text longer than
+20,000 characters is converted when you press Convert rather than as you
+type. A file's text is never put in the address or the shareable link. The
+page gives the text of a text file with whatever line endings the browser
+keeps; use the command line where exact bytes matter.
 
 ## What has and has not been checked
 
@@ -40,7 +284,11 @@ Checked:
 - every key in the table against what four published tables say for it
   (`scripts/compare_preeti_sources.py --check` repeats this);
 - that the reordering rules do what this page says, on inputs typed by the
-  builder from the table.
+  builder from the table;
+- that Unicode → Preeti → Unicode gives back the normalised input for every
+  word the encoder accepts (generated inputs, see "Unicode to Preeti");
+- that a .docx built by the tests comes back with only its Preeti runs
+  changed and every other part byte for byte the same.
 
 **Not checked:**
 
@@ -54,6 +302,14 @@ Checked:
 - Whether the four tables are truly independent of each other, or of older
   tables under licences this project cannot use, is not known (see
   "How independent are the sources?").
+
+- **No Word file made by Microsoft Word has been converted**, and no output
+  has been opened in Microsoft Word. No real Preeti text file either.
+- **The 0.7 playground tab has not been opened in a browser.** Opening files,
+  downloading, and converting Word files inside Pyodide are covered only by
+  tests that fake the browser and run ordinary Python.
+- The keys written by Unicode → Preeti have never been looked at in the
+  Preeti font.
 
 Real samples go in `tests/golden/preeti_samples.tsv`. The file explains the
 format; each line added becomes a test.
@@ -196,13 +452,15 @@ come from the sources, the families that state it are named.
 
 ## What it does not do
 
-- **Unicode → Preeti.** `legacy.unicode_to_preeti` raises
-  `NotImplementedError`. Going back needs choices the table cannot make
-  (which of several keys draws a conjunct), and there is nothing to test it
-  against.
 - **Other fonts** (Kantipur, Himali, Sagarmatha, PCS Nepali): not supported.
-- **Mixed text.** It cannot tell Preeti from English. An English word in the
-  input is converted as if it were Preeti; convert only the Preeti parts.
+- **Tell Preeti from English.** In plain text an English word is converted as
+  if it were Preeti unless you protect it (see "Leaving parts of the text
+  alone"). In a .docx the font decides, so English set in another font is
+  safe, and English typed *in* the Preeti font is converted.
+- **Old `.doc` files, PDF, Excel, PowerPoint, OpenDocument.** Only `.docx`
+  and plain text. Save a `.doc` as `.docx` first.
+- **Fonts in a .docx that come from a table style**, text in drawings, and
+  the other cases marked "No" in the table above.
 - **Typing habits it has not seen.** Real typists overstrike, repeat signs,
   and use keys in ways no table lists. Four one-family notes were left out:
   `f‘` for ॉ, `N˜` for ल, `6[` for ट्ट, and `M` at the start of a word as a

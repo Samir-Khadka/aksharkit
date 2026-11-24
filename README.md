@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/Samir-Khadka/aksharkit/actions/workflows/ci.yml/badge.svg)](https://github.com/Samir-Khadka/aksharkit/actions/workflows/ci.yml)
 
-> **Status: pre-release (0.6.0).** Not yet published to PyPI.
+> **Status: pre-release (0.7.0).** Not yet published to PyPI.
 
 A small, typed, dependency-free Python toolkit for everyday Nepali text
 chores: cleaning Unicode, splitting text into aksharas (written syllables),
@@ -17,8 +17,8 @@ in Roman letters and back.
 - **Zero runtime dependencies.** Standard library only.
 - **Typed.** Ships `py.typed`; the source, tests and playground glue pass
   `mypy --strict`.
-- **Tested.** 2,632 pytest tests passed on the last local run
-  (24 November 2026, Python 3.12), plus 19 Node tests of the playground
+- **Tested.** 2,738 pytest tests passed on the last local run
+  (24 November 2026, Python 3.12), plus 25 Node tests of the playground
   script. CI runs the suite on Python 3.10 to 3.13.
 - **Refuses rather than guesses.** Dates outside the checked calendar table,
   a disputed month and unreadable number words raise a clear error. The
@@ -37,10 +37,11 @@ and nothing you type is sent anywhere. Each result has a copy button, each
 tab has examples to tap, and "Copy a link to this result" puts what you typed
 in the address after `#`, which browsers do not send to the server.
 
-The 0.3.0, 0.4.0 and 0.5.0 pages were each checked once in a desktop browser
-on 24 November 2026. The Preeti tab added in 0.6.0 has not been opened in a
-browser yet. Real phones and screen
-readers are untested for every version, see
+The 0.3.0, 0.4.0, 0.5.0 and 0.6.0 pages were each checked once in a desktop
+browser on 24 November 2026, the 0.6.0 Preeti tab included. What 0.7.0 adds
+to the Preeti tab (opening and downloading files, Word files, the other
+direction, highlighting) has not been opened in a browser yet. Real phones
+and screen readers are untested for every version, see
 [docs/known-issues.md](docs/known-issues.md).
 
 ## The problem
@@ -105,8 +106,9 @@ No accuracy comparison with other packages has been made. None is claimed.
 | `dates` patterns and month names | Done (0.5), same range and guards | `format_bs(date, "%-d %B %Y")`; `parse_bs("२०८३ मंसिर ८")`. Only the package's own month spellings are read |
 | `dates` arithmetic | Done (0.4), same range and guards | `add_days`, `add_months`, `days_between`, `difference`, `age`, `month_calendar`, `format_month_calendar` |
 | `translit` | Done; `simple` spellings await native-speaker review | `iast`: exact and reversible. `simple`: plain ASCII, rule-based and approximate, especially Roman → Devanagari |
-| `legacy` (Preeti → Unicode) | **Experimental (0.6)** — not checked against real Preeti documents or by a native reader | 126 keys agreed by at least 2 of 3 families of MIT-licensed tables; own reordering rules; unmapped characters reported, never guessed. Unicode → Preeti is not implemented. See [docs/preeti.md](docs/preeti.md) |
-| Browser playground (`site/`) | 0.5.0 is live and was checked once in a desktop browser on 24 Nov 2026, phone untested | 0.4 added Words to number, Calendar, Date maths and Detect tabs, copy buttons, examples and shareable links; 0.5 adds Aksharas and Sort tabs, ordinals and date patterns; 0.6 turns the Preeti tab on (experimental), not yet opened in a browser |
+| `legacy` (Preeti ↔ Unicode) | **Experimental (0.6, extended in 0.7)** — not checked against real Preeti documents or by a native reader | 126 keys agreed by at least 2 of 3 families of MIT-licensed tables; own reordering rules; unmapped characters reported with line and column, never guessed. 0.7: text files, protected stretches (links, `--keep`, markers), a summary of how well-attested the keys used were, JSON reports, and Unicode → Preeti that only writes words which convert back exactly. See [docs/preeti.md](docs/preeti.md) |
+| `legacy_docx` (Word files) | **Experimental (0.7)** — tried only on .docx files built by the tests, never on a file from Microsoft Word | Converts only the runs set in Preeti (font found on the run, its styles, document defaults or the theme), sets them to a Unicode font name (Kalimati by default, not supplied), leaves everything else byte for byte. Standard library only |
+| Browser playground (`site/`) | 0.5.0 is live and was checked once in a desktop browser on 24 Nov 2026, phone untested | 0.4 added Words to number, Calendar, Date maths and Detect tabs, copy buttons, examples and shareable links; 0.5 adds Aksharas and Sort tabs, ordinals and date patterns; 0.6 turns the Preeti tab on (experimental), checked once in a desktop browser on 24 Nov 2026; 0.7 (deployed 24 Nov 2026) adds file open and download, Word files, the other direction and highlighting to it, not yet opened in a browser |
 | Spell check | Planned | Roadmap phase 5 |
 | JavaScript port | Planned | Roadmap phase 6 |
 
@@ -245,7 +247,26 @@ result.unmapped  # (UnmappedChar(char='¥', offset=8),)
 ```
 
 Characters with no agreed letter are left as they are and listed in
-`result.unmapped`, never guessed. If you have real Preeti text with the
+`result.unmapped` with their line and column, never guessed.
+
+```python
+from aksharkit import convert_docx, encode_preeti, unicode_to_preeti
+
+# Word file: only the runs set in the Preeti font are converted.
+report = convert_docx("suchana.docx", "suchana-unicode.docx")
+report.runs_converted, report.runs_untouched  # e.g. (11, 6)
+
+# Leave parts alone: links are kept automatically, the rest is up to you.
+convert_preeti("g]kfn Kathmandu df", keep_words=["Kathmandu"]).text  # 'नेपाल Kathmandu मा'
+
+# The other way. A word is only written as keys if it converts back exactly.
+unicode_to_preeti("विद्यार्थी")  # 'ljBfyL{'
+encode_preeti("नेपाल abc").unmapped_chars  # ('a', 'b', 'c'): no Preeti key, left as they are
+```
+
+The Word converter has only been tried on files built by the tests, never on
+a file from Microsoft Word; it sets a font *name* (Kalimati by default) and
+supplies no font. If you have real Preeti text with the
 correct Unicode beside it, `tests/golden/preeti_samples.tsv` is where it
 goes. Details: [docs/preeti.md](docs/preeti.md).
 
@@ -332,12 +353,20 @@ $ aksharkit convert preeti 'g]kfn' --quiet
 $ aksharkit convert preeti 'sfo{qmd ¥' --quiet --report
 कार्यक्रम ¥
 aksharkit: warning: 1 character(s) had no agreed Preeti entry and were left unchanged: ¥ (U+00A5)
-  position 8: ¥ (U+00A5)
+  line 1, column 9: ¥ (U+00A5)
+aksharkit: summary: 8 character(s) to convert: 7 by agreed keys (87.5%), 0 by majority keys (0.0%), 1 left unchanged (12.5%); 0 stretch(es) protected
+$ aksharkit convert preeti -i patra.txt -o patra-unicode.txt
+$ aksharkit convert preeti --docx suchana.docx -o suchana-unicode.docx --report
+$ aksharkit convert preeti --to preeti 'नेपाल' --quiet
+g]kfn
 ```
 
 `convert preeti` is experimental: without `--quiet` it says so on standard
 error every time. The warning lines above also go to standard error, and the
-exit code stays 0.
+exit code stays 0 unless `--fail-on-unmapped` is given. An input file is
+never written to, and an existing output file is refused without `--force`.
+`--keep REGEX`, `--keep-word WORD` and `--markers OPEN CLOSE` leave parts of
+the text unconverted; `--json` prints the report as JSON.
 
 Words to number is its own command, `aksharkit number`, rather than
 `words --reverse`: its input is text, and it takes `--devanagari` and
@@ -375,7 +404,7 @@ script runs in `.github/workflows/pages.yml`. If Node.js is installed,
 - [docs/aksharas.md](docs/aksharas.md) — the akshara rules and their limits
 - [docs/sorting.md](docs/sorting.md) — the sort order, choice by choice
 - [docs/transliteration.md](docs/transliteration.md) — both schemes, the exact rules, what `simple` gets wrong, spellings awaiting review
-- [docs/preeti.md](docs/preeti.md) — the experimental Preeti converter: sources and licences, what agreed and what did not, the reordering rules, what is not checked
+- [docs/preeti.md](docs/preeti.md) — the experimental Preeti converter: Word and text files, protecting parts of the text, Unicode to Preeti, reports, sources and licences, what agreed and what did not, the reordering rules, what is not checked
 - [docs/sources.md](docs/sources.md) — where the number words and the calendar table come from, spelling decisions, the 100 ordinal forms for review, Preeti candidates
 - [docs/known-issues.md](docs/known-issues.md) — current limits
 - [ROADMAP.md](ROADMAP.md)
