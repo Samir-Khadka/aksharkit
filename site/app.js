@@ -13,6 +13,17 @@ const PYODIDE_BASE = "https://cdn.jsdelivr.net/pyodide/v" + PYODIDE_VERSION + "/
 const PYODIDE_INTEGRITY =
   "sha384-VR47TfKeAmT7vMej7bwOVg0tHTQLLGMSIpsXtFMCZG5OpKZSIXoSLtGY//qHcxc6";
 const PACKAGE_ARCHIVE = "pkg/aksharkit.zip";
+// The build stamps "?v=<hash>" on this script's address (scripts/build_site.py).
+// The archive is fetched with the same stamp, so a browser that cached an older
+// page never mixes a new interface with an old library.
+const ASSET_QUERY = (function () {
+  try {
+    const self = typeof document !== "undefined" ? document.currentScript : null;
+    return self && self.src ? new URL(self.src).search : "";
+  } catch (error) {
+    return "";
+  }
+})();
 const PACKAGE_DIR = "/home/pyodide/aksharkit_pkg";
 const TOOLS = ["normalize", "numbers", "words", "dates", "calendar", "datemath", "tokenize", "detect", "translit"];
 const MAX_LINK_LENGTH = 1800; // longer inputs are left out of the shareable link
@@ -79,7 +90,7 @@ async function boot() {
     const pyodide = await globalThis.loadPyodide({ indexURL: PYODIDE_BASE });
 
     setStatus("loading", "Loading aksharkit.");
-    const response = await fetch(PACKAGE_ARCHIVE);
+    const response = await fetch(PACKAGE_ARCHIVE + ASSET_QUERY);
     if (!response.ok) {
       throw new Error("Could not load " + PACKAGE_ARCHIVE + " (HTTP " + response.status + ").");
     }

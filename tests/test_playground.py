@@ -390,8 +390,20 @@ def test_build_copies_the_static_files_and_leaves_the_glue_out(built: Path) -> N
         "pkg/manifest.json",
         "style.css",
     ]
-    for name in ("app.js", "index.html", "style.css"):
+    for name in ("app.js", "style.css"):
         assert (built / name).read_bytes() == (SITE / name).read_bytes()
+
+
+def test_built_page_stamps_its_assets_so_an_update_is_never_half_cached(built: Path) -> None:
+    stamp = build_site.asset_stamp(built)
+    assert re.fullmatch(r"[0-9a-f]{12}", stamp)
+    page = (built / "index.html").read_text("utf-8")
+    assert f'src="app.js?v={stamp}"' in page
+    assert f'href="style.css?v={stamp}"' in page
+    # Apart from the two stamps the page is the source page.
+    assert page.replace("?v=" + stamp, "") == INDEX
+    # app.js passes its own stamp on to the archive request.
+    assert "fetch(PACKAGE_ARCHIVE + ASSET_QUERY)" in APP
 
 
 def test_archive_is_the_package_as_it_is_in_src(built: Path) -> None:

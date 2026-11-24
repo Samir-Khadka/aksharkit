@@ -15,7 +15,7 @@ doing arithmetic on them, and writing Devanagari in Roman letters and back.
 - **Zero runtime dependencies.** Standard library only.
 - **Typed.** Ships `py.typed`; the source, tests and playground glue pass
   `mypy --strict`.
-- **Tested.** 1,934 pytest tests passed on the last local run
+- **Tested.** 1,935 pytest tests passed on the last local run
   (24 November 2026, Python 3.12), plus 14 Node tests of the playground
   script. CI runs the suite on Python 3.10 to 3.13.
 - **Refuses rather than guesses.** Dates outside the checked calendar table,
@@ -97,7 +97,7 @@ No accuracy comparison with other packages has been made. None is claimed.
 | `dates` arithmetic | Done (0.4), same range and guards | `add_days`, `add_months`, `days_between`, `difference`, `age`, `month_calendar`, `format_month_calendar` |
 | `translit` | Done; `simple` spellings await native-speaker review | `iast`: exact and reversible. `simple`: plain ASCII, rule-based and approximate, especially Roman → Devanagari |
 | `legacy` (Preeti) | **Planned — raises `DataNotVerifiedError`** | Loader and API exist; glyph table is empty |
-| Browser playground (`site/`) | 0.3.0 is live and was checked once in a desktop browser (24 Nov 2026); the 0.4.0 page is not deployed yet | 0.4 adds Words to number, Calendar, Date maths and Detect tabs, copy buttons, examples and shareable links; Preeti shown as coming soon |
+| Browser playground (`site/`) | 0.3.0 is live and was checked once in a desktop browser (24 Nov 2026); 0.4.0 is deployed (24 Nov 2026) but has not yet been checked in a real browser | 0.4 adds Words to number, Calendar, Date maths and Detect tabs, copy buttons, examples and shareable links; Preeti shown as coming soon |
 | Spell check | Planned | Roadmap phase 5 |
 | JavaScript port | Planned | Roadmap phase 6 |
 

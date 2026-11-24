@@ -74,6 +74,34 @@ def build_archive(target: Path) -> list[str]:
     return names
 
 
+def asset_stamp(out: Path) -> str:
+    """A short hash of everything the page loads from this site."""
+    digest = hashlib.sha256()
+    for name in ("app.js", "style.css", ARCHIVE):
+        digest.update((out / name).read_bytes())
+    return digest.hexdigest()[:12]
+
+
+def stamp_index(out: Path) -> str:
+    """Add ``?v=<hash>`` to the script and stylesheet addresses in the built page.
+
+    GitHub Pages lets browsers keep ``app.js``, ``style.css`` and the archive
+    for hours but the page itself for minutes, so after an update a returning
+    visitor could get the new page with the old script and library. A new
+    address for every build avoids that; ``app.js`` reuses its own stamp when
+    it fetches the archive.
+    """
+    stamp = asset_stamp(out)
+    index = out / "index.html"
+    text = index.read_text("utf-8")
+    for old in ('src="app.js"', 'href="style.css"'):
+        if text.count(old) != 1:
+            raise SystemExit(f"expected exactly one {old} in site/index.html")
+        text = text.replace(old, old[:-1] + "?v=" + stamp + '"')
+    index.write_text(text, "utf-8")
+    return stamp
+
+
 def build(out: Path) -> dict[str, object]:
     """Build the whole site into ``out`` (emptied first) and return the manifest."""
     if out.exists():
@@ -83,6 +111,7 @@ def build(out: Path) -> dict[str, object]:
         if path.is_file() and path != GLUE:
             shutil.copy2(path, out / path.name)
     names = build_archive(out / ARCHIVE)
+    stamp_index(out)
     manifest: dict[str, object] = {
         "version": package_version(),
         "archive": ARCHIVE,

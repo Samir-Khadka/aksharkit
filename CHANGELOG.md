@@ -2,7 +2,14 @@
 
 ## 0.4.0 — 24 November 2026
 
-Not yet pushed or released when this entry was written.
+Pushed and deployed to the playground on 24 November 2026. Not released on PyPI.
+
+### Fixed
+
+- Playground: the built page now loads `app.js`, `style.css` and the package
+  archive under a per-build `?v=` address. Before this, a browser that had
+  visited the 0.3.0 page kept the old script and library for up to four hours
+  and showed the new tabs with blank results.
 
 ### Added
 
