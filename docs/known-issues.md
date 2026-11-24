@@ -8,13 +8,11 @@
 
 ## Browser playground
 
-- **Never run in a real browser.** `site/app.js` has been syntax-checked and
-  run in Node against a fake DOM and a fake Pyodide that calls the real
-  Python code from the built archive. WebAssembly, the CDN download, the
-  real Pyodide API, layout, fonts, touch behaviour and screen readers have
-  not been tested.
-- **The Pages workflow has never run.** It needs GitHub Pages switched on
-  with "GitHub Actions" as the source; until then it fails.
+- **Checked once, on one desktop browser** (24 November 2026, deployed page):
+  it loaded, reported aksharkit 0.3.0 on Python 3.13.2, and every tab gave
+  the expected output. The browser console was not inspected. Phones, other
+  browsers, touch behaviour, the error state and screen readers have not
+  been tested.
 - It needs JavaScript, WebAssembly and a connection to `cdn.jsdelivr.net`.
   The first visit downloads roughly 5 MB (Pyodide 0.29.5); there is no
   offline mode.

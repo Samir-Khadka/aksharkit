@@ -13,8 +13,9 @@ Bikram Sambat (BS) and AD, and writing Devanagari in Roman letters and back.
 
 The playground runs this Python package inside your browser (through
 [Pyodide](https://pyodide.org/)), so what you see is what the library does
-and nothing you type is sent anywhere. It has not yet been tested in a real
-browser; see [docs/known-issues.md](docs/known-issues.md).
+and nothing you type is sent anywhere. Every tab was checked once in a
+desktop browser on 24 November 2026; phones and screen readers are untested,
+see [docs/known-issues.md](docs/known-issues.md).
 
 ## The problem
 
@@ -71,7 +72,7 @@ No accuracy comparison with other packages has been made. None is claimed.
 | `dates` (BS ↔ AD) | Done for BS 2000–2083 (14 April 1943 to 13 April 2027) | Five published tables compared; one month of 2062 is disputed and refused by default; names await review |
 | `translit` | Done; `simple` spellings await native-speaker review | `iast`: exact and reversible. `simple`: plain ASCII, rule-based and approximate, especially Roman → Devanagari |
 | `legacy` (Preeti) | **Planned — raises `DataNotVerifiedError`** | Loader and API exist; glyph table is empty |
-| Browser playground (`site/`) | Built; **not yet deployed or run in a real browser** | Normalise, Numbers, Dates, Tokenise, Transliterate; Preeti shown as coming soon |
+| Browser playground (`site/`) | Live; checked once in a desktop browser (24 Nov 2026) | Normalise, Numbers, Dates, Tokenise, Transliterate; Preeti shown as coming soon |
 | Spell check | Planned | Roadmap phase 5 |
 | JavaScript port | Planned | Roadmap phase 6 |
 
