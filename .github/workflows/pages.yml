@@ -3,9 +3,9 @@ name: Pages
 # Builds the browser playground and publishes it to GitHub Pages.
 # One-time setup: Settings -> Pages -> Build and deployment -> Source: "GitHub Actions".
 
-# Manual trigger only until Pages is switched on for the repository;
-# then add `push: branches: [main]` back.
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:

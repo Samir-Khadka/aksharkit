@@ -9,8 +9,7 @@ Bikram Sambat (BS) and AD, and writing Devanagari in Roman letters and back.
 
 ## Try it in your browser
 
-**<https://samir-khadka.github.io/aksharkit/>** — *not live yet: the link
-starts working after the first GitHub Pages deploy.*
+**<https://samir-khadka.com.np/aksharkit/>**
 
 The playground runs this Python package inside your browser (through
 [Pyodide](https://pyodide.org/)), so what you see is what the library does
