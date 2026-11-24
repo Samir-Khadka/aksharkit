@@ -855,7 +855,7 @@ def test_app_js_in_node(built: Path) -> None:
     assert done.returncode == 0, done.stdout[-4000:] + done.stderr[-2000:]
 
 
-# --- Preeti tab: experimental, honest about what it left alone ---------------
+# --- Preeti tab: says how far it was tested and what it left alone ---------------
 
 
 def test_preeti_tool_converts_and_reports() -> None:
@@ -863,13 +863,13 @@ def test_preeti_tool_converts_and_reports() -> None:
     assert out["text"] == "नेपाल राम्रो देश हो ।"
     assert out["unmapped"] == [] and out["unmapped_count"] == 0
     assert out["label"] == aksharkit.legacy.PREETI_LABEL
-    assert out["entries"] == 126
+    assert out["entries"] == 130
 
-    out = result("preeti", text="s ¥ Ý ¥ \x07")
-    assert out["text"] == "क ¥ Ý ¥ \x07"
+    out = result("preeti", text="s ° Ý ° \x07")
+    assert out["text"] == "क ° Ý ° \x07"
     assert out["unmapped_count"] == 4
     assert out["unmapped"] == [
-        {"char": "¥", "code": "U+00A5", "count": 2},
+        {"char": "°", "code": "U+00B0", "count": 2},
         {"char": "Ý", "code": "U+00DD", "count": 1},
         {"char": "?", "code": "U+0007", "count": 1},
     ]
@@ -878,17 +878,17 @@ def test_preeti_tool_converts_and_reports() -> None:
 def test_preeti_tool_switches() -> None:
     assert result("preeti", text="ljBfno ‘")["text"] == "विद्यालय ‘"
     assert result("preeti", text="ljBfno ‘", unconfirmed=True)["text"] == "विद्यालय ॅ"
-    assert result("preeti", text="ljBfno ‘", unconfirmed=True)["entries"] == 131
+    assert result("preeti", text="ljBfno ‘", unconfirmed=True)["entries"] == 135
     strict = result("preeti", text="ljBfno", strict=True)
     assert strict["text"] == "विBालय" and strict["entries"] == 122
     assert result("preeti")["text"] == ""
 
 
-def test_preeti_panel_is_labelled_experimental_and_uses_no_preeti_font() -> None:
+def test_preeti_panel_states_its_status_and_uses_no_preeti_font() -> None:
     start = INDEX.index('id="panel-preeti"')
     panel = INDEX[start : INDEX.index("</section>", start)]
-    assert "<strong>Experimental.</strong>" in panel
-    assert "not yet been checked against real Preeti documents or by a native reader" in panel
+    assert "<strong>Tested on real documents.</strong>" in panel
+    assert "not been reviewed by a native reader" in panel
     assert "never guessed" in panel
     assert 'data-copy="preeti.text"' in panel
     assert 'data-out="preeti.unmapped"' in panel
@@ -898,7 +898,7 @@ def test_preeti_panel_is_labelled_experimental_and_uses_no_preeti_font() -> None
     box = re.search(r"<textarea[^>]*>", panel)
     assert box is not None and 'lang="ne"' not in box.group(0)
     assert "This page does not load the Preeti font" in panel
-    assert '>Preeti <span class="soon">experimental</span></button>' in INDEX
+    assert '>Preeti <span class="soon">tested</span></button>' in INDEX
     for text in (INDEX, STYLE, APP):
         assert "@font-face" not in text
         assert not re.search(r"font-family:[^;]*preeti", text, re.IGNORECASE)
@@ -906,10 +906,10 @@ def test_preeti_panel_is_labelled_experimental_and_uses_no_preeti_font() -> None
 
 
 def test_preeti_tool_marks_what_it_left_alone_and_says_how_sure_it_is() -> None:
-    out = result("preeti", text="g]kfn ¥ sfo{qmd\nB http://a.np")
+    out = result("preeti", text="g]kfn ° sfo{qmd\nB http://a.np")
     assert out["to"] == "unicode"
-    assert out["text"] == "नेपाल ¥ कार्यक्रम\nद्य http://a.np"
-    assert out["pieces"] == [["नेपाल ", False], ["¥", True], [" कार्यक्रम\nद्य http://a.np", False]]
+    assert out["text"] == "नेपाल ° कार्यक्रम\nद्य http://a.np"
+    assert out["pieces"] == [["नेपाल ", False], ["°", True], [" कार्यक्रम\nद्य http://a.np", False]]
     assert "".join(piece for piece, _ in out["pieces"]) == out["text"]
     assert out["protected_count"] == 1
     stats = out["stats"]
@@ -922,9 +922,9 @@ def test_preeti_tool_marks_what_it_left_alone_and_says_how_sure_it_is() -> None:
     assert stats["agreed_share"] == pytest.approx(12 / 14)
     assert result("preeti", text="g]kfn")["pieces"] is None
     # Far too many marks to be useful: the text comes back plain.
-    crowded = result("preeti", text="¥" * 401)
+    crowded = result("preeti", text="°" * 401)
     assert crowded["pieces"] is None and crowded["unmapped_count"] == 401
-    assert len(result("preeti", text="¥ " * 400)["pieces"]) == 800
+    assert len(result("preeti", text="° " * 400)["pieces"]) == 800
 
 
 def test_preeti_tool_other_direction() -> None:
@@ -942,9 +942,11 @@ def test_preeti_tool_other_direction() -> None:
     back = result("preeti", text=result("preeti", text="विद्यार्थी २०८३", to="preeti")["text"])
     assert back["text"] == "विद्यार्थी २०८३"
     # A word with a character that has no key stays whole, in Unicode, and marked.
-    out = result("preeti", text="भर्\u200dयाङ काठ-मा पढ़", to="preeti")
-    assert out["text"] == "भर्\u200dयाङ sf7-df पढ़"
-    assert out["left"] == ["भर्\u200dयाङ", "-", "पढ़"]
+    out = result("preeti", text="अड्\u200cडा काठ-मा पढ़", to="preeti")
+    assert out["text"] == "अड्\u200cडा sf7-df पढ़"
+    assert out["left"] == ["अड्\u200cडा", "-", "पढ़"]
+    # The eyelash ra has had a key since 0.9, settled by real documents.
+    assert result("preeti", text="भर्\u200dयाङ", to="preeti")["text"] == "e¥ofª"
     assert [piece for piece, marked in out["pieces"] if marked] == out["left"]
     assert result("preeti", text="पढ़", to="preeti", unconfirmed=True)["text"] == "k9Þ"
     bad = call("preeti", text="क", to="sideways")
@@ -970,19 +972,19 @@ def _docx(body: str) -> bytes:
 def test_preeti_docx_tool_round_trips_a_word_file_as_base64() -> None:
     preeti = '<w:rPr><w:rFonts w:ascii="Preeti" w:hAnsi="Preeti"/></w:rPr>'
     body = (
-        f"<w:p><w:r><w:t>Report: </w:t></w:r><w:r>{preeti}<w:t>g]kfn ¥</w:t></w:r></w:p>"
+        f"<w:p><w:r><w:t>Report: </w:t></w:r><w:r>{preeti}<w:t>g]kfn °</w:t></w:r></w:p>"
         f"<w:p><w:r>{preeti}<w:t>sfo{{qmd</w:t></w:r></w:p>"
     )
     data = base64.b64encode(_docx(body)).decode("ascii")
     out = result("preeti_docx", data=data)
     assert (out["runs_converted"], out["runs_untouched"], out["font"]) == (2, 1, "Kalimati")
-    assert out["unmapped"] == [{"char": "¥", "code": "U+00A5", "count": 1}]
+    assert out["unmapped"] == [{"char": "°", "code": "U+00B0", "count": 1}]
     assert ["Preeti", 2] in out["fonts_seen"]
     assert out["stats"]["unmapped"] == 1 and out["label"] == aksharkit.legacy.PREETI_LABEL
     with zipfile.ZipFile(io.BytesIO(base64.b64decode(out["data"]))) as archive:
         xml = archive.read("word/document.xml").decode("utf-8")
     assert "<w:t>Report: </w:t>" in xml
-    assert "नेपाल ¥" in xml and "कार्यक्रम" in xml and "g]kfn" not in xml
+    assert "नेपाल °" in xml and "कार्यक्रम" in xml and "g]kfn" not in xml
     assert 'w:ascii="Kalimati"' in xml
 
     mangal = result("preeti_docx", data=data, font=" Mangal ")

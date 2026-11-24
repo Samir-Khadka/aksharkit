@@ -560,8 +560,8 @@ test("today button, copy buttons and tabs", async () => {
   assert.deepEqual(visible(), ["panel-preeti"]);
   page.$("tab-preeti").dispatch("keydown", { key: "Home" });
   assert.deepEqual(visible(), ["panel-normalize"]);
-  assert.match(page.$("panel-preeti").textContent, /Experimental\./);
-  assert.match(page.$("panel-preeti").textContent, /not yet been checked against real Preeti documents/);
+  assert.match(page.$("panel-preeti").textContent, /Tested on real documents\./);
+  assert.match(page.$("panel-preeti").textContent, /not been reviewed by a native reader/);
 });
 
 test("every result has a working copy button", async () => {
@@ -880,20 +880,20 @@ test("the address follows the tab on screen, even with an edit still pending", a
   assert.equal(page.log.address.at(-1), "#numbers?text=42&only=1&ordinal=5");
 });
 
-test("Preeti converts, names what it left alone, and says it is experimental", async () => {
+test("Preeti converts, names what it left alone, and says how far it was tested", async () => {
   const page = await ready();
   assert.equal(page.out("preeti.text"), "नेपाल राम्रो देश हो ।");
   assert.equal(page.out("preeti.unmapped"), "Every character had an agreed letter.");
-  assert.match(page.out("preeti.note"), /^Table: experimental — mapping agreed by at least 2 of 3 /);
-  assert.match(page.out("preeti.note"), /not yet checked against real Preeti documents or by a native reader/);
-  assert.match(page.out("preeti.note"), /126 keys in use\.$/);
+  assert.match(page.out("preeti.note"), /^Table: tested on real documents — mapping agreed by at least 2 of 3 /);
+  assert.match(page.out("preeti.note"), /not reviewed by a native reader/);
+  assert.match(page.out("preeti.note"), /130 keys in use\.$/);
 
   const field = page.$("in-preeti");
-  field.value = "sfo{qmd ¥ Ý ¥";
+  field.value = "sfo{qmd ° Ý °";
   field.dispatch("input");
   await settle(400);
-  assert.equal(page.out("preeti.text"), "कार्यक्रम ¥ Ý ¥");
-  assert.equal(page.out("preeti.unmapped"), "Left unchanged, no agreed letter (3): ¥ (U+00A5) ×2, Ý (U+00DD) ×1");
+  assert.equal(page.out("preeti.text"), "कार्यक्रम ° Ý °");
+  assert.equal(page.out("preeti.unmapped"), "Left unchanged, no agreed letter (3): ° (U+00B0) ×2, Ý (U+00DD) ×1");
 
   // The two switches change which keys are used.
   field.value = "ljBfno ‘";
@@ -904,7 +904,7 @@ test("Preeti converts, names what it left alone, and says it is experimental", a
   page.$("opt-preeti-unconfirmed").dispatch("change");
   await settle(400);
   assert.equal(page.out("preeti.text"), "विद्यालय ॅ");
-  assert.match(page.out("preeti.note"), /131 keys in use\.$/);
+  assert.match(page.out("preeti.note"), /135 keys in use\.$/);
   page.$("opt-preeti-strict").checked = true;
   page.$("opt-preeti-strict").dispatch("change");
   await settle(400);
@@ -951,7 +951,7 @@ import io, sys, zipfile
 ns = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 preeti = '<w:rPr><w:rFonts w:ascii="Preeti" w:hAnsi="Preeti"/></w:rPr>'
 body = ('<w:p><w:r><w:t xml:space="preserve">Report: </w:t></w:r>'
-        '<w:r>' + preeti + '<w:t>g]kfn \u00a5</w:t></w:r></w:p>'
+        '<w:r>' + preeti + '<w:t>g]kfn \u00b0</w:t></w:r></w:p>'
         '<w:p><w:r>' + preeti + '<w:t>sfo{qmd</w:t></w:r></w:p>')
 buffer = io.BytesIO()
 with zipfile.ZipFile(buffer, "w") as z:
@@ -992,12 +992,12 @@ async function openFile(page, file) {
 test("Preeti: what was left alone is highlighted, and the summary says how sure the table is", async () => {
   const page = await ready({ hash: "#preeti" });
   const field = page.$("in-preeti");
-  field.value = "g]kfn ¥ sfo{qmd B http://a.np";
+  field.value = "g]kfn ° sfo{qmd B http://a.np";
   field.dispatch("input");
   await settle(400);
-  assert.equal(page.out("preeti.text"), "नेपाल ¥ कार्यक्रम द्य http://a.np");
+  assert.equal(page.out("preeti.text"), "नेपाल ° कार्यक्रम द्य http://a.np");
   const marks = page.$("out-preeti-text").all((n) => n.tagName === "mark");
-  assert.deepEqual(marks.map((m) => [m.textContent, m.className]), [["¥", "unmapped"]]);
+  assert.deepEqual(marks.map((m) => [m.textContent, m.className]), [["°", "unmapped"]]);
   assert.equal(
     page.out("preeti.confidence"),
     "Of 14 characters to convert: 12 by keys all tables agree on (85.7%), 1 by keys where one table differs (7.1%), 1 left unchanged. 1 web or e-mail address left as written."
@@ -1005,7 +1005,7 @@ test("Preeti: what was left alone is highlighted, and the summary says how sure 
   // The copy button still gives the whole text, marks or not.
   page.doc.all((n) => n.attrs["data-copy"] === "preeti.text")[0].dispatch("click");
   await settle();
-  assert.equal(page.log.copied, "नेपाल ¥ कार्यक्रम द्य http://a.np");
+  assert.equal(page.log.copied, "नेपाल ° कार्यक्रम द्य http://a.np");
 
   field.value = "g]kfn";
   field.dispatch("input");
@@ -1041,7 +1041,7 @@ test("Preeti: the other direction, from a link, with its own labels", async () =
     "Left in Unicode, highlighted (1): क्ा. Words whose keys would not read back as the same text: 1. Not Nepali, left as written (1): abc — in the Preeti font these would show as other letters, so give them another font."
   );
   assert.match(page.out("preeti.confidence"), /^2 of 3 Nepali words written as Preeti keys \(66\.7%\)\. Each of them was converted back and gave the same text\./);
-  assert.match(page.out("preeti.confidence"), /experimental table/);
+  assert.match(page.out("preeti.confidence"), /drawn in the Preeti font found in real documents/);
   assert.doesNotMatch(page.$("panel-preeti").textContent + page.out("preeti.confidence"), /perfect|verified/i);
 
   // An example is Preeti text, so it switches the direction back.
@@ -1066,9 +1066,9 @@ test("Preeti: the other direction, from a link, with its own labels", async () =
 test("Preeti: a text file is opened, converted, downloaded and kept out of the address", async () => {
   const page = await ready({ hash: "#preeti" });
   assert.ok(page.$("btn-preeti-download").disabled === false, "the default text has a result to download");
-  await openFile(page, fileOf("patra.txt", Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from("g]kfn\r\n\td]/f] gfd ¥\n", "utf-8")])));
-  assert.equal(page.$("in-preeti").value, "g]kfn\r\n\td]/f] gfd ¥\n", "the byte order mark is dropped");
-  assert.equal(page.out("preeti.text"), "नेपाल\r\n\tमेरो नाम ¥\n");
+  await openFile(page, fileOf("patra.txt", Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from("g]kfn\r\n\td]/f] gfd °\n", "utf-8")])));
+  assert.equal(page.$("in-preeti").value, "g]kfn\r\n\td]/f] gfd °\n", "the byte order mark is dropped");
+  assert.equal(page.out("preeti.text"), "नेपाल\r\n\tमेरो नाम °\n");
   assert.equal(page.out("preeti.file"), "Opened patra.txt (20 characters). Its text is kept out of the address and the shareable link.");
   assert.equal(page.log.address.at(-1), "#preeti?to=unicode&unconfirmed=0&strict=0");
   page.$("btn-share").dispatch("click");
@@ -1081,7 +1081,7 @@ test("Preeti: a text file is opened, converted, downloaded and kept out of the a
   page.$("btn-preeti-download").dispatch("click");
   assert.deepEqual(page.log.downloads.at(-1).name, "patra-unicode.txt");
   assert.equal(page.log.blobs.at(-1).type, "text/plain;charset=utf-8");
-  assert.equal(await page.log.blobs.at(-1).text(), "नेपाल\r\n\tमेरो नाम ¥\n");
+  assert.equal(await page.log.blobs.at(-1).text(), "नेपाल\r\n\tमेरो नाम °\n");
 
   // Clear puts the file away; typing afterwards is ordinary shared state again.
   page.$("btn-preeti-clear").dispatch("click");
@@ -1098,15 +1098,15 @@ test("Preeti: files that cannot be read say why", async () => {
   const calls = page.log.calls.length;
   const error = () => page.$("err-preeti").textContent;
 
-  await openFile(page, fileOf("old.txt", Buffer.from([0x67, 0x5d, 0xa5, 0x6b])));
+  await openFile(page, fileOf("old.txt", Buffer.from([0x67, 0x5d, 0xb0, 0x6b])));
   assert.equal(error(), "old.txt is not valid UTF-8. If it came from an older Windows program, choose Windows-1252 and open it again.");
   assert.ok(!page.$("err-preeti").hidden);
   assert.equal(page.out("preeti.text"), "");
 
   page.$("opt-preeti-encoding").value = "windows-1252";
-  await openFile(page, fileOf("old.txt", Buffer.from([0x67, 0x5d, 0xa5, 0x6b])));
-  assert.equal(page.$("in-preeti").value, "g]¥k");
-  assert.equal(page.out("preeti.text"), "ने¥प");
+  await openFile(page, fileOf("old.txt", Buffer.from([0x67, 0x5d, 0xb0, 0x6b])));
+  assert.equal(page.$("in-preeti").value, "g]°k");
+  assert.equal(page.out("preeti.text"), "ने°प");
   assert.ok(page.$("err-preeti").hidden);
 
   await openFile(page, fileOf("letter.doc", Buffer.from("x")));
@@ -1130,7 +1130,7 @@ test("Preeti: a Word file is converted in the page and downloaded as a new file"
     page.out("preeti.file"),
     "Suchana.docx: 2 stretch(es) of Preeti text converted and set to Kalimati; 1 in other fonts left as they were. Press Download result for the new file. Fonts found: (not stated) (1), Preeti (2)."
   );
-  assert.equal(page.out("preeti.unmapped"), "Left unchanged, no agreed letter (1): ¥ (U+00A5) ×1");
+  assert.equal(page.out("preeti.unmapped"), "Left unchanged, no agreed letter (1): ° (U+00B0) ×1");
   assert.match(page.out("preeti.confidence"), /^Of 13 characters to convert: 12 by keys all tables agree on \(92\.3%\)/);
   assert.equal(page.$("in-preeti").value, "");
   assert.equal(page.log.address.at(-1), "#preeti?to=unicode&unconfirmed=0&strict=0");
@@ -1141,7 +1141,7 @@ test("Preeti: a Word file is converted in the page and downloaded as a new file"
   assert.equal(blob.type, "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
   const xml = readDocx(Buffer.from(await blob.arrayBuffer()));
   assert.match(xml, /<w:t xml:space="preserve">Report: <\/w:t>/);
-  assert.match(xml, /नेपाल ¥/);
+  assert.match(xml, /नेपाल °/);
   assert.match(xml, /कार्यक्रम/);
   assert.match(xml, /w:ascii="Kalimati"/);
   assert.doesNotMatch(xml, /g\]kfn|Preeti/);
@@ -1200,7 +1200,7 @@ function makeUnicodeDocx() {
 import io, sys, zipfile
 ns = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 body = ('<w:p><w:r><w:t xml:space="preserve">Report: </w:t></w:r>'
-        '<w:r><w:t xml:space="preserve">\u0928\u0947\u092a\u093e\u0932 2026 \u092d\u0930\u094d\u200d\u092f\u093e\u0919</w:t></w:r></w:p>'
+        '<w:r><w:t xml:space="preserve">\u0928\u0947\u092a\u093e\u0932 2026 \u0905\u0921\u094d\u200c\u0921\u093e</w:t></w:r></w:p>'
         '<w:p><w:r><w:rPr><w:b/><w:bCs/></w:rPr><w:t>\u0915\u093e\u0930\u094d\u092f\u0915\u094d\u0930\u092e</w:t></w:r></w:p>')
 buffer = io.BytesIO()
 with zipfile.ZipFile(buffer, "w") as z:
@@ -1273,7 +1273,7 @@ test("Preeti 0.8: a Unicode Word file is written as Preeti keys and downloaded a
     page.out("preeti.file"),
     "Suchana.docx: 2 stretch(es) of Nepali text written as Preeti keys and set to the font named Preeti (1 of them cut up because they also held other text); 1 left as they were. Press Download result for the new file. It reads as Nepali only where the Preeti font is installed."
   );
-  assert.equal(page.out("preeti.unmapped"), "Left in Unicode, in the font they had (1): भर्\u200dयाङ.");
+  assert.equal(page.out("preeti.unmapped"), "Left in Unicode, in the font they had (1): अड्\u200cडा.");
   assert.match(page.out("preeti.confidence"), /^2 of 3 Nepali words written as Preeti keys \(66\.7%\)\./);
   assert.equal(page.log.address.at(-1), "#preeti?to=preeti&unconfirmed=0&strict=0");
 
@@ -1282,7 +1282,7 @@ test("Preeti 0.8: a Unicode Word file is written as Preeti keys and downloaded a
   const xml = readDocx(Buffer.from(await page.log.blobs.at(-1).arrayBuffer()));
   assert.match(xml, /<w:t xml:space="preserve">Report: <\/w:t>/);
   assert.match(xml, /<w:rFonts w:ascii="Preeti" w:hAnsi="Preeti" w:cs="Preeti"\/><\/w:rPr><w:t xml:space="preserve">g\]kfn <\/w:t>/);
-  assert.match(xml, /<w:r><w:t xml:space="preserve">2026 भर्\u200dयाङ<\/w:t><\/w:r>/);
+  assert.match(xml, /<w:r><w:t xml:space="preserve">2026 अड्\u200cडा<\/w:t><\/w:r>/);
   assert.match(xml, /<w:b\/><w:bCs\/><\/w:rPr><w:t xml:space="preserve">sfo\{qmd<\/w:t>/);
   assert.doesNotMatch(xml, /fonts\/|embed/i, "no font is put into the file");
 });

@@ -158,10 +158,10 @@ def test_text_must_be_a_string() -> None:
 
 
 def test_unmapped_characters_carry_line_column_and_output_offset() -> None:
-    text = "g]kfn ¥\n\ts Ý m\r\nlj{"
+    text = "g]kfn °\n\ts Ý m\r\nlj{"
     result = convert_preeti(text)
     assert [(u.char, u.offset, u.line, u.column) for u in result.unmapped] == [
-        ("¥", 6, 1, 7),
+        ("°", 6, 1, 7),
         ("Ý", 11, 2, 4),
         ("m", 13, 2, 6),
     ]
@@ -187,19 +187,19 @@ def test_output_offsets_hold_on_random_input() -> None:
 
 
 def test_equality_ignores_the_extra_fields() -> None:
-    assert legacy.UnmappedChar("¥", 3) == legacy.UnmappedChar("¥", 3, 2, 1, 9)
+    assert legacy.UnmappedChar("°", 3) == legacy.UnmappedChar("°", 3, 2, 1, 9)
     first = convert_preeti("g]kfn")
     assert first == legacy.PreetiResult("नेपाल", ())
 
 
 def test_stats_count_every_input_character_once() -> None:
-    result = convert_preeti("ljBfno ^ ¥ नेपाल www.a.np")
+    result = convert_preeti("ljBfno ^ ° नेपाल www.a.np")
     stats = result.stats
     assert stats == PreetiStats(
         agreed=5, majority=2, unconfirmed=0, unmapped=1, untouched=9, protected=8
     )
     assert stats.converted == 7 and stats.convertible == 8
-    assert stats.total == len("ljBfno ^ ¥ नेपाल www.a.np")
+    assert stats.total == len("ljBfno ^ ° नेपाल www.a.np")
     assert stats.share("agreed") == pytest.approx(5 / 8)
     assert stats.share("majority") == pytest.approx(2 / 8)
     assert stats.share("unmapped") == pytest.approx(1 / 8)
@@ -218,26 +218,26 @@ def test_stats_tiers_follow_the_switches() -> None:
 
 
 def test_stats_add_up() -> None:
-    total = convert_preeti("s ¥").stats + convert_preeti("B").stats
+    total = convert_preeti("s °").stats + convert_preeti("B").stats
     assert (total.agreed, total.majority, total.unmapped, total.untouched) == (1, 1, 1, 1)
 
 
 def test_as_dict_is_json_ready() -> None:
-    result = convert_preeti("s ¥ ¥ www.a.np")
+    result = convert_preeti("s ° ° www.a.np")
     payload = json.loads(json.dumps(result.as_dict(), ensure_ascii=False))
     assert payload["direction"] == "preeti-to-unicode"
     assert payload["status"] == legacy.PREETI_LABEL
     assert payload["complete"] is False
-    assert payload["text"] == "क ¥ ¥ www.a.np"
+    assert payload["text"] == "क ° ° www.a.np"
     assert payload["unmapped"][0] == {
-        "char": "¥",
-        "codepoint": "U+00A5",
+        "char": "°",
+        "codepoint": "U+00B0",
         "offset": 2,
         "line": 1,
         "column": 3,
         "output_offset": 2,
     }
-    assert payload["unmapped_counts"] == [{"char": "¥", "codepoint": "U+00A5", "count": 2}]
+    assert payload["unmapped_counts"] == [{"char": "°", "codepoint": "U+00B0", "count": 2}]
     assert payload["protected"][0]["reason"] == "link"
     assert payload["stats"]["share_unmapped"] == pytest.approx(2 / 3, abs=1e-4)
 
@@ -270,7 +270,7 @@ def test_known_words_are_written_with_the_expected_keys() -> None:
         "क्षेत्र": "If]q",
         "शिक्षा, स्वास्थ्य र रोजगारी": "lzIff, :jf:Yo / /f]huf/L",
         "ईश्वर": "O{Zj/",
-        "हृदय": "Åbo",
+        "हृदय": "x[bo",
         "(क) र (ख)": "-s_ / -v_",
         "के छ ?": "s] 5 <",
         "“नेपाल”": "æg]kfnÆ",
@@ -278,6 +278,9 @@ def test_known_words_are_written_with_the_expected_keys() -> None:
     for text, keys in samples.items():
         assert unicode_to_preeti(text) == keys
         assert preeti_to_unicode(keys) == text
+    # The key of its own for हृ was never seen in a real document, so since
+    # 0.9 it is not written; it is still read.
+    assert preeti_to_unicode("Åbo") == "हृदय"
 
 
 def test_every_self_consistency_sample_survives_both_directions() -> None:
@@ -600,16 +603,16 @@ def test_cli_batch_into_a_directory(tmp_path: Path, capsys: pytest.CaptureFixtur
     first = tmp_path / "a.txt"
     second = tmp_path / "b.txt"
     first.write_bytes(b"g]kfn\n")
-    second.write_bytes("s ¥\n".encode())
+    second.write_bytes("s °\n".encode())
     out_dir = tmp_path / "out"
     out_dir.mkdir()
     argv = ["convert", "preeti", "-i", str(first), "-i", str(second), "--out-dir", str(out_dir)]
     code, out, err = run([*argv, "--quiet", "--report"], capsys)
     assert code == 0 and out == ""
     assert (out_dir / "a.txt").read_text("utf-8") == "नेपाल\n"
-    assert (out_dir / "b.txt").read_text("utf-8") == "क ¥\n"
+    assert (out_dir / "b.txt").read_text("utf-8") == "क °\n"
     assert f"aksharkit: file {first}" in err and f"aksharkit: file {second}" in err
-    assert "  line 1, column 3: ¥ (U+00A5)" in err
+    assert "  line 1, column 3: ° (U+00B0)" in err
     code, _, err = run([*argv, "--quiet"], capsys)
     assert code == 2 and "already exists" in err
     code, _, err = run(
@@ -634,10 +637,10 @@ def test_cli_protection_options(capsys: pytest.CaptureFixture[str]) -> None:
 
 
 def test_cli_json_report(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    code, out, err = run(["convert", "preeti", "ljBfno ¥", "--json", "--quiet"], capsys)
+    code, out, err = run(["convert", "preeti", "ljBfno °", "--json", "--quiet"], capsys)
     payload = json.loads(out)
     assert code == 0
-    assert payload["text"] == "विद्यालय ¥"
+    assert payload["text"] == "विद्यालय °"
     assert payload["stats"]["majority"] == 1
     assert payload["unmapped"][0]["column"] == 8
     assert "warning: 1 character(s)" in err
@@ -655,9 +658,9 @@ def test_cli_json_report(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> 
 
 
 def test_cli_fail_on_unmapped(capsys: pytest.CaptureFixture[str]) -> None:
-    assert run(["convert", "preeti", "s ¥", "--quiet"], capsys)[0] == 0
-    code, out, _ = run(["convert", "preeti", "s ¥", "--quiet", "--fail-on-unmapped"], capsys)
-    assert (code, out) == (1, "क ¥\n")
+    assert run(["convert", "preeti", "s °", "--quiet"], capsys)[0] == 0
+    code, out, _ = run(["convert", "preeti", "s °", "--quiet", "--fail-on-unmapped"], capsys)
+    assert (code, out) == (1, "क °\n")
     assert run(["convert", "preeti", "s", "--quiet", "--fail-on-unmapped"], capsys)[0] == 0
 
 

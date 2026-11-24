@@ -5,10 +5,11 @@ alphabetical sorting, numerals, number words in both directions, ordinals,
 tokenisation, script detection, Bikram Sambat dates with formatting, parsing
 and arithmetic (BS 2000-2083) and transliteration (a reversible IAST-style
 scheme and an approximate plain-ASCII one).
-Experimental: Preeti legacy-font text to Unicode and back, in plain text and
-in Word (.docx) files. Its key table is agreed between permissively-licensed
-tables but has not been checked against real Preeti documents; characters
-with no agreed entry are reported, not guessed.
+Tested on real documents: Preeti legacy-font text to Unicode and back, in
+plain text and in Word (.docx) files. Its key table is agreed between
+permissively-licensed tables and was checked by eye against public Preeti
+documents, not by a native reader; characters with no agreed entry are
+reported, not guessed.
 """
 
 from __future__ import annotations
@@ -79,7 +80,7 @@ from .words import (
     parse_words,
 )
 
-__version__ = "0.8.0"
+__version__ = "0.9.0"
 
 __all__ = [
     "STOPWORDS",

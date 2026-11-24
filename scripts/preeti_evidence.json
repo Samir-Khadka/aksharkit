@@ -1,0 +1,823 @@
+{
+ "about": "What real Preeti documents show. Read by scripts/compare_preeti_sources.py. The documents are public PDFs that embed a font named Preeti; only text set in that font was taken (pdftohtml -xml, by font). The PDFs and the font programs inside them are not kept in this repository.",
+ "checked_on": "2026-11-24",
+ "method": "Each key's outline was drawn from the font program embedded in the documents and read by eye beside the table entry; every key present has the same outline in every document. 166 lines of Preeti text were then read by eye, page image above converted text.",
+ "lines_read_by_sight": 166,
+ "publishers_needed": 3,
+ "documents": [
+  {
+   "id": "neb-2022",
+   "publisher": "NEB",
+   "name": "National Examinations Board, Biratnagar office",
+   "kind": "notice with lists",
+   "url": "https://biratnagar.neb.gov.np/download-file/downloads/Downloads-202603251316403780.pdf",
+   "pages": 120,
+   "font": "ABCDEE+Preeti"
+  },
+  {
+   "id": "nrb-2020",
+   "publisher": "NRB",
+   "name": "Nepal Rastra Bank",
+   "kind": "NRB Samachar newsletter, Asoj 2077",
+   "url": "https://www.nrb.org.np/contents/uploads/2020/10/NRB-Samachar_Asoj20770630.pdf",
+   "pages": 8,
+   "font": "KPEKMH+Preeti"
+  },
+  {
+   "id": "psc-2023",
+   "publisher": "PSC",
+   "name": "Public Service Commission",
+   "kind": "syllabus, 2023",
+   "url": "https://psc.gov.np/site_uploads/course/2023020811053563e381ff3153b.pdf",
+   "pages": 14,
+   "font": "ABCDEE+Preeti"
+  },
+  {
+   "id": "psc-2024",
+   "publisher": "PSC",
+   "name": "Public Service Commission",
+   "kind": "syllabus, 2024",
+   "url": "https://psc.gov.np/site_uploads/course/2024030801020565eb0c4dda255.pdf",
+   "pages": 7,
+   "font": "ABCDEE+Preeti"
+  },
+  {
+   "id": "psc-2025",
+   "publisher": "PSC",
+   "name": "Public Service Commission",
+   "kind": "syllabus, 2025",
+   "url": "https://psc.gov.np/site_uploads/course/202506300438476862bd97a96a2.pdf",
+   "pages": 4,
+   "font": "ABCDEE+Preeti"
+  },
+  {
+   "id": "tsc-2017",
+   "publisher": "TSC",
+   "name": "Teacher Service Commission",
+   "kind": "candidate list, 2074 BS",
+   "url": "https://giwmscdnone.gov.np/media/pdf_upload/6.Paschim203_revised1_pbxfevn.pdf",
+   "pages": 20,
+   "font": "ABCDEE+Preeti"
+  },
+  {
+   "id": "tu-thesis",
+   "publisher": "TU",
+   "name": "Tribhuvan University Central Library",
+   "kind": "MA thesis in the eLibrary",
+   "url": "https://elibrary.tucl.edu.np/JQ99OgQIizUxyjI9nB0on9OyLkqsGIf4/api/core/bitstreams/d827f999-b255-4cf9-99cb-68e79ad340d9/content",
+   "pages": 187,
+   "font": "ABCDEE+Preeti"
+  },
+  {
+   "id": "sc-2010",
+   "publisher": "SC",
+   "name": "Supreme Court of Nepal",
+   "kind": "Bulletin, 2065 BS",
+   "url": "https://supremecourt.gov.np/publication/materials/101817.pdf",
+   "pages": 31,
+   "font": "FGPCAM+Preeti"
+  },
+  {
+   "id": "nea-2024",
+   "publisher": "NEA",
+   "name": "Nepal Electricity Authority",
+   "kind": "proactive disclosure, Magh-Chait 2080",
+   "url": "https://nea.org.np/uploads/shares/news_notice/32453821.pdf",
+   "pages": 122,
+   "font": "ABCDEE+Preeti"
+  }
+ ],
+ "keys": {
+  "!": {
+   "count": 1929,
+   "documents": 8,
+   "publishers": 6
+  },
+  "\"": {
+   "count": 1432,
+   "documents": 9,
+   "publishers": 7
+  },
+  "#": {
+   "count": 1283,
+   "documents": 9,
+   "publishers": 7
+  },
+  "$": {
+   "count": 1718,
+   "documents": 9,
+   "publishers": 7
+  },
+  "%": {
+   "count": 1180,
+   "documents": 9,
+   "publishers": 7
+  },
+  "&": {
+   "count": 590,
+   "documents": 8,
+   "publishers": 7
+  },
+  "'": {
+   "count": 8130,
+   "documents": 9,
+   "publishers": 7
+  },
+  "(": {
+   "count": 575,
+   "documents": 6,
+   "publishers": 5
+  },
+  ")": {
+   "count": 1884,
+   "documents": 9,
+   "publishers": 7
+  },
+  "*": {
+   "count": 600,
+   "documents": 8,
+   "publishers": 6
+  },
+  "+": {
+   "count": 1754,
+   "documents": 9,
+   "publishers": 7
+  },
+  ",": {
+   "count": 3561,
+   "documents": 9,
+   "publishers": 7
+  },
+  "-": {
+   "count": 649,
+   "documents": 9,
+   "publishers": 7
+  },
+  ".": {
+   "count": 2924,
+   "documents": 8,
+   "publishers": 6
+  },
+  "/": {
+   "count": 14359,
+   "documents": 9,
+   "publishers": 7
+  },
+  "0": {
+   "count": 2420,
+   "documents": 9,
+   "publishers": 7
+  },
+  "1": {
+   "count": 138,
+   "documents": 7,
+   "publishers": 6
+  },
+  "2": {
+   "count": 146,
+   "documents": 7,
+   "publishers": 6
+  },
+  "3": {
+   "count": 496,
+   "documents": 8,
+   "publishers": 6
+  },
+  "4": {
+   "count": 248,
+   "documents": 7,
+   "publishers": 6
+  },
+  "5": {
+   "count": 3802,
+   "documents": 9,
+   "publishers": 7
+  },
+  "6": {
+   "count": 2670,
+   "documents": 9,
+   "publishers": 7
+  },
+  "7": {
+   "count": 771,
+   "documents": 9,
+   "publishers": 7
+  },
+  "8": {
+   "count": 1127,
+   "documents": 9,
+   "publishers": 7
+  },
+  "9": {
+   "count": 346,
+   "documents": 9,
+   "publishers": 7
+  },
+  ":": {
+   "count": 3033,
+   "documents": 9,
+   "publishers": 7
+  },
+  ";": {
+   "count": 10823,
+   "documents": 9,
+   "publishers": 7
+  },
+  "<": {
+   "count": 26,
+   "documents": 2,
+   "publishers": 2
+  },
+  "=": {
+   "count": 3838,
+   "documents": 8,
+   "publishers": 7
+  },
+  ">": {
+   "count": 439,
+   "documents": 8,
+   "publishers": 6
+  },
+  "?": {
+   "count": 1088,
+   "documents": 9,
+   "publishers": 7
+  },
+  "@": {
+   "count": 1877,
+   "documents": 9,
+   "publishers": 7
+  },
+  "A": {
+   "count": 769,
+   "documents": 8,
+   "publishers": 6
+  },
+  "B": {
+   "count": 500,
+   "documents": 8,
+   "publishers": 6
+  },
+  "C": {
+   "count": 49,
+   "documents": 4,
+   "publishers": 4
+  },
+  "D": {
+   "count": 1679,
+   "documents": 9,
+   "publishers": 7
+  },
+  "E": {
+   "count": 35,
+   "documents": 3,
+   "publishers": 3
+  },
+  "F": {
+   "count": 1469,
+   "documents": 8,
+   "publishers": 7
+  },
+  "G": {
+   "count": 5116,
+   "documents": 9,
+   "publishers": 7
+  },
+  "H": {
+   "count": 125,
+   "documents": 6,
+   "publishers": 6
+  },
+  "I": {
+   "count": 923,
+   "documents": 9,
+   "publishers": 7
+  },
+  "J": {
+   "count": 1040,
+   "documents": 8,
+   "publishers": 6
+  },
+  "K": {
+   "count": 232,
+   "documents": 9,
+   "publishers": 7
+  },
+  "L": {
+   "count": 7765,
+   "documents": 9,
+   "publishers": 7
+  },
+  "M": {
+   "count": 604,
+   "documents": 8,
+   "publishers": 6
+  },
+  "N": {
+   "count": 743,
+   "documents": 9,
+   "publishers": 7
+  },
+  "O": {
+   "count": 2326,
+   "documents": 9,
+   "publishers": 7
+  },
+  "P": {
+   "count": 2675,
+   "documents": 9,
+   "publishers": 7
+  },
+  "Q": {
+   "count": 1803,
+   "documents": 9,
+   "publishers": 7
+  },
+  "R": {
+   "count": 637,
+   "documents": 5,
+   "publishers": 5
+  },
+  "S": {
+   "count": 369,
+   "documents": 8,
+   "publishers": 6
+  },
+  "T": {
+   "count": 2040,
+   "documents": 8,
+   "publishers": 6
+  },
+  "U": {
+   "count": 434,
+   "documents": 7,
+   "publishers": 7
+  },
+  "V": {
+   "count": 231,
+   "documents": 8,
+   "publishers": 6
+  },
+  "W": {
+   "count": 409,
+   "documents": 9,
+   "publishers": 7
+  },
+  "X": {
+   "count": 29,
+   "documents": 3,
+   "publishers": 3
+  },
+  "Y": {
+   "count": 202,
+   "documents": 6,
+   "publishers": 4
+  },
+  "Z": {
+   "count": 615,
+   "documents": 9,
+   "publishers": 7
+  },
+  "[": {
+   "count": 1164,
+   "documents": 8,
+   "publishers": 6
+  },
+  "\\": {
+   "count": 2547,
+   "documents": 9,
+   "publishers": 7
+  },
+  "]": {
+   "count": 25284,
+   "documents": 9,
+   "publishers": 7
+  },
+  "^": {
+   "count": 833,
+   "documents": 8,
+   "publishers": 6
+  },
+  "_": {
+   "count": 854,
+   "documents": 9,
+   "publishers": 7
+  },
+  "`": {
+   "count": 2,
+   "documents": 2,
+   "publishers": 2
+  },
+  "a": {
+   "count": 4274,
+   "documents": 9,
+   "publishers": 7
+  },
+  "b": {
+   "count": 7820,
+   "documents": 9,
+   "publishers": 7
+  },
+  "c": {
+   "count": 5823,
+   "documents": 9,
+   "publishers": 7
+  },
+  "d": {
+   "count": 12593,
+   "documents": 9,
+   "publishers": 7
+  },
+  "e": {
+   "count": 4818,
+   "documents": 9,
+   "publishers": 7
+  },
+  "f": {
+   "count": 58235,
+   "documents": 9,
+   "publishers": 7
+  },
+  "g": {
+   "count": 17265,
+   "documents": 9,
+   "publishers": 7
+  },
+  "h": {
+   "count": 4023,
+   "documents": 9,
+   "publishers": 7
+  },
+  "i": {
+   "count": 2145,
+   "documents": 9,
+   "publishers": 7
+  },
+  "j": {
+   "count": 10994,
+   "documents": 9,
+   "publishers": 7
+  },
+  "k": {
+   "count": 12812,
+   "documents": 9,
+   "publishers": 7
+  },
+  "l": {
+   "count": 19883,
+   "documents": 9,
+   "publishers": 7
+  },
+  "m": {
+   "count": 2835,
+   "documents": 9,
+   "publishers": 7
+  },
+  "n": {
+   "count": 9634,
+   "documents": 9,
+   "publishers": 7
+  },
+  "o": {
+   "count": 11214,
+   "documents": 9,
+   "publishers": 7
+  },
+  "p": {
+   "count": 2231,
+   "documents": 9,
+   "publishers": 7
+  },
+  "q": {
+   "count": 1340,
+   "documents": 9,
+   "publishers": 7
+  },
+  "r": {
+   "count": 2702,
+   "documents": 9,
+   "publishers": 7
+  },
+  "s": {
+   "count": 22183,
+   "documents": 9,
+   "publishers": 7
+  },
+  "t": {
+   "count": 11454,
+   "documents": 9,
+   "publishers": 7
+  },
+  "u": {
+   "count": 6750,
+   "documents": 9,
+   "publishers": 7
+  },
+  "v": {
+   "count": 2767,
+   "documents": 9,
+   "publishers": 7
+  },
+  "w": {
+   "count": 2678,
+   "documents": 9,
+   "publishers": 7
+  },
+  "x": {
+   "count": 6744,
+   "documents": 9,
+   "publishers": 7
+  },
+  "y": {
+   "count": 2360,
+   "documents": 9,
+   "publishers": 7
+  },
+  "z": {
+   "count": 3715,
+   "documents": 9,
+   "publishers": 7
+  },
+  "{": {
+   "count": 6890,
+   "documents": 9,
+   "publishers": 7
+  },
+  "|": {
+   "count": 5076,
+   "documents": 9,
+   "publishers": 7
+  },
+  "}": {
+   "count": 3055,
+   "documents": 9,
+   "publishers": 7
+  },
+  "~": {
+   "count": 202,
+   "documents": 9,
+   "publishers": 7
+  },
+  "¢": {
+   "count": 3,
+   "documents": 1,
+   "publishers": 1
+  },
+  "£": {
+   "count": 1,
+   "documents": 1,
+   "publishers": 1
+  },
+  "¥": {
+   "count": 51,
+   "documents": 5,
+   "publishers": 5
+  },
+  "§": {
+   "count": 70,
+   "documents": 8,
+   "publishers": 6
+  },
+  "ª": {
+   "count": 1565,
+   "documents": 7,
+   "publishers": 6
+  },
+  "«": {
+   "count": 223,
+   "documents": 8,
+   "publishers": 6
+  },
+  "´": {
+   "count": 1,
+   "documents": 1,
+   "publishers": 1
+  },
+  "¶": {
+   "count": 4,
+   "documents": 1,
+   "publishers": 1
+  },
+  "¿": {
+   "count": 1430,
+   "documents": 5,
+   "publishers": 4
+  },
+  "Æ": {
+   "count": 26,
+   "documents": 3,
+   "publishers": 3
+  },
+  "Ë": {
+   "count": 90,
+   "documents": 5,
+   "publishers": 5
+  },
+  "Í": {
+   "count": 126,
+   "documents": 8,
+   "publishers": 6
+  },
+  "Ø": {
+   "count": 1,
+   "documents": 1,
+   "publishers": 1
+  },
+  "Ú": {
+   "count": 292,
+   "documents": 3,
+   "publishers": 3
+  },
+  "Û": {
+   "count": 14,
+   "documents": 2,
+   "publishers": 2
+  },
+  "å": {
+   "count": 135,
+   "documents": 7,
+   "publishers": 5
+  },
+  "æ": {
+   "count": 28,
+   "documents": 3,
+   "publishers": 3
+  },
+  "÷": {
+   "count": 207,
+   "documents": 8,
+   "publishers": 6
+  },
+  "ˆ": {
+   "count": 48,
+   "documents": 5,
+   "publishers": 5
+  },
+  "–": {
+   "count": 558,
+   "documents": 8,
+   "publishers": 6
+  },
+  "—": {
+   "count": 19,
+   "documents": 5,
+   "publishers": 3
+  },
+  "•": {
+   "count": 3,
+   "documents": 2,
+   "publishers": 2
+  },
+  "…": {
+   "count": 289,
+   "documents": 3,
+   "publishers": 3
+  },
+  "‹": {
+   "count": 1,
+   "documents": 1,
+   "publishers": 1
+  },
+  "›": {
+   "count": 22,
+   "documents": 2,
+   "publishers": 2
+  }
+ },
+ "settled": {
+  "Ú": {
+   "to": "’",
+   "why": "draws a closing single quotation mark, the partner of the opening mark on the key …",
+   "evidence": [
+    {
+     "document": "nrb-2020",
+     "page": 1,
+     "keys": "…sÚ",
+     "reads": "‘क’"
+    },
+    {
+     "document": "sc-2010",
+     "page": 18,
+     "keys": "…;'hfgfÚ",
+     "reads": "‘सुजाना’"
+    },
+    {
+     "document": "tu-thesis",
+     "page": 25,
+     "keys": "…clGtd sljtfÚ",
+     "reads": "‘अन्तिम कविता’"
+    }
+   ]
+  },
+  "¥": {
+   "to": "र्‍",
+   "why": "draws the eyelash form of ra that stands before ya",
+   "evidence": [
+    {
+     "document": "nrb-2020",
+     "page": 8,
+     "keys": "u¥of]",
+     "reads": "गर्‍यो"
+    },
+    {
+     "document": "psc-2025",
+     "page": 2,
+     "keys": "k'¥ofpg",
+     "reads": "पुर्‍याउन"
+    },
+    {
+     "document": "nea-2024",
+     "page": 7,
+     "keys": "8f]¥ofpg]",
+     "reads": "डोर्‍याउने"
+    },
+    {
+     "document": "tu-thesis",
+     "page": 153,
+     "keys": "k'¥ofpg",
+     "reads": "पुर्‍याउन"
+    }
+   ]
+  },
+  "–": {
+   "to": "–",
+   "why": "draws a short dash; typists use it for the hyphen, which has no key of its own",
+   "evidence": [
+    {
+     "document": "sc-2010",
+     "page": 10,
+     "keys": "hft–hflt",
+     "reads": "जात–जाति"
+    },
+    {
+     "document": "psc-2023",
+     "page": 1,
+     "keys": "sfo{–1fg",
+     "reads": "कार्य–ज्ञान"
+    },
+    {
+     "document": "nrb-2020",
+     "page": 1,
+     "keys": "sf]le8–!(",
+     "reads": "कोभिड–१९"
+    },
+    {
+     "document": "tu-thesis",
+     "page": 1,
+     "keys": "@)^%–@)^&",
+     "reads": "२०६५–२०६७"
+    }
+   ]
+  },
+  "—": {
+   "to": "—",
+   "why": "draws a longer dash",
+   "evidence": [
+    {
+     "document": "sc-2010",
+     "page": 8,
+     "keys": "d'2fM—",
+     "reads": "मुद्दाः—"
+    },
+    {
+     "document": "psc-2023",
+     "page": 1,
+     "keys": "k\"0ff{Í M— #)",
+     "reads": "पूर्णाङ्क :— ३०"
+    },
+    {
+     "document": "nea-2024",
+     "page": 91,
+     "keys": "j'6jn—jb{3f6",
+     "reads": "बुटवल—बर्दघाट"
+    }
+   ]
+  }
+ },
+ "sequences": {
+  "tm": {
+   "to": "क्त",
+   "why": "the stroke key after ta draws the kta ligature, as it does after the tta key",
+   "evidence": [
+    {
+     "document": "nea-2024",
+     "page": 24,
+     "keys": "ztmL",
+     "reads": "शक्ति (typed with long i)"
+    },
+    {
+     "document": "sc-2010",
+     "page": 18,
+     "keys": ";+o'tm",
+     "reads": "संयुक्त"
+    },
+    {
+     "document": "tu-thesis",
+     "page": 143,
+     "keys": "kª\\ltm",
+     "reads": "पङ्क्ति"
+    }
+   ]
+  }
+ }
+}

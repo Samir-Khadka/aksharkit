@@ -147,7 +147,7 @@ def test_word_list_shape() -> None:
     [
         "timi kasto cha?",
         "malai ramro lagyo, tapai lai kasto cha",
-        "Mero ghar Urlabari ma cha, timro kaha ho?",
+        "Mero ghar Pokhara ma cha, timro kaha ho?",
         "aja dherai kaam xa",
         "hami bholi jane ho, timi pani aune?",
     ],

@@ -118,12 +118,12 @@ def test_segments_cover_the_input_and_say_what_each_stretch_became() -> None:
 
 
 def test_whole_words_keeps_a_word_with_a_hole_in_unicode() -> None:
-    loose = encode_preeti("भर्\u200dयाङ चढ")
-    assert loose.text == "e/\\\u200dofª r9"
-    whole = encode_preeti("भर्\u200dयाङ चढ", whole_words=True)
-    assert whole.text == "भर्\u200dयाङ r9"
-    assert next((s.text, s.kind) for s in whole.segments) == ("भर्\u200dयाङ", "unmapped")
-    assert whole.unmapped_chars == ("\u200d",)
+    loose = encode_preeti("अड्\u200cडा चढ")
+    assert loose.text == "c8\\\u200c8f r9"
+    whole = encode_preeti("अड्\u200cडा चढ", whole_words=True)
+    assert whole.text == "अड्\u200cडा r9"
+    assert next((s.text, s.kind) for s in whole.segments) == ("अड्\u200cडा", "unmapped")
+    assert whole.unmapped_chars == ("\u200c",)
 
 
 def test_stats_add_up_and_serialise() -> None:
@@ -168,7 +168,7 @@ def test_digits_devanagari_rewrites_numbers_on_nepali_lines_only() -> None:
     "text",
     [
         "दर्ता नं. 245, Nepal काठ-मा",
-        "Kathmandu Office मा भर्\u200dयाङ छ ।",
+        "Kathmandu Office मा अड्\u200cडा छ ।",
         "ईमेल ram@example.com मा पठाउनुहोस्\nदोस्रो line 2",
         "केवल नेपाली पाठ ।",
         "",
@@ -264,8 +264,8 @@ def test_forward_fixes(keys: str, text: str) -> None:
 
 def test_coverage_audit_numbers_are_pinned() -> None:
     default = COVERAGE.audit()
-    assert (default["forms"], default["pass"]) == (5300, 5236)
-    assert COVERAGE.audit(unconfirmed=True)["pass"] == 5241
+    assert (default["forms"], default["pass"]) == (5300, 5246)
+    assert COVERAGE.audit(unconfirmed=True)["pass"] == 5251
     assert COVERAGE.audit(strict=True)["pass"] == 5235
     by_id = {entry["id"]: entry for entry in default["classes"]}
     assert len(by_id) == 17
@@ -280,7 +280,7 @@ def test_coverage_audit_numbers_are_pinned() -> None:
 def test_every_coverage_failure_has_a_reason_and_none_is_a_wrong_read_back() -> None:
     report = COVERAGE.audit()
     failures = [item for entry in report["classes"] for item in entry["failures"]]
-    assert len(failures) == 5300 - 5236
+    assert len(failures) == 5300 - 5246
     for item in failures:
         assert item["reason"], item
         assert "reads back differently" not in item["reason"], item
@@ -323,9 +323,10 @@ def test_every_word_written_as_keys_reads_back_exactly() -> None:
         assert not devanagari(result.text), word
         back = convert_preeti(result.text, keep_links=False)
         assert back.text == canonical(word) and back.complete, (word, result.text, back.text)
-    # 2,638 of 2,639 (99.96%). The one left is a ZWJ form, which has no agreed key.
-    assert left == ["भर्\u200dयाङ"]
-    assert written == 2638
+    # 2,639 of 2,639 since 0.9, when real documents settled the key for the
+    # eyelash ra (भर्‍याङ was the one word left before).
+    assert left == []
+    assert written == 2639
 
 
 def test_words_also_survive_strict_and_unconfirmed_modes() -> None:
@@ -348,13 +349,14 @@ def test_sentences_round_trip() -> None:
             assert back.text == canonical(sentence), sentence
         else:
             left.append(sentence)
-    assert len(left) == 1 and "गर्\u200dयो" in left[0]
+    # All 62 since 0.9: the one with गर्‍यो was left before the eyelash ra had a key.
+    assert left == []
 
 
 def test_whole_word_list_as_one_text_gives_the_same_count() -> None:
     result = encode_preeti("\n".join(WORDS))
-    assert (result.stats.words, result.stats.words_encoded) == (2639, 2638)
-    assert round(100 * result.stats.share_words, 2) == 99.96
+    assert (result.stats.words, result.stats.words_encoded) == (2639, 2639)
+    assert round(100 * result.stats.share_words, 2) == 100.0
 
 
 # --- worked examples from two other converters' pages ----------------------------------
@@ -397,12 +399,14 @@ def test_crosscheck_unicode_to_preeti(source: str, keys: str, text: str) -> None
     # The round trip is the guarantee. Identical keys are a bonus: a
     # different but equivalent sequence would also be acceptable.
     assert convert_preeti(result.text, keep_links=False).text == canonical(text)
-    assert result.text == keys, source
+    # Since 0.9 one pair differs: ``झ`` is written ``em``, the way typists do
+    # (312 times to 1 in the real documents), not with the rare key ``´``.
+    assert result.text == keys.replace("´", "em"), source
 
 
-def test_samples_file_is_still_reserved_for_real_samples() -> None:
+def test_samples_file_holds_real_samples_since_0_9() -> None:
     lines = (GOLDEN / "preeti_samples.tsv").read_text("utf-8").splitlines()
-    assert [line for line in lines if line.strip() and not line.startswith("#")] == []
+    assert len([line for line in lines if line.strip() and not line.startswith("#")]) >= 26
 
 
 # --- Unicode .docx to Preeti .docx -------------------------------------------------------
@@ -412,7 +416,7 @@ BODY = (
     para(
         run("निवेदन श्री प्रमुख ज्यू, "),
         run("Kathmandu Office", "Calibri"),
-        run(" मा दर्ता नं. 245 (२०८३) भर्\u200dयाङ र काठमाडौं-३ ।", extra=BOLD),
+        run(" मा दर्ता नं. 245 (२०८३) अड्\u200cडा र काठमाडौं-३ ।", extra=BOLD),
     )
     + para(run("वि"), run("द्या"), run("लय नेपाल"))
     + para(run("Only English here."))
@@ -432,7 +436,7 @@ def test_docx_devanagari_becomes_keys_in_the_preeti_font_and_the_rest_stays() ->
         (" df btf{ g+= ", "Preeti"),
         ("245 ", None),
         ("-@)*#_ ", "Preeti"),
-        ("भर्\u200dयाङ ", None),
+        ("अड्\u200cडा ", None),
         ("/ sf7df8f}+", "Preeti"),
         ("-", None),
         ("# .", "Preeti"),
@@ -444,7 +448,7 @@ def test_docx_devanagari_becomes_keys_in_the_preeti_font_and_the_rest_stays() ->
     assert report.paragraphs_changed == 2 and report.boundary_moves == 1
     assert report.font == "Preeti" and not report.complete
     assert [(item.text, item.reason, item.chars, item.paragraph) for item in report.left] == [
-        ("भर्\u200dयाङ", "no key", ("\u200d",), 1),
+        ("अड्\u200cडा", "no key", ("\u200c",), 1),
         ("-", "no key", ("-",), 1),
     ]
     assert (report.stats.words, report.stats.words_encoded) == (14, 12)
@@ -557,13 +561,13 @@ def test_cli_docx_to_preeti(tmp_path: Path, capsys: pytest.CaptureFixture[str]) 
     assert err.splitlines() == [
         "aksharkit: warning: 2 stretch(es) of Nepali text were left in Unicode, in the font "
         "they had",
-        "  word/document.xml, paragraph 1: भर्\u200dयाङ (no key: ? (U+200D))",
+        "  word/document.xml, paragraph 1: अड्\u200cडा (no key: ? (U+200C))",
         "  word/document.xml, paragraph 1: - (no key: - (U+002D))",
         "aksharkit: docx: 3 run(s) written as keys and set to Preeti, 1 mixed run(s) cut into "
         "pieces, 3 run(s) left as they were, 2 paragraph(s) changed, 1 word(s) moved whole "
         "into their first run; parts read: word/document.xml",
         "aksharkit: summary: 12 of 14 Nepali word(s) written as keys (85.7%); 61 character(s) "
-        "written as keys, 8 left with no key, 0 in words that did not read back, 18 not "
+        "written as keys, 7 left with no key, 0 in words that did not read back, 18 not "
         "Devanagari and left alone",
     ]
     assert cli([*argv, "--quiet"], capsys)[0] == 2  # exists: needs --force
@@ -642,7 +646,7 @@ def test_new_names_are_exported() -> None:
         "encode_docx_bytes",
     ):
         assert name in aksharkit.__all__ and hasattr(aksharkit, name)
-    assert aksharkit.__version__ == "0.8.0"
+    assert aksharkit.__version__ == "0.9.0"
 
 
 def test_docs_never_claim_more_than_was_checked() -> None:
@@ -665,6 +669,6 @@ def test_docs_never_claim_more_than_was_checked() -> None:
     page = (ROOT / "site" / "index.html").read_text("utf-8")
     panel = page[page.index('id="panel-preeti"') :]
     panel = panel[: panel.index("</section>")]
-    assert "verified" not in panel.lower() and "Experimental" in panel
+    assert "verified" not in panel.lower() and "Tested on real documents" in panel
     preeti = (ROOT / "docs" / "preeti.md").read_text("utf-8")
     assert "24 November 2026" in preeti and "phone" in preeti

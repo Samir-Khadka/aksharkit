@@ -1,4 +1,4 @@
-"""Legacy (pre-Unicode) Nepali font conversion: Preeti and Unicode. EXPERIMENTAL.
+"""Legacy (pre-Unicode) Nepali font conversion: Preeti and Unicode.
 
 Fonts such as Preeti draw Devanagari shapes on ASCII key positions, so
 ``g]kfn`` on disk displays as ``नेपाल``. Converting needs two things:
@@ -6,8 +6,11 @@ Fonts such as Preeti draw Devanagari shapes on ASCII key positions, so
 1. **A key table** — which key draws which letter. The table in
    ``data/font_preeti.json`` holds only entries that at least two of three
    permissively-licensed table families agree on (see ``docs/preeti.md`` and
-   ``scripts/compare_preeti_sources.py``). It has **not** been checked
-   against real Preeti documents or by a native reader.
+   ``scripts/compare_preeti_sources.py``). Since 0.9 it has been checked
+   by eye against public Preeti documents (``docs/preeti.md``, "Tested on
+   real documents"), which also settled a few keys the tables left open.
+   It has **not** been reviewed by a native reader, and some rarely used
+   keys were never seen in a document.
 2. **Reordering** — Preeti stores what the typist pressed, in typing order,
    and that order is not Unicode's. The rules below are written from how
    Devanagari is put together, not taken from another converter:
@@ -22,6 +25,12 @@ Fonts such as Preeti draw Devanagari shapes on ASCII key positions, so
      letter (``प`` into ``फ``), even when a vowel sign was typed in between;
    * vowel signs come before a nasal sign, and ``ा`` before ``े``/``ै``, so
      that the normaliser can compose ``ो`` and ``ौ``.
+
+   Real documents added the habits of real typists (0.9): a sign the font
+   draws with no width prints once however often it is typed, and lands on
+   the letter before a comma when typed after it; the ``्र`` stroke may be
+   typed after the vowel sign; a short-i may be typed between a letter and
+   its halant; a reph may be typed between a half form and its bar.
 
 A character with no agreed table entry is passed through unchanged and
 reported. Nothing is guessed.
@@ -49,8 +58,12 @@ from ._data import load_table
 from .normalize import normalize
 
 __all__ = [
+    "EXPERIMENTAL",
     "PREETI_LABEL",
+    "PREETI_STATUS",
+    "STATUSES",
     "SUPPORTED_FONTS",
+    "TESTED",
     "ForeignSpan",
     "PreetiEncodeResult",
     "PreetiEncodeStats",
@@ -72,8 +85,12 @@ __all__ = [
 #: Fonts with a data file in the package.
 SUPPORTED_FONTS: tuple[str, ...] = ("preeti",)
 
-#: The only table status the converter accepts.
+#: Table status before any real document had been checked (up to 0.8).
 EXPERIMENTAL = "experimental"
+#: Table status once the keys were checked by eye against real documents.
+TESTED = "tested"
+#: The table statuses the converter accepts.
+STATUSES: tuple[str, ...] = (EXPERIMENTAL, TESTED)
 
 _VIRAMA = "\u094d"
 _NUKTA = "\u093c"
@@ -92,6 +109,24 @@ _REPH = "<reph>"
 
 _STROKE_KEY = "m"
 _REPH_KEY = "{"
+_COMMA = ","
+# Signs the Preeti font draws with no width of their own, on the letter
+# before them: typed twice they print as one, and typed after a comma they
+# still land on the letter before the comma.
+_NO_WIDTH = frozenset(
+    {
+        "\u0941",  # ु
+        "\u0942",  # ू
+        "\u0943",  # ृ
+        "\u0947",  # े
+        "\u0948",  # ै
+        "\u0901",  # ँ
+        "\u0902",  # ं
+        "\u094d",  # ्
+        "\u094d\u0930",  # ्र
+    }
+)
+_OVER_COMMA = frozenset("\u0947\u0948\u0901\u0902")
 
 
 def _is_consonant(ch: str) -> bool:
@@ -179,7 +214,8 @@ class PreetiStats:
 
     ``agreed``, ``majority`` and ``unconfirmed`` count characters converted
     with a key of that tier of the table (the two stroke keys ``m`` and ``{``
-    count as ``agreed`` when they found a letter to act on). ``unmapped``
+    count as ``agreed`` when they found a letter to act on, and so do the few
+    keys that real documents settled and a sign typed twice). ``unmapped``
     characters had no usable entry. ``untouched`` is white space and text
     that was already Devanagari; ``protected`` is text inside a protected
     stretch, markers included.
@@ -492,10 +528,10 @@ def _check_font(font: str) -> str:
 @cache
 def _table(key: str) -> dict[str, Any]:
     table = load_table(f"font_{key}")
-    if table.get("status") != EXPERIMENTAL or not table.get("mapping"):
+    if table.get("status") not in STATUSES or not table.get("mapping"):
         raise ValueError(
-            f"font table for {key!r} is malformed: expected status {EXPERIMENTAL!r} "
-            "and a non-empty 'mapping'"
+            f"font table for {key!r} is malformed: expected a status out of "
+            f"{', '.join(STATUSES)} and a non-empty 'mapping'"
         )
     if not table.get("sources"):
         raise ValueError(f"font table for {key!r} lists no sources")
@@ -509,6 +545,8 @@ def load_font_table(font: str = "preeti") -> dict[str, Any]:
 
 #: One-line description of how far the Preeti table can be trusted.
 PREETI_LABEL: str = str(_table("preeti")["label"])
+#: The status of the Preeti table: one of :data:`STATUSES`.
+PREETI_STATUS: str = str(_table("preeti")["status"])
 
 
 def _entries(table: dict[str, Any], section: str) -> dict[str, str]:
@@ -528,6 +566,8 @@ def _maps(
     sequences = _entries(table, "sequences")
     if not strict:
         single.update(_entries(table, "majority"))
+        single.update(_entries(table, "settled"))
+        sequences.update(_entries(table, "settled_sequences"))
     if include_unconfirmed:
         single.update(_entries(table, "unconfirmed"))
         sequences.update(_entries(table, "unconfirmed_sequences"))
@@ -558,6 +598,8 @@ def _tiers(key: str) -> dict[str, str]:
         ("unconfirmed", "unconfirmed"),
         ("unconfirmed_sequences", "unconfirmed"),
         ("majority", "majority"),
+        ("settled", "agreed"),
+        ("settled_sequences", "agreed"),
         ("mapping", "agreed"),
         ("sequences", "agreed"),
     ):
@@ -580,7 +622,8 @@ def _is_carried_over(token: _Token) -> bool:
     letter, a subscript (``्र``, ``्य``) and a reph do not get in its way.
     """
     value = token.value
-    if value == _REPH:
+    if value in (_REPH, _VIRAMA):
+        # A halant typed before the stroke (``e\\m`` for ``झ्``) is under the letter.
         return True
     if len(value) > 1 and value[0] == _VIRAMA:
         return True
@@ -633,12 +676,29 @@ def _tokenise(
                     target.key = target.key + _STROKE_KEY
                     kinds[i] = tiers.get(target.key, "agreed")
             elif ch == _REPH_KEY:
-                tokens.append(_Token(_REPH, i, ch))
+                if not (tokens and tokens[-1].key == ch and tokens[-1].offset == i - 1):
+                    tokens.append(_Token(_REPH, i, ch))
                 kinds[i] = "agreed"
             elif ch in single:
                 value = single[ch]
-                tokens.append(_Token(_PRE_I if value == _SHORT_I else value, i, ch))
                 kinds[i] = tiers.get(ch, "agreed")
+                if value in _NO_WIDTH and tokens:
+                    last = tokens[-1]
+                    if last.key == ch and last.offset == i - 1:
+                        # Typed twice, printed once: the sign has no width.
+                        i += 1
+                        continue
+                    if (
+                        value in _OVER_COMMA
+                        and last.value == _COMMA
+                        and len(tokens) > 1
+                        and _is_devanagari(tokens[-2].value[-1:])
+                    ):
+                        # Typed after the comma, drawn on the letter before it.
+                        tokens.insert(len(tokens) - 1, _Token(value, i, ch))
+                        i += 1
+                        continue
+                tokens.append(_Token(_PRE_I if value == _SHORT_I else value, i, ch))
             else:
                 tokens.append(_Token(ch, i, ""))
                 if not ch.isspace() and not _is_devanagari(ch):
@@ -665,6 +725,10 @@ def _join_half_and_bar(units: list[tuple[str, int]]) -> list[tuple[str, int]]:
     for unit in units:
         if unit[0] == _AA and out and out[-1][0] == _VIRAMA:
             out.pop()
+            continue
+        if unit[0] == _AA and len(out) > 1 and out[-1][0] == _REPH and out[-2][0] == _VIRAMA:
+            # The reph typed between the half form and its bar (``i{f``).
+            del out[-2]
             continue
         out.append(unit)
     return out
@@ -727,10 +791,51 @@ def _place_short_i(units: list[tuple[str, int]]) -> list[tuple[str, int]]:
             out.append(units[i])
             i += 1
             continue
-        end = _cluster_end(units, i + 1)
-        out.extend(units[i + 1 : end])
+        first = i + 1
+        if (
+            first + 1 < len(units)
+            and units[first][0] == _VIRAMA
+            and _is_consonant(units[first + 1][0])
+            and out
+            and _is_consonant(out[-1][0])
+        ):
+            # Typed between a letter and its halant (``ªl\\Qm``): the halant
+            # belongs to the letter before, the sign to the cluster after.
+            out.append(units[first])
+            first += 1
+        end = _cluster_end(units, first)
+        out.extend(units[first:end])
         out.append((_SHORT_I, offset))
-        i = max(end, i + 1)
+        i = max(end, first)
+    return out
+
+
+def _place_rakar(units: list[tuple[str, int]]) -> list[tuple[str, int]]:
+    """Move a ``्र`` stroke typed after the vowel signs to before them.
+
+    The stroke is drawn under the letter wherever it is typed, so ``k]|``
+    prints the same as ``k|]``.
+    """
+    out: list[tuple[str, int]] = []
+    i = 0
+    n = len(units)
+    while i < n:
+        ch, offset = units[i]
+        if (
+            ch == _VIRAMA
+            and i + 1 < n
+            and units[i + 1] == (_RA, offset)
+            and (i == 0 or units[i - 1][1] != offset)
+        ):
+            at = len(out)
+            while at > 0 and _is_sign(out[at - 1][0]) and out[at - 1][0] != _VISARGA:
+                at -= 1
+            if at < len(out) and at > 0 and _is_consonant(out[at - 1][0]):
+                out[at:at] = [units[i], units[i + 1]]
+                i += 2
+                continue
+        out.append(units[i])
+        i += 1
     return out
 
 
@@ -969,6 +1074,7 @@ def _convert_plain(
     units = _units(tokens)
     units = _join_half_and_bar(units)
     units = _place_short_i(units)
+    units = _place_rakar(units)
     units = _place_reph(units, unmapped, kinds)
     units = _order_signs(units)
     units = _join_dandas(units)
@@ -1025,8 +1131,8 @@ def convert_preeti(
 ) -> PreetiResult:
     """Convert Preeti-encoded ``text`` to Unicode and report what was left over.
 
-    EXPERIMENTAL: the key table is agreed between permissively-licensed
-    tables but has not been checked against real Preeti documents.
+    The key table is agreed between permissively-licensed tables and was
+    checked by eye against real Preeti documents, not by a native reader.
 
     ``include_unconfirmed`` also uses entries that only one table family
     has. ``strict`` leaves out the few entries where two families agree and
@@ -1105,7 +1211,7 @@ def preeti_to_unicode(
     keep_words: Iterable[str] | None = None,
     markers: tuple[str, str] | None = None,
 ) -> str:
-    """Convert Preeti-encoded ``text`` to Unicode. EXPERIMENTAL.
+    """Convert Preeti-encoded ``text`` to Unicode.
 
     Returns only the text; use :func:`convert_preeti` to also learn which
     characters had no agreed entry and were passed through unchanged.
@@ -1144,6 +1250,7 @@ _LONG_I = "\u0908"
 _SHORT_I_VOWEL = "\u0907"
 _SHORT_I_KEY = "l"
 _RAKAR = _VIRAMA + _RA
+_EYELASH = _RA + _VIRAMA + "\u200d"
 # The second key for the ra stroke. The table has two keys for ``्र``; this
 # one is used under the letters with a round foot and no upright bar.
 _ROUND_RAKAR_KEY = "\u00ab"
@@ -1180,33 +1287,47 @@ class _Reverse:
     colon: bool = False
 
 
-def _key_rank(key: str, families: int) -> tuple[int, int, int, str]:
+def _key_rank(
+    key: str, families: int, confirmed: frozenset[str] = frozenset()
+) -> tuple[int, int, int, int, str]:
     """Order keys that write the same text; the rule is fixed, not learnt.
 
-    More table families first, then a single key before a sequence, then an
-    ASCII key, then the lower code point.
+    Keys confirmed in real documents first, then more table families, then a
+    single key before a sequence, then an ASCII key, then the lower code point.
     """
-    return (-families, len(key), 0 if key.isascii() else 1, key)
+    doubt = 0 if confirmed.issuperset(key) else 1
+    return (doubt, -families, len(key), 0 if key.isascii() else 1, key)
 
 
 @cache
 def _reverse(strict: bool, unconfirmed: bool = False) -> _Reverse:
     table = _table("preeti")
-    best: dict[str, tuple[int, int, int, str]] = {}
+    best: dict[str, tuple[int, int, int, int, str]] = {}
+    sight = table.get("sight", {})
+    confirmed = frozenset(sight.get("confirmed", ()))
     sections = ["mapping", "sequences"] if strict else ["mapping", "sequences", "majority"]
+    if not strict:
+        sections += ["settled", "settled_sequences"]
     if unconfirmed:
         sections += ["unconfirmed", "unconfirmed_sequences"]
     for section in sections:
         for key, entry in table.get(section, {}).items():
             value = str(entry["to"])
             families = len(entry.get("families", ())) if section == "mapping" else 1
-            if section.startswith("unconfirmed"):
+            if section.startswith("unconfirmed") or section == "settled_sequences":
                 # Last choice: only when nothing better writes the same text.
                 families = 0
-            rank = _key_rank(str(key), families)
+            rank = _key_rank(str(key), families, confirmed)
             if value not in best or rank < best[value]:
                 best[value] = rank
-    keys = {value: rank[3] for value, rank in best.items()}
+    keys = {value: rank[4] for value, rank in best.items()}
+    # A conjunct or half form whose only key was never seen in a real
+    # document is spelt out with keys that were (``हृ`` as ``x[``, ``झ्`` as
+    # ``em\\``): what those draw has been looked at.
+    unseen = frozenset(sight.get("never_seen", ()))
+    for value, key in list(keys.items()):
+        if len(value) > 1 and unseen.intersection(key):
+            del keys[value]
     halves = {
         value[0]: key
         for value, key in keys.items()
@@ -1264,7 +1385,12 @@ def _encode_cluster(body: str, rev: _Reverse) -> list[tuple[str, str]]:
         ch = body[i]
         if ch == _VIRAMA:
             tail = body[i : i + 2]
-            if tail == _RAKAR and last in _ROUND_LETTERS and rev.round_rakar:
+            if tail == _RAKAR and out and out[-1][0] == _RAKAR:
+                # A second stroke key would print over the first and read
+                # back as one: write the halant and the letter instead.
+                out.append((ch, rev.keys[_VIRAMA]))
+                i += 1
+            elif tail == _RAKAR and last in _ROUND_LETTERS and rev.round_rakar:
                 out.append((tail, rev.round_rakar))
                 i += 2
             elif len(tail) == 2 and tail in rev.keys:
@@ -1313,6 +1439,11 @@ def _encode_piece(piece: str, rev: _Reverse) -> str:
     while i < n:
         ch = piece[i]
         reph = False
+        if piece.startswith(_EYELASH, i):
+            # The eyelash ra (``र्‍``) has a key of its own.
+            out.append(rev.keys[_EYELASH])
+            i += len(_EYELASH)
+            continue
         if ch == _RA and i + 2 < n and piece[i + 1] == _VIRAMA and _is_consonant(piece[i + 2]):
             reph = True
             i += 2
@@ -1445,7 +1576,7 @@ def encode_preeti(
 ) -> PreetiEncodeResult:
     """Write Unicode ``text`` as Preeti key codes and report what was left over.
 
-    EXPERIMENTAL, like the table it reads backwards. What is promised and
+    As far tested as the table it reads backwards. What is promised and
     tested:
 
     * every stretch written as keys converts back, with
@@ -1726,7 +1857,7 @@ def _with_marks(segments: Iterable[PreetiSegment], pair: tuple[str, str]) -> str
 
 
 def unicode_to_preeti(text: str, *, strict: bool = False, include_unconfirmed: bool = False) -> str:
-    """Write Unicode ``text`` as Preeti key codes. EXPERIMENTAL.
+    """Write Unicode ``text`` as Preeti key codes.
 
     Returns only the keys. Characters with no key, words whose keys do not
     convert back exactly, and text that is not Devanagari are left as they

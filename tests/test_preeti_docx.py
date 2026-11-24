@@ -401,7 +401,7 @@ def test_split_runs_always_give_the_text_of_the_whole() -> None:
         "sd{",
         "lj{",
         "m",
-        "¥",
+        "°",
     ]
     for _ in range(300):
         text = " ".join(rng.choices(words, k=rng.randint(1, 4)))
@@ -529,9 +529,9 @@ def test_escaped_characters_and_awkward_attributes() -> None:
 
 def test_output_text_is_escaped() -> None:
     # Preeti "<" is the question mark, but an unmapped "&" or ">" must stay XML-safe.
-    out, report = convert(para(run("s &amp;&gt; ¥", "Preeti")), strict=True, keep=r"[&>]")
-    assert "क &amp;&gt; ¥</w:t>" in out
-    assert report.unmapped_chars == ("¥",)
+    out, report = convert(para(run("s &amp;&gt; °", "Preeti")), strict=True, keep=r"[&>]")
+    assert "क &amp;&gt; °</w:t>" in out
+    assert report.unmapped_chars == ("°",)
 
 
 def test_other_prefixes_namespaces_bom_and_comments() -> None:
@@ -581,25 +581,25 @@ def test_text_boxes_fields_and_deleted_text() -> None:
 
 
 def test_unmapped_characters_are_reported_with_part_and_paragraph() -> None:
-    body = para(run("s", "Preeti")) + para(run("x", "Calibri")) + para(run("¥ s Ý ¥", "Preeti"))
+    body = para(run("s", "Preeti")) + para(run("x", "Calibri")) + para(run("° s Ý °", "Preeti"))
     footer = f"{HEAD}<w:ftr {W}>{para(run('m', 'Preeti'))}</w:ftr>"
     data, report = convert_docx_bytes(build(body, parts={"word/footer1.xml": footer}))
     assert report.unmapped == (
-        DocxUnmapped("word/document.xml", 3, "¥"),
+        DocxUnmapped("word/document.xml", 3, "°"),
         DocxUnmapped("word/document.xml", 3, "Ý"),
-        DocxUnmapped("word/document.xml", 3, "¥"),
+        DocxUnmapped("word/document.xml", 3, "°"),
         DocxUnmapped("word/footer1.xml", 1, "m"),
     )
-    assert report.unmapped_chars == ("¥", "Ý", "m") and not report.complete
-    assert runs_of(part(data))[2] == ("¥ क Ý ¥", "Kalimati")
+    assert report.unmapped_chars == ("°", "Ý", "m") and not report.complete
+    assert runs_of(part(data))[2] == ("° क Ý °", "Kalimati")
     payload = json.loads(json.dumps(report.as_dict(), ensure_ascii=False))
     assert payload["unmapped"][0] == {
         "part": "word/document.xml",
         "paragraph": 3,
-        "char": "¥",
-        "codepoint": "U+00A5",
+        "char": "°",
+        "codepoint": "U+00B0",
     }
-    assert payload["unmapped_counts"][0] == {"char": "¥", "codepoint": "U+00A5", "count": 2}
+    assert payload["unmapped_counts"][0] == {"char": "°", "codepoint": "U+00B0", "count": 2}
     assert payload["stats"]["unmapped"] == 4 and payload["status"] == legacy.PREETI_LABEL
 
 
@@ -739,7 +739,7 @@ def test_cli_docx_round_trip_with_report(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     source = tmp_path / "in.docx"
-    body = MIXED_BODY + para(run("¥ s", "Preeti"))
+    body = MIXED_BODY + para(run("° s", "Preeti"))
     source.write_bytes(build(body, parts=MIXED_PARTS))
     before = source.read_bytes()
     target = tmp_path / "out.docx"
@@ -750,9 +750,9 @@ def test_cli_docx_round_trip_with_report(
     assert lines[0] == f"aksharkit: note: Preeti conversion is {legacy.PREETI_LABEL}"
     assert lines[1] == (
         "aksharkit: warning: 1 character(s) had no agreed Preeti entry and were left "
-        "unchanged: ¥ (U+00A5)"
+        "unchanged: ° (U+00B0)"
     )
-    assert lines[2] == "  word/document.xml, paragraph 5: ¥ (U+00A5)"
+    assert lines[2] == "  word/document.xml, paragraph 5: ° (U+00B0)"
     assert lines[3].startswith(
         "aksharkit: docx: 10 run(s) converted and set to Kalimati, 5 run(s) in other fonts "
         "left as they were, 9 paragraph(s) changed, 0 run boundary move(s); parts read: "

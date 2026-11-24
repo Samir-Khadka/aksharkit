@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aksharkit"
-version = "0.8.0"
-description = "Typed, zero-dependency building blocks for Nepali text: normalisation, akshara segmentation, sorting, numerals, number words, tokenisation, Bikram Sambat dates, transliteration, experimental Preeti to Unicode."
+version = "0.9.0"
+description = "Typed, zero-dependency building blocks for Nepali text: normalisation, akshara segmentation, sorting, numerals, number words, tokenisation, Bikram Sambat dates, transliteration, Preeti to Unicode and back (tested on real documents, not reviewed by a native reader)."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"

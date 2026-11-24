@@ -8,16 +8,32 @@
 - **Telling Preeti from English without help.** There is no automatic
   "skip English words" option: see `docs/preeti.md` for why.
 
-## Preeti and Unicode (experimental, added in 0.6, extended in 0.7 and 0.8)
+## Preeti and Unicode (added in 0.6, extended in 0.7 and 0.8, tested on real documents in 0.9)
 
-- **The key table has not been checked against any real Preeti document, and
-  no native reader has reviewed it or its output.** It holds what the Preeti
-  tables of four MIT-licensed projects (three families) agree on. Nobody
-  opened the font to see what each key draws. A mistake shared by those
-  tables is a mistake here.
-- **Every Preeti sample in the tests was typed by the builder from the table
-  itself.** They show self-consistency only. `tests/golden/preeti_samples.tsv`
-  is empty and waiting for real text.
+- **No native reader has reviewed the key table or its output.** From 0.9
+  the table has been checked against nine public Preeti PDFs from seven
+  publishers: 2 of 409,081 key characters have no entry, and 166 lines read
+  against their page images showed no wrongly converted key. That reading
+  was done by the build assistant from rendered images, not by a person who
+  reads Nepali, and it covered 166 of about 10,800 lines.
+- **21 keys were never seen in a document** (`¡ ¤ © ° ± » Å Ì Î Ò Ö × Ù Ü Ý
+  ß ç ˜ ‘ „ ‰`) and 11 only in fewer than three publishers' documents
+  (`< ` ¢ £ ´ ¶ Ø Û • ‹ ›`). Their entries rest on the compared tables
+  alone; a mistake shared by those tables is a mistake here.
+- **The documents are all PDFs from public bodies and one university.** No
+  newspaper, book or private letter, no Word file, and text taken out of a
+  PDF has the PDF's spaces and line breaks, not the typist's.
+- **Typing slips are converted as typed.** A vowel sign typed on the wrong
+  letter or two different vowel signs on one letter come out as the page
+  prints them, with no warning. Only the habits listed in `docs/preeti.md`
+  are tidied: the same no-width sign typed twice, a sign typed after a
+  comma, and four orders of typing.
+- **A doubled sign is now read as one** (0.9). Where a typist really meant
+  two of the same no-width sign on one letter, one is lost. No such case
+  was seen in the documents.
+- Most Preeti samples in the older tests were typed by the builder from the
+  table itself. The real ones are the 26 excerpts in
+  `tests/golden/preeti_samples.tsv`.
 - **Where the four tables came from is unknown.** None says, and their
   authors have not been asked. Two of the four share one rule list and are
   counted once. For 16 keys (`¢ ± ´ Å Ö Ø Û Ü ß ç ˜ „ • … ‹ ›`) the only two
@@ -25,9 +41,16 @@
   overlap almost entirely, so that agreement is weak. See `docs/preeti.md`.
 - Four keys (`B` द्य, `^` ६, `¡` ज्ञ्, `¿` रू) are used although one table
   gives something else. `strict=True` / `--strict` leaves them out.
-- Five keys with no agreement (`¥ ° Ì Ú Ý`) are never converted, and five
+- Three keys with no agreement (`° Ì Ý`) are never converted, and five
   more that only one family has (`¤ © Ò × ‘`) are off by default. They are
-  left as they are and reported.
+  left as they are and reported. None of the eight occurs in the nine
+  documents. (`¥` and `Ú` were settled by the documents in 0.9.)
+- **The two dashes.** `–` and `—` are converted to an en dash and an em
+  dash. Typists use `–` where Unicode text would have a hyphen
+  (`कोभिड–१९`), so converted text has en dashes in such places; nothing
+  turns them into hyphens. The font's `—` is only moderately longer than
+  its `–`, and the reading by eye is least sure on which of the two a
+  printed dash is.
 - It cannot tell Preeti from English: in plain text an English word is
   converted as if it were Preeti unless it is protected with `--keep`,
   `--keep-word` or markers. Only web and e-mail addresses are left alone
@@ -47,24 +70,27 @@
   text, the stretch is put into its first run, so some letters take that
   run's formatting. The text itself is right; `report.groups_merged` counts
   these.
-- **Unicode → Preeti is checked only against this package's own table**,
-  by converting every word back. Nobody has looked at its output in the
-  Preeti font, and where several keys give one letter the key is chosen by
-  rule, not by typists' habit. The 0.8 numbers (5,236 of 5,300 audited
-  forms, 2,638 of 2,639 hand-written words, 61 of 62 sentences) measure
-  that self-consistency and nothing more. The word list and sentences were
+- **Unicode → Preeti is checked mostly against this package's own table**,
+  by converting every word back. From 0.9 the keys written for 17 lines
+  were also drawn in the Preeti outlines found in real documents and read
+  by eye, and 15 of 26 real excerpts come out as the typist's own keys.
+  Beyond that nobody has looked at its output in the font, and never in
+  Word. The numbers (5,246 of 5,300 audited forms, 2,639 of 2,639
+  hand-written words, 62 of 62 sentences) measure self-consistency. The word list and sentences were
   written by the builder and not reviewed by a native reader.
 - **What Unicode → Preeti cannot write** (left in Unicode and reported):
-  the hyphen `-`, dashes, `…`, straight quotes, `[ ] { }`, `*`, `&`, `#`,
+  the hyphen `-`, `…`, straight quotes, `[ ] { }`, `*`, `&`, `#`,
   `@`, `÷`, `॰`; a colon straight after a letter; forms with a zero-width
-  joiner or non-joiner (गर्‍यो, भर्‍याङ); nukta letters (ड़ and ढ़ only
+  non-joiner, or a joiner after a letter other than र (गर्‍यो and भर्‍याङ
+  are written from 0.9, as are – — ‘ ’); nukta letters (ड़ and ढ़ only
   with the single-table option); ॉ ऍ ऑ ॠ ॄ ऌ ॢ; ॅ and `×` only with the
   single-table option. The hyphen matters most in practice: dates such as
   २०८३-०१-१५ and names such as काठमाडौं-३ keep a Unicode hyphen.
-- **Three 0.8 rule choices have not been seen in the font**: `«` for ्र
-  under ङ छ ट ठ ड ढ, `..` for ॥, and the visarga key `M` for a colon that
-  does not follow a letter. They agree with the tables and with the 14
-  worked examples, which is not the same as being right.
+- **One 0.8 rule choice has still not been seen in a document**: `..` for
+  ॥ (it does not occur in the nine). `«` for ्र under round letters occurs
+  223 times and was read on the page; `M` before a dash after a heading
+  occurs 78 times, where the font draws the same shape for a colon and a
+  visarga, so sight cannot say which was meant.
 - **English and ASCII numbers are left as they are** in Unicode → Preeti.
   In plain text they then sit among the keys, and set in the Preeti font
   they show as other letters; `--mark-kept` marks them, a Word file gives
@@ -89,9 +115,18 @@
   `--report` prints a line and column instead of a position, and adds a
   summary line.
 - The reordering rules (short i, reph, the `m` stroke, half forms) were
-  written from how Devanagari is stored, and have not been tried on real
-  typing. Overstrikes, repeated signs and unusual key orders may come out
-  wrong without any warning, because every key in them is a known key.
+  written from how Devanagari is stored, and from 0.9 have met real typing
+  in nine documents. Key orders those documents do not contain may still
+  come out wrong without any warning, because every key in them is a known
+  key.
+- **Changed in 0.9:** `¥`, `Ú`, `–` and `—` are converted (0.8: reported as
+  having no entry; with `strict` they still are); `t`+`m` is क्त; a
+  no-width sign or reph typed twice is read once; a sign typed after a
+  comma moves before it; `]|`, `ªl\`, `e\m` and `i{f` are reordered.
+  Unicode → Preeti writes the eyelash ra, both dashes and ‘ ’; writes झ as
+  `em` (0.8: `´`) and हृ as `x[` (0.8: `Å`), preferring keys confirmed in
+  documents; `PREETI_STATUS` and the table's `status` are `"tested"`, and
+  the status notice and JSON `status` text changed with them.
 - A stray `m` or `{` with no letter to attach to is reported as unmapped.
 
 ## Browser playground
@@ -139,11 +174,13 @@
   24 November 2026**: both directions, a link kept, an unmapped key
   highlighted, and a `.docx` opened and downloaded (so Python's `zipfile`
   and `xml.parsers.expat` do work inside Pyodide 0.29.5). Phone untested.
-- **What 0.8 adds to the Preeti tab has not been opened in any browser**:
-  Unicode → Preeti for `.txt` and `.docx` files, its examples, the notice
-  about the Preeti font, whole-word highlighting and the coverage line. It
-  is covered by Node tests that fake the page and run ordinary Python. 0.8
-  was deployed on 24 November 2026; this direction has not yet been opened in a browser.
+- **0.8.0 was deployed on 24 November 2026 and its Unicode → Preeti
+  direction was checked once in a desktop browser that day**: typed text,
+  the examples, copy, a text download and a deep link. Opening a `.docx` in
+  that direction was not checked live, and a phone is untested.
+- **What 0.9 changes on the Preeti tab has not been opened in any browser**:
+  the status notice, the badge and two notes. It is covered by Node tests
+  that fake the page and run ordinary Python.
 - The conversion runs on the page's own thread. Text over 20,000 characters
   waits for the Convert button, and the page does not respond while it works.
   How long that takes in a browser was not measured. Files over 2 MB are

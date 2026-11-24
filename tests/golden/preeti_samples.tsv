@@ -1,7 +1,7 @@
-# Real Preeti samples for aksharkit. EMPTY ON PURPOSE until a Preeti typist fills it.
+# Real Preeti samples for aksharkit.
 #
-# What goes here: text that was really typed in the Preeti font (copied from an
-# old document, not made by a converter), with the correct Unicode beside it.
+# What goes here: text that was really typed in the Preeti font (copied from a
+# real document, not made by a converter), with the correct Unicode beside it.
 # One sample per line, three columns separated by a TAB:
 #
 #   preeti<TAB>unicode<TAB>where it came from
@@ -14,8 +14,42 @@
 #
 # Lines starting with # and blank lines are ignored. Every line here becomes a
 # test: aksharkit must turn column 1 into column 2 exactly. A failing line is
-# useful: it shows a key or an ordering rule the converter has wrong.
+# useful: it shows a key or an ordering rule the converter has wrong. A sample
+# cannot start with # (the Preeti key for ३): start it one word later.
 #
-# Until this file has real lines, the Preeti converter stays "experimental":
-# its key table is agreed between other converters' tables, not checked
-# against documents.
+# The lines below were added in 0.9.0 (24 November 2026). Each is a short
+# excerpt from a public PDF that embeds a font named Preeti. Column 1 is the
+# text of the Preeti font as stored in the PDF (pdftohtml -xml, that font
+# only; runs of spaces from the PDF layout are written as one space). Column 2
+# is what the page visibly prints: the page image and the converted text set
+# in Noto Sans Devanagari were compared by eye, line by line. The comparison
+# was made by the build assistant, not by a native reader of Nepali, so a
+# reader's corrections are still welcome. Spellings are the document's own
+# (शक्तीको, दक्षतापुर्वक), and one line keeps a typist's doubled sign (sf]]),
+# which prints as a single one.
+k/LIff lgoGq0f sfof{no -sIff !! / !@_	परीक्षा नियन्त्रण कार्यालय (कक्षा ११ र १२)	National Examinations Board, Biratnagar office, notice, https://biratnagar.neb.gov.np/download-file/downloads/Downloads-202603251316403780.pdf, page 2
+ePsf] ljBfyL{sf] k/LIff /2 x'g] x'Fbf o;df ljz]if ;hutf ckgfpg'kg]{5 .	भएको विद्यार्थीको परीक्षा रद्द हुने हुँदा यसमा विशेष सजगता अपनाउनुपर्नेछ ।	National Examinations Board, Biratnagar office, notice, https://biratnagar.neb.gov.np/download-file/downloads/Downloads-202603251316403780.pdf, page 2
+kof{Kt k'FhL gx'Fbf ljb]zaf6 k|fKt C0fn]	पर्याप्त पुँजी नहुँदा विदेशबाट प्राप्त ऋणले	Nepal Rastra Bank, NRB Samachar Asoj 2077, https://www.nrb.org.np/contents/uploads/2020/10/NRB-Samachar_Asoj20770630.pdf, page 7
+…;xhtfsf]] ;"rsÚsf ¿kdf lng'kg]{ pxfFsf]	‘सहजताको सूचक’का रूपमा लिनुपर्ने उहाँको	Nepal Rastra Bank, NRB Samachar Asoj 2077, https://www.nrb.org.np/contents/uploads/2020/10/NRB-Samachar_Asoj20770630.pdf, page 2
+;+:yf lgodg ljefuåf/f …sÚ, …vÚ /	संस्था नियमन विभागद्वारा ‘क’, ‘ख’ र	Nepal Rastra Bank, NRB Samachar Asoj 2077, https://www.nrb.org.np/contents/uploads/2020/10/NRB-Samachar_Asoj20770630.pdf, page 1
+cfof]hgf u¥of] .	आयोजना गर्‍यो ।	Nepal Rastra Bank, NRB Samachar Asoj 2077, https://www.nrb.org.np/contents/uploads/2020/10/NRB-Samachar_Asoj20770630.pdf, page 8
+p2]Zon] pQm sfo{qmd cfof]hgf ul/Psf]	उद्देश्यले उक्त कार्यक्रम आयोजना गरिएको	Nepal Rastra Bank, NRB Samachar Asoj 2077, https://www.nrb.org.np/contents/uploads/2020/10/NRB-Samachar_Asoj20770630.pdf, page 5
+jf ;f]eGbf a9L z'4 zAb k|lt ldg]6 afkt	वा सोभन्दा बढी शुद्ध शब्द प्रति मिनेट बापत	Public Service Commission, syllabus 2023, https://psc.gov.np/site_uploads/course/2023020811053563e381ff3153b.pdf, page 14
+$=! lghfdtL ;]jf P]g, @)$( / lghfdtL ;]jf lgodfjnL, @)%)	४.१ निजामती सेवा ऐन, २०४९ र निजामती सेवा नियमावली, २०५०	Public Service Commission, syllabus 2025, https://psc.gov.np/site_uploads/course/202506300438476862bd97a96a2.pdf, page 4
+$=& hUUff k|flKt P]g, @)#$	४.७ जग्गा प्राप्ति ऐन, २०३४	Public Service Commission, syllabus 2025, https://psc.gov.np/site_uploads/course/202506300438476862bd97a96a2.pdf, page 4
+@=* hgtfnfO{ k'¥ofpg] ;]jf k|efjsf/L t'Nofpg] pkfo	२.८ जनतालाई पुर्‍याउने सेवा प्रभावकारी तुल्याउने उपाय	Public Service Commission, syllabus 2025, https://psc.gov.np/site_uploads/course/202506300438476862bd97a96a2.pdf, page 2
+pTk]|/0ff	उत्प्रेरणा	Public Service Commission, syllabus 2025, https://psc.gov.np/site_uploads/course/202506300438476862bd97a96a2.pdf, page 2
+lzIfs ;]jf cfof]u, ;fgf]l7dL, eQmk'/	शिक्षक सेवा आयोग, सानोठिमी, भक्तपुर	Teacher Service Commission, candidate list 2074, https://giwmscdnone.gov.np/media/pdf_upload/6.Paschim203_revised1_pbxfevn.pdf, page 16
+d'2fM— st{Jo Hofg .	मुद्दाः— कर्तव्य ज्यान ।	Supreme Court of Nepal, Bulletin 2065, https://supremecourt.gov.np/publication/materials/101817.pdf, page 8
+ænufp afx]ssf cGo d'2fdf klg	“लगाउ बाहेकका अन्य मुद्दामा पनि	Supreme Court of Nepal, Bulletin 2065, https://supremecourt.gov.np/publication/materials/101817.pdf, page 7
+k|To]s wd{sf cf–cfˆg} dfGotf /	प्रत्येक धर्मका आ–आफ्नै मान्यता र	Supreme Court of Nepal, Bulletin 2065, https://supremecourt.gov.np/publication/materials/101817.pdf, page 24
+To:tf sd{rf/Lsf] ;?jfsf]	त्यस्ता कर्मचारीको सरुवाको	Supreme Court of Nepal, Bulletin 2065, https://supremecourt.gov.np/publication/materials/101817.pdf, page 13
+/sd a'e\mg d+h'/	रकम बुझ्न मंजुर	Supreme Court of Nepal, Bulletin 2065, https://supremecourt.gov.np/publication/materials/101817.pdf, page 17
+ljt/0f s]Gb|x? tyf ltgsf pk ljt/0f s]Gb| / ˆo'h ;]jfx? dfkm{t ljB't ljt/0fsf] sfo{	वितरण केन्द्रहरु तथा तिनका उप वितरण केन्द्र र फ्युज सेवाहरु मार्फत विद्युत वितरणको कार्य	Nepal Electricity Authority, proactive disclosure Magh-Chait 2080, https://nea.org.np/uploads/shares/news_notice/32453821.pdf, page 23
+v_ PlzofnL ljsfz a}+ssf] C0f g+=@%*&, @*)*, #%$@, #!#(, @((), @((! tyf cg'bfg g+=	ख) एशियाली विकाश बैंकको ऋण नं.२५८७, २८०८, ३५४२, ३१३९, २९९०, २९९१ तथा अनुदान नं.	Nepal Electricity Authority, proactive disclosure Magh-Chait 2080, https://nea.org.np/uploads/shares/news_notice/32453821.pdf, page 88
+r_ hnljB't s]Gb|x?sf] bIftfk'j{s ;+rfngsf] nflu cfw'lgsLs/0f ub}{ hfg] .	च) जलविद्युत केन्द्रहरुको दक्षतापुर्वक संचालनको लागि आधुनिकीकरण गर्दै जाने ।	Nepal Electricity Authority, proactive disclosure Magh-Chait 2080, https://nea.org.np/uploads/shares/news_notice/32453821.pdf, page 14
+ljB't ztmLsf] Ifdtf :jLs[t Pj+ kl/jt{g ;DaGwL sfo{ .	विद्युत शक्तीको क्षमता स्वीकृत एवं परिवर्तन सम्बन्धी कार्य ।	Nepal Electricity Authority, proactive disclosure Magh-Chait 2080, https://nea.org.np/uploads/shares/news_notice/32453821.pdf, page 24
+u|fxsn] dxz'n e'tmfgL gu/]df	ग्राहकले महशुल भुक्तानी नगरेमा	Nepal Electricity Authority, proactive disclosure Magh-Chait 2080, https://nea.org.np/uploads/shares/news_notice/32453821.pdf, page 24
+sG8S6/ cku]|8 cfof]hgf	कन्डक्टर अपग्रेड आयोजना	Nepal Electricity Authority, proactive disclosure Magh-Chait 2080, https://nea.org.np/uploads/shares/news_notice/32453821.pdf, page 91
+cw{ jfli{fs tyf o; cf=j=sf] t];|f] q}dfl;s	अर्ध वार्षिक तथा यस आ.व.को तेस्रो त्रैमासिक	Nepal Electricity Authority, proactive disclosure Magh-Chait 2080, https://nea.org.np/uploads/shares/news_notice/32453821.pdf, page 86
+kªl\Qmdf Ps zAbb]lv ;ft zAb;Dd lj:tf/ ePsf] b]lvG5 .	पङ्क्तिमा एक शब्ददेखि सात शब्दसम्म विस्तार भएको देखिन्छ ।	Tribhuvan University Central Library eLibrary, MA thesis, https://elibrary.tucl.edu.np/JQ99OgQIizUxyjI9nB0on9OyLkqsGIf4/api/core/bitstreams/d827f999-b255-4cf9-99cb-68e79ad340d9/content, page 139

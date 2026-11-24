@@ -13,12 +13,12 @@ from aksharkit import DataNotVerifiedError, dates, legacy
 from aksharkit._data import load_table, require_verified
 from aksharkit.cli import main
 
-# --- legacy fonts: Preeti is experimental, in both directions ---------------
+# --- legacy fonts: Preeti, in both directions -------------------------------
 
 
-def test_preeti_table_is_experimental_and_names_its_sources() -> None:
+def test_preeti_table_states_its_status_and_names_its_sources() -> None:
     table = load_table("font_preeti")
-    assert table["status"] == "experimental"
+    assert table["status"] == "tested"
     assert len(table["sources"]) == 4
     assert table["mapping"]
 

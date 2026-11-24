@@ -1,5 +1,110 @@
 # Changelog
 
+## 0.9.0 — 24 November 2026
+
+Pushed and deployed to the playground on 24 November 2026. Not released on PyPI.
+
+The Preeti converter meets real documents for the first time. Its status
+changes from "experimental" to **"tested on real documents"**, with the
+reason and the limits written down. It has **not been reviewed by a native
+reader**: the reading by eye was done by the AI assistant that built this
+release, from rendered images.
+
+### The evidence
+
+- **Nine public PDFs from seven publishers** that embed a font named Preeti
+  (National Examinations Board Biratnagar office, Nepal Rastra Bank, Public
+  Service Commission ×3, Teacher Service Commission, Tribhuvan University
+  Central Library, Supreme Court, Nepal Electricity Authority; 513 pages).
+  Addresses are in `docs/preeti.md` and `docs/sources.md`. Ten documents
+  were aimed for; nine were found. Only text set in the font named Preeti
+  was taken, by font (`pdftohtml -xml`). No PDF and no font is in the
+  repository.
+- **Counted:** 409,081 key characters, 75,928 words. With 0.8, 932 key
+  characters had no entry (0.2278%); with 0.9, **2 (0.0005%)**, both typing
+  slips in the documents.
+- **Read by eye:** every key's outline in the embedded font programs beside
+  its table entry, and **166 lines** against their page images. No key was
+  found converted to a wrong letter. Before the fixes 20 of those lines
+  showed a difference (a key with no entry, or a typing habit); the fixes
+  changed 12 of the 166, and those 12 plus 11 more lines chosen for the
+  fixed patterns were read again and match. The other 154 convert as
+  before and were not re-read.
+- **Key verdicts:** 108 keys confirmed (outline read and used in documents
+  from at least 3 publishers), 11 seen in fewer, 21 never seen, 0
+  contradicted.
+
+### Added
+
+- **Four keys settled by documents**, each left open by the tables and each
+  with evidence from at least three publishers: `¥` is the eyelash ra
+  (गर्‍यो), `Ú` is ’, `–` is an en dash, `—` is an em dash. Used by default,
+  not with `strict`. Also `t`+`m` for क्त beside the tables' `Q`+`m`.
+- **Typing habits of real typists** (Preeti → Unicode): a no-width sign or
+  reph typed twice reads once; a sign typed after a comma moves before it;
+  the ra stroke typed after the vowel sign (`k]|` प्रे); short i typed
+  between a letter and its halant (`ªl\Qm` ङ्क्ति); the `m` stroke after a
+  halant (`e\m` झ्); the reph between a half form and its bar (`i{f` र्ष).
+  The first is in eight documents and the second in four; the last four
+  were each found in one document only.
+- **26 real excerpts** in `tests/golden/preeti_samples.tsv`, with publisher,
+  address and page, and the Unicode the page visibly prints. All convert
+  exactly; all read back exactly when written as keys; 15 come out as the
+  typist's own keys.
+- **`scripts/preeti_corpus.py`** recounts the corpus numbers from a folder
+  of PDFs (`--json`, `--strict`, `AKSHARKIT_PREETI_PDFS`); it says
+  "skipped" and exits 0 when there are no PDFs or no `pdftohtml`.
+- **`scripts/preeti_evidence.json`**: the documents, how often and in how
+  many publishers' documents each key occurs, and the evidence for each
+  settled key. `scripts/compare_preeti_sources.py` reads it; documents may
+  only settle a key the tables left open, never overrule them.
+- The table gains `documents`, `sight` (confirmed / seen / never seen),
+  `settled` and `settled_sequences`. `aksharkit.legacy` gains `TESTED`,
+  `STATUSES` and `PREETI_STATUS`.
+- Unicode → Preeti writes the eyelash ra, – — ‘ ’: 5,246 of 5,300 audited
+  forms (5,236 in 0.8), 2,639 of 2,639 words, 62 of 62 sentences.
+
+### Changed
+
+- **Status**: the table's `status` is `"tested"` (was `"experimental"`); the
+  notice, the JSON `status` text, the playground badge and notice, README
+  and docs say "tested on real documents … not reviewed by a native
+  reader". The loader accepts both statuses.
+- `¥`, `Ú`, `–`, `—` are converted where 0.8 reported them as having no
+  entry. The three keys still disputed (`° Ì Ý`) are left and reported as
+  before.
+- Unicode → Preeti prefers keys confirmed in documents: झ is written `em`
+  (0.8: `´`), हृ as `x[` (0.8: `Å`), and a conjunct whose only key was never
+  seen is spelt out. Reading those keys is unchanged. Two ra strokes on one
+  letter are written as halant and letter.
+- A doubled no-width sign now counts as converted and prints once.
+- One of the 14 cross-check pairs no longer gives the identical key string
+  (`;Demf}tf` for `;D´f}tf`); it reads back the same.
+- Examples in the docs and the playground use `°` where they used `¥` for
+  "a key with no entry".
+
+### Not verified
+
+- **No native reader** has looked at the table, the excerpts or any output.
+  The reading was done by the build assistant from images; it is least
+  sure about dash length, small print and spelling.
+- **21 keys never seen** in any document, 11 seen in fewer than three
+  publishers' documents, the three disputed keys, the single-table keys and
+  the dot key for ड़ ढ़: all rest on the compared tables alone.
+- Only 166 of about 10,800 lines were read by eye; the rest were counted.
+- All nine documents are PDFs from public bodies and one university. No
+  Word file made by Microsoft Word has been converted, and no Preeti text
+  file from a typist.
+- Unicode → Preeti output has not been seen in Word set in the Preeti font.
+  The keys for 17 lines were drawn in the outlines found in the PDFs; keys
+  that occur in no document could not be drawn. `..` for ॥ was not seen.
+- The playground changes have not been opened in a browser. 0.8.0 was
+  deployed on 24 November 2026 and its Unicode → Preeti direction was
+  checked once in a desktop browser that day (typed text, examples, copy,
+  text download, deep link); a `.docx` in that direction and a phone were
+  not checked live.
+- Where the four compared tables came from is still unknown.
+
 ## 0.8.0 — 24 November 2026
 
 Pushed and deployed to the playground on 24 November 2026. Not released on PyPI.

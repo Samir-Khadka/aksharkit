@@ -1,4 +1,4 @@
-"""Preeti to Unicode inside Word (.docx) files. EXPERIMENTAL.
+"""Preeti to Unicode inside Word (.docx) files.
 
 A .docx file is a zip archive of XML parts. This module converts the text
 of the runs whose font is Preeti and leaves everything else as it is. It
@@ -15,8 +15,9 @@ How it stays out of the way of the rest of the document:
 * other parts of the archive (images, styles, settings, ...) are copied.
 
 Which runs count as Preeti, what is and is not handled, and what has not
-been tested are described in ``docs/preeti.md``. In short: the key table is
-experimental, and no real Preeti document has been converted with this.
+been tested are described in ``docs/preeti.md``. In short: the key table
+was tested on real Preeti PDFs, but no real Word file has been converted
+with this.
 """
 
 from __future__ import annotations
@@ -886,7 +887,7 @@ def convert_docx_bytes(
     keep: Keep | Iterable[Keep] | None = None,
     keep_words: Iterable[str] | None = None,
 ) -> tuple[bytes, DocxReport]:
-    """Convert the Preeti runs of a .docx file held in memory. EXPERIMENTAL.
+    """Convert the Preeti runs of a .docx file held in memory.
 
     Returns the new file's bytes and a :class:`DocxReport`. See
     :func:`convert_docx` for what is converted.
@@ -976,8 +977,9 @@ def convert_docx(
 ) -> DocxReport:
     """Convert the Preeti runs of the Word file ``src`` and write ``dst``.
 
-    EXPERIMENTAL: the key table has not been checked against real Preeti
-    documents, and the result has not been opened in Microsoft Word.
+    The key table was checked against real Preeti PDFs, but this function
+    has only seen .docx files built by the tests, and the result has not
+    been opened in Microsoft Word.
 
     Only runs whose font is one of ``source_fonts`` (``Preeti`` unless you
     say otherwise; names are compared without regard to case) are
@@ -1329,7 +1331,7 @@ def encode_docx_bytes(
 ) -> tuple[bytes, DocxEncodeReport]:
     """Write the Devanagari of a .docx file held in memory as Preeti key codes.
 
-    EXPERIMENTAL. Returns the new file's bytes and a
+    Returns the new file's bytes and a
     :class:`DocxEncodeReport`. See :func:`encode_docx` for what is changed.
     """
     if not isinstance(data, (bytes, bytearray, memoryview)):
@@ -1409,9 +1411,9 @@ def encode_docx(
 ) -> DocxEncodeReport:
     """Write the Devanagari text of the Word file ``src`` as Preeti key codes in ``dst``.
 
-    EXPERIMENTAL: the key table has not been checked against real Preeti
-    documents, nobody has looked at the result in the Preeti font, and the
-    result has not been opened in Microsoft Word.
+    The key table was checked against real Preeti PDFs, but this function
+    has only seen .docx files built by the tests, and the result has not
+    been opened in Microsoft Word or looked at there in the Preeti font.
 
     Every stretch of Nepali text that can be written as keys which read
     back exactly is replaced by those keys, in a run whose font is set to

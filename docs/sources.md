@@ -81,12 +81,13 @@ virama. The list of split-vowel repairs was written from the Devanagari code
 chart's "do not use" sequences as recalled; it was not re-checked against the
 chart text during this build.
 
-## 4. Preeti key table — experimental, compared but not checked against documents
+## 4. Preeti key table — compared between tables, then tested on real documents
 
-From 0.6 `src/aksharkit/data/font_preeti.json` holds a table, labelled
-**experimental — mapping agreed by at least 2 of 3 permissively-licensed
-table families (4 projects), not yet checked against real Preeti documents
-or by a native reader**. The full account, with the agreement counts, the
+From 0.6 `src/aksharkit/data/font_preeti.json` holds a table. Until 0.8 it
+was labelled "experimental — mapping agreed by at least 2 of 3
+permissively-licensed table families (4 projects), not yet checked against
+real Preeti documents or by a native reader". From 0.9 it is labelled
+**tested on real documents — mapping agreed by at least 2 of 3 permissively-licensed table families (4 projects) and checked by eye against 9 public Preeti documents from 7 publishers (108 keys confirmed, 21 never seen); not reviewed by a native reader** (see "Real documents" below). The full account, with the agreement counts, the
 keys where tables differ and the reordering rules, is in
 [preeti.md](preeti.md). Version 0.7 changed no entry of the table and
 consulted no new source: its Word-file handling, protection rules and
@@ -122,8 +123,64 @@ ground truth. In short:
 
 **Still open:** none of the four projects says where its table came from, and
 their authors have not been asked. Whether any of them descends from the GPL
-or non-commercial tables is therefore unknown. No real Preeti text has been
-converted and no native reader has reviewed the table.
+or non-commercial tables is therefore unknown. No native reader has reviewed
+the table.
+
+### Real documents (0.9, 24 November 2026)
+
+Nine public PDFs that embed a font named Preeti were fetched once each on
+24 November 2026 and used as evidence. They are official publications read
+for what their pages show; **no text of theirs is in this repository beyond
+26 short excerpts (a line or less each) in `tests/golden/preeti_samples.tsv`,
+each with its publisher, address and page.** No Preeti font file, no font
+subset taken out of a PDF and no PDF is in the repository or linked from
+the playground; the embedded outlines were only drawn on the build machine
+to be looked at. Nothing was taken from any converter, GPL or
+non-commercial source for this step: the evidence is the printed page.
+
+| Publisher | Kind | Pages | Font as `pdffonts` prints it | Address |
+| --- | --- | --- | --- | --- |
+| National Examinations Board, Biratnagar office | notice with lists | 120 | `ABCDEE+Preeti` | https://biratnagar.neb.gov.np/download-file/downloads/Downloads-202603251316403780.pdf |
+| Nepal Rastra Bank | NRB Samachar newsletter, Asoj 2077 | 8 | `KPEKMH+Preeti` | https://www.nrb.org.np/contents/uploads/2020/10/NRB-Samachar_Asoj20770630.pdf |
+| Public Service Commission | syllabus, 2023 | 14 | `ABCDEE+Preeti` | https://psc.gov.np/site_uploads/course/2023020811053563e381ff3153b.pdf |
+| Public Service Commission | syllabus, 2024 | 7 | `ABCDEE+Preeti` | https://psc.gov.np/site_uploads/course/2024030801020565eb0c4dda255.pdf |
+| Public Service Commission | syllabus, 2025 | 4 | `ABCDEE+Preeti` | https://psc.gov.np/site_uploads/course/202506300438476862bd97a96a2.pdf |
+| Teacher Service Commission | candidate list, 2074 BS | 20 | `ABCDEE+Preeti` | https://giwmscdnone.gov.np/media/pdf_upload/6.Paschim203_revised1_pbxfevn.pdf |
+| Tribhuvan University Central Library | MA thesis in the eLibrary | 187 | `ABCDEE+Preeti` | https://elibrary.tucl.edu.np/JQ99OgQIizUxyjI9nB0on9OyLkqsGIf4/api/core/bitstreams/d827f999-b255-4cf9-99cb-68e79ad340d9/content |
+| Supreme Court of Nepal | Bulletin, 2065 BS | 31 | `FGPCAM+Preeti` | https://supremecourt.gov.np/publication/materials/101817.pdf |
+| Nepal Electricity Authority | proactive disclosure, Magh-Chait 2080 | 122 | `ABCDEE+Preeti` | https://nea.org.np/uploads/shares/news_notice/32453821.pdf |
+
+Not used: a thesis that embeds Kantipur and not Preeti; several municipal
+addresses that did not answer; one host that refused the request (not
+tried again).
+
+How mixed pages were handled: text was taken by font (`pdftohtml -xml`),
+keeping only pieces whose font is named Preeti.
+
+What each change in 0.9 rests on (document and page; the full list with the
+key strings is in `scripts/preeti_evidence.json`, and the table carries it
+under `settled`):
+
+| Change | Evidence |
+| --- | --- |
+| `¥` is the eyelash ra (र् + zero-width joiner) | Nepal Rastra Bank p. 8 (`u¥of]` गर्‍यो); Public Service Commission 2025 p. 2 (`k'¥ofpg`); Nepal Electricity Authority p. 7 (`8f]¥ofpg]`); Tribhuvan University thesis p. 153 |
+| `Ú` is ’ | Nepal Rastra Bank p. 1 (`…sÚ`); Supreme Court p. 18 (`…;'hfgfÚ`); Tribhuvan University thesis p. 25 |
+| `–` is a short dash | Supreme Court p. 10 (`hft–hflt`); Public Service Commission 2023 p. 1 (`sfo{–1fg`); Nepal Rastra Bank p. 1; Tribhuvan University thesis p. 1 |
+| `—` is a longer dash | Supreme Court p. 8 (`d'2fM—`); Public Service Commission 2023 p. 1; Nepal Electricity Authority p. 91 |
+| `t` + `m` is क्त | Nepal Electricity Authority p. 24 (`ztmL`); Supreme Court p. 18 (`;+o'tm`); Tribhuvan University thesis p. 143 |
+| A no-width sign typed twice reads once | 138 times, in eight of the nine documents: Nepal Electricity Authority p. 7 (`g]]kfn`); Supreme Court p. 6 (`sfg'gsf]]`); Public Service Commission 2025 p. 2 (`cg''udg`); Tribhuvan University thesis p. 11 (`p2]]Zo`) |
+| Ra stroke typed after the vowel sign | 15 times, four documents: Nepal Electricity Authority p. 18 (`pk]|tL`); Public Service Commission 2025 p. 2 (`pTk]|/0ff`); Teacher Service Commission p. 12 (`kf]v]|n`); Tribhuvan University thesis p. 23 (`6]«Grleq`) |
+| Short i typed between a letter and its halant | 17 times, **one document**: Tribhuvan University thesis p. 139 (`kªl\Qm`) |
+| Reph typed between half form and bar | 5 times, **one document**: Nepal Electricity Authority p. 86 (`jfli{fs`), p. 17 |
+| A sign typed after a comma belongs before it | 4 times, **one document**: Tribhuvan University thesis p. 175 (`atfcf,]`), p. 30 |
+| `m` stroke typed after the halant | Once: Supreme Court p. 17 (`a'e\mg`) |
+
+The counts are from a pattern search of the corpus; each first example was
+read on the page. The last four habits rest on one document each. They were
+added because the page leaves no doubt what is printed and because each
+input was otherwise reported or converted to something that is not a
+Nepali syllable; they are not confirmed across publishers the way the keys
+are.
 
 ### Candidates as first recorded (23 November 2026, licences and READMEs only)
 
@@ -163,15 +220,17 @@ Other findings:
 ### What was recommended, and where it stands
 
 1. Real Preeti text with the correct Unicode beside it, as the golden test
-   set. **Not done** — needs Samir or another Preeti typist. The empty file
-   `tests/golden/preeti_samples.tsv` is waiting for it.
+   set. **Started in 0.9** from public PDFs (26 excerpts, Unicode written
+   down by the build assistant from page images). A Preeti typist's own
+   file and a native reader's check are still wanted.
 2. Compare at least two MIT-licensed tables and keep what agrees. **Done in
    0.6** with three families. Asking the authors where their tables came
    from (a GitHub issue each) is **not done**; it needs Samir's agreement.
-3. Reordering rules in aksharkit's own code. **Done in 0.6**, but driven by
-   self-made samples, not by golden tests, because step 1 is still open.
+3. Reordering rules in aksharkit's own code. **Done in 0.6** from self-made
+   samples; extended in 0.9 from what real documents show.
 4. Mark the table unreviewed until a native reader has read it. **Done**: it
-   is labelled experimental everywhere it is shown.
+   was labelled experimental until 0.8, and from 0.9 "tested on real
+   documents … not reviewed by a native reader" everywhere it is shown.
 
 ## 5. Bikram Sambat calendar table — verified for BS 2000–2083
 

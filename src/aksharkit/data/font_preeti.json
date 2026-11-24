@@ -1,8 +1,8 @@
 {
-  "status": "experimental",
+  "status": "tested",
   "font": "Preeti",
-  "label": "experimental — mapping agreed by at least 2 of 3 permissively-licensed table families (4 projects), not yet checked against real Preeti documents or by a native reader",
-  "note": "Made by scripts/compare_preeti_sources.py from scripts/preeti_sources.json. Families: A = nepali-unicoder + nepalikit (same rule list, counted once), B = preeti-unicode-converter, C = nepali-keyboard. 'mapping' needs two families and no dissent; 'majority' has two families and one dissenting table; 'unconfirmed' has one family only and is off by default; 'disputed' is never used. 'm' and '{' are strokes handled in code. See docs/preeti.md.",
+  "label": "tested on real documents — mapping agreed by at least 2 of 3 permissively-licensed table families (4 projects) and checked by eye against 9 public Preeti documents from 7 publishers (108 keys confirmed, 21 never seen); not reviewed by a native reader",
+  "note": "Made by scripts/compare_preeti_sources.py from scripts/preeti_sources.json and scripts/preeti_evidence.json. Families: A = nepali-unicoder + nepalikit (same rule list, counted once), B = preeti-unicode-converter, C = nepali-keyboard. 'mapping' needs two families and no dissent; 'majority' has two families and one dissenting table; 'unconfirmed' has one family only and is off by default; 'disputed' is never used; 'settled' holds keys the tables left open and the glyph in real documents settles. 'm' and '{' are strokes handled in code. 'sight' says which keys were read by eye in real documents. See docs/preeti.md.",
   "sources": [
     {
       "name": "nepali-unicoder",
@@ -38,6 +38,224 @@
     }
   ],
   "read_on": "2026-11-24",
+  "documents": [
+    {
+      "publisher": "National Examinations Board, Biratnagar office",
+      "kind": "notice with lists",
+      "url": "https://biratnagar.neb.gov.np/download-file/downloads/Downloads-202603251316403780.pdf",
+      "pages": 120,
+      "font": "ABCDEE+Preeti"
+    },
+    {
+      "publisher": "Nepal Rastra Bank",
+      "kind": "NRB Samachar newsletter, Asoj 2077",
+      "url": "https://www.nrb.org.np/contents/uploads/2020/10/NRB-Samachar_Asoj20770630.pdf",
+      "pages": 8,
+      "font": "KPEKMH+Preeti"
+    },
+    {
+      "publisher": "Public Service Commission",
+      "kind": "syllabus, 2023",
+      "url": "https://psc.gov.np/site_uploads/course/2023020811053563e381ff3153b.pdf",
+      "pages": 14,
+      "font": "ABCDEE+Preeti"
+    },
+    {
+      "publisher": "Public Service Commission",
+      "kind": "syllabus, 2024",
+      "url": "https://psc.gov.np/site_uploads/course/2024030801020565eb0c4dda255.pdf",
+      "pages": 7,
+      "font": "ABCDEE+Preeti"
+    },
+    {
+      "publisher": "Public Service Commission",
+      "kind": "syllabus, 2025",
+      "url": "https://psc.gov.np/site_uploads/course/202506300438476862bd97a96a2.pdf",
+      "pages": 4,
+      "font": "ABCDEE+Preeti"
+    },
+    {
+      "publisher": "Teacher Service Commission",
+      "kind": "candidate list, 2074 BS",
+      "url": "https://giwmscdnone.gov.np/media/pdf_upload/6.Paschim203_revised1_pbxfevn.pdf",
+      "pages": 20,
+      "font": "ABCDEE+Preeti"
+    },
+    {
+      "publisher": "Tribhuvan University Central Library",
+      "kind": "MA thesis in the eLibrary",
+      "url": "https://elibrary.tucl.edu.np/JQ99OgQIizUxyjI9nB0on9OyLkqsGIf4/api/core/bitstreams/d827f999-b255-4cf9-99cb-68e79ad340d9/content",
+      "pages": 187,
+      "font": "ABCDEE+Preeti"
+    },
+    {
+      "publisher": "Supreme Court of Nepal",
+      "kind": "Bulletin, 2065 BS",
+      "url": "https://supremecourt.gov.np/publication/materials/101817.pdf",
+      "pages": 31,
+      "font": "FGPCAM+Preeti"
+    },
+    {
+      "publisher": "Nepal Electricity Authority",
+      "kind": "proactive disclosure, Magh-Chait 2080",
+      "url": "https://nea.org.np/uploads/shares/news_notice/32453821.pdf",
+      "pages": 122,
+      "font": "ABCDEE+Preeti"
+    }
+  ],
+  "sight": {
+    "checked_on": "2026-11-24",
+    "method": "Each key's outline was drawn from the font program embedded in the documents and read by eye beside the table entry; every key present has the same outline in every document. 166 lines of Preeti text were then read by eye, page image above converted text.",
+    "lines_read": 166,
+    "publishers": 7,
+    "publishers_needed": 3,
+    "confirmed": [
+      "!",
+      "\"",
+      "#",
+      "$",
+      "%",
+      "&",
+      "'",
+      "(",
+      ")",
+      "*",
+      "+",
+      ",",
+      "-",
+      ".",
+      "/",
+      "0",
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      ":",
+      ";",
+      "=",
+      ">",
+      "?",
+      "@",
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "F",
+      "G",
+      "H",
+      "I",
+      "J",
+      "K",
+      "L",
+      "M",
+      "N",
+      "O",
+      "P",
+      "Q",
+      "R",
+      "S",
+      "T",
+      "U",
+      "V",
+      "W",
+      "X",
+      "Y",
+      "Z",
+      "[",
+      "\\",
+      "]",
+      "^",
+      "_",
+      "a",
+      "b",
+      "c",
+      "d",
+      "e",
+      "f",
+      "g",
+      "h",
+      "i",
+      "j",
+      "k",
+      "l",
+      "m",
+      "n",
+      "o",
+      "p",
+      "q",
+      "r",
+      "s",
+      "t",
+      "u",
+      "v",
+      "w",
+      "x",
+      "y",
+      "z",
+      "{",
+      "|",
+      "}",
+      "~",
+      "¥",
+      "§",
+      "ª",
+      "«",
+      "¿",
+      "Æ",
+      "Ë",
+      "Í",
+      "Ú",
+      "å",
+      "æ",
+      "÷",
+      "ˆ",
+      "–",
+      "—",
+      "…"
+    ],
+    "seen": [
+      "<",
+      "`",
+      "¢",
+      "£",
+      "´",
+      "¶",
+      "Ø",
+      "Û",
+      "•",
+      "‹",
+      "›"
+    ],
+    "never_seen": [
+      "¡",
+      "¤",
+      "©",
+      "°",
+      "±",
+      "»",
+      "Å",
+      "Ì",
+      "Î",
+      "Ò",
+      "Ö",
+      "×",
+      "Ù",
+      "Ü",
+      "Ý",
+      "ß",
+      "ç",
+      "˜",
+      "‘",
+      "„",
+      "‰"
+    ]
+  },
   "mapping": {
     "!": {
       "to": "१",
@@ -1060,10 +1278,6 @@
     }
   },
   "disputed": {
-    "¥": {
-      "nepali-unicoder": "र्",
-      "nepalikit": "र्‍"
-    },
     "°": {
       "nepalikit": "ङ्ढ",
       "preeti-unicode-converter": "्र",
@@ -1073,14 +1287,142 @@
       "nepalikit": "न्न",
       "nepali-keyboard": "त्र"
     },
-    "Ú": {
-      "nepali-unicoder": ":",
-      "nepalikit": "’",
-      "nepali-keyboard": "’"
-    },
     "Ý": {
       "nepalikit": "ट्ट्",
       "nepali-keyboard": "ट्ठ"
+    }
+  },
+  "settled": {
+    "¥": {
+      "to": "र्‍",
+      "why": "draws the eyelash form of ra that stands before ya",
+      "tables": {
+        "nepali-unicoder": "र्",
+        "nepalikit": "र्‍"
+      },
+      "evidence": [
+        {
+          "publisher": "Nepal Rastra Bank",
+          "url": "https://www.nrb.org.np/contents/uploads/2020/10/NRB-Samachar_Asoj20770630.pdf",
+          "page": 8,
+          "keys": "u¥of]",
+          "reads": "गर्‍यो"
+        },
+        {
+          "publisher": "Public Service Commission",
+          "url": "https://psc.gov.np/site_uploads/course/202506300438476862bd97a96a2.pdf",
+          "page": 2,
+          "keys": "k'¥ofpg",
+          "reads": "पुर्‍याउन"
+        },
+        {
+          "publisher": "Nepal Electricity Authority",
+          "url": "https://nea.org.np/uploads/shares/news_notice/32453821.pdf",
+          "page": 7,
+          "keys": "8f]¥ofpg]",
+          "reads": "डोर्‍याउने"
+        },
+        {
+          "publisher": "Tribhuvan University Central Library",
+          "url": "https://elibrary.tucl.edu.np/JQ99OgQIizUxyjI9nB0on9OyLkqsGIf4/api/core/bitstreams/d827f999-b255-4cf9-99cb-68e79ad340d9/content",
+          "page": 153,
+          "keys": "k'¥ofpg",
+          "reads": "पुर्‍याउन"
+        }
+      ]
+    },
+    "Ú": {
+      "to": "’",
+      "why": "draws a closing single quotation mark, the partner of the opening mark on the key …",
+      "tables": {
+        "nepali-unicoder": ":",
+        "nepalikit": "’",
+        "nepali-keyboard": "’"
+      },
+      "evidence": [
+        {
+          "publisher": "Nepal Rastra Bank",
+          "url": "https://www.nrb.org.np/contents/uploads/2020/10/NRB-Samachar_Asoj20770630.pdf",
+          "page": 1,
+          "keys": "…sÚ",
+          "reads": "‘क’"
+        },
+        {
+          "publisher": "Supreme Court of Nepal",
+          "url": "https://supremecourt.gov.np/publication/materials/101817.pdf",
+          "page": 18,
+          "keys": "…;'hfgfÚ",
+          "reads": "‘सुजाना’"
+        },
+        {
+          "publisher": "Tribhuvan University Central Library",
+          "url": "https://elibrary.tucl.edu.np/JQ99OgQIizUxyjI9nB0on9OyLkqsGIf4/api/core/bitstreams/d827f999-b255-4cf9-99cb-68e79ad340d9/content",
+          "page": 25,
+          "keys": "…clGtd sljtfÚ",
+          "reads": "‘अन्तिम कविता’"
+        }
+      ]
+    },
+    "–": {
+      "to": "–",
+      "why": "draws a short dash; typists use it for the hyphen, which has no key of its own",
+      "evidence": [
+        {
+          "publisher": "Supreme Court of Nepal",
+          "url": "https://supremecourt.gov.np/publication/materials/101817.pdf",
+          "page": 10,
+          "keys": "hft–hflt",
+          "reads": "जात–जाति"
+        },
+        {
+          "publisher": "Public Service Commission",
+          "url": "https://psc.gov.np/site_uploads/course/2023020811053563e381ff3153b.pdf",
+          "page": 1,
+          "keys": "sfo{–1fg",
+          "reads": "कार्य–ज्ञान"
+        },
+        {
+          "publisher": "Nepal Rastra Bank",
+          "url": "https://www.nrb.org.np/contents/uploads/2020/10/NRB-Samachar_Asoj20770630.pdf",
+          "page": 1,
+          "keys": "sf]le8–!(",
+          "reads": "कोभिड–१९"
+        },
+        {
+          "publisher": "Tribhuvan University Central Library",
+          "url": "https://elibrary.tucl.edu.np/JQ99OgQIizUxyjI9nB0on9OyLkqsGIf4/api/core/bitstreams/d827f999-b255-4cf9-99cb-68e79ad340d9/content",
+          "page": 1,
+          "keys": "@)^%–@)^&",
+          "reads": "२०६५–२०६७"
+        }
+      ]
+    },
+    "—": {
+      "to": "—",
+      "why": "draws a longer dash",
+      "evidence": [
+        {
+          "publisher": "Supreme Court of Nepal",
+          "url": "https://supremecourt.gov.np/publication/materials/101817.pdf",
+          "page": 8,
+          "keys": "d'2fM—",
+          "reads": "मुद्दाः—"
+        },
+        {
+          "publisher": "Public Service Commission",
+          "url": "https://psc.gov.np/site_uploads/course/2023020811053563e381ff3153b.pdf",
+          "page": 1,
+          "keys": "k\"0ff{Í M— #)",
+          "reads": "पूर्णाङ्क :— ३०"
+        },
+        {
+          "publisher": "Nepal Electricity Authority",
+          "url": "https://nea.org.np/uploads/shares/news_notice/32453821.pdf",
+          "page": 91,
+          "keys": "j'6jn—jb{3f6",
+          "reads": "बुटवल—बर्दघाट"
+        }
+      ]
     }
   },
   "sequences": {
@@ -1119,6 +1461,35 @@
       "families": [
         "A",
         "C"
+      ]
+    }
+  },
+  "settled_sequences": {
+    "tm": {
+      "to": "क्त",
+      "why": "the stroke key after ta draws the kta ligature, as it does after the tta key",
+      "evidence": [
+        {
+          "publisher": "Nepal Electricity Authority",
+          "url": "https://nea.org.np/uploads/shares/news_notice/32453821.pdf",
+          "page": 24,
+          "keys": "ztmL",
+          "reads": "शक्ति (typed with long i)"
+        },
+        {
+          "publisher": "Supreme Court of Nepal",
+          "url": "https://supremecourt.gov.np/publication/materials/101817.pdf",
+          "page": 18,
+          "keys": ";+o'tm",
+          "reads": "संयुक्त"
+        },
+        {
+          "publisher": "Tribhuvan University Central Library",
+          "url": "https://elibrary.tucl.edu.np/JQ99OgQIizUxyjI9nB0on9OyLkqsGIf4/api/core/bitstreams/d827f999-b255-4cf9-99cb-68e79ad340d9/content",
+          "page": 143,
+          "keys": "kª\\ltm",
+          "reads": "पङ्क्ति"
+        }
       ]
     }
   },

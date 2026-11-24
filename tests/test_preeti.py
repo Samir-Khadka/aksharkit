@@ -9,7 +9,8 @@ in this repository yet, so:
 * the "self-consistency" samples were typed by the builder from the table
   itself. They prove the pieces fit together. They do **not** prove that a
   real Preeti document converts correctly;
-* ``tests/golden/preeti_samples.tsv`` is where real samples go. It is empty.
+* ``tests/golden/preeti_samples.tsv`` holds real samples since 0.9: short
+  excerpts from public documents, with what the page visibly prints.
 """
 
 from __future__ import annotations
@@ -61,17 +62,23 @@ def test_table_matches_the_documented_comparison() -> None:
     assert COMPARE.main(["--check"]) == 0
 
 
-def test_table_is_labelled_experimental() -> None:
-    assert TABLE["status"] == "experimental"
+def test_table_is_labelled_tested_on_real_documents() -> None:
+    assert TABLE["status"] == "tested" == legacy.PREETI_STATUS == legacy.TESTED
+    assert legacy.STATUSES == ("experimental", "tested")
     assert TABLE["label"] == legacy.PREETI_LABEL
-    assert legacy.PREETI_LABEL.startswith("experimental — mapping agreed by at least 2 of 3 ")
-    assert "not yet checked against real Preeti documents" in legacy.PREETI_LABEL
-    assert "native reader" in legacy.PREETI_LABEL
+    assert legacy.PREETI_LABEL.startswith(
+        "tested on real documents — mapping agreed by at least 2 of 3 "
+    )
+    assert "9 public Preeti documents from 7 publishers" in legacy.PREETI_LABEL
+    assert "(108 keys confirmed, 21 never seen)" in legacy.PREETI_LABEL
+    assert "not reviewed by a native reader" in legacy.PREETI_LABEL
 
 
 def test_tier_sizes_are_the_ones_the_docs_state() -> None:
     sizes = (len(AGREED), len(MAJORITY), len(UNCONFIRMED), len(DISPUTED))
-    assert sizes == (122, 4, 5, 5)
+    assert sizes == (122, 4, 5, 3)
+    assert sorted(TABLE["settled"]) == ["¥", "Ú", "–", "—"]
+    assert list(TABLE["settled_sequences"]) == ["tm"]
     assert (len(SEQUENCES), len(UNCONFIRMED_SEQUENCES)) == (5, 2)
 
 
@@ -264,7 +271,7 @@ def test_load_font_map_returns_a_copy_and_rejects_other_fonts() -> None:
     first = legacy.load_font_map()
     first["a"] = "changed"
     assert legacy.load_font_map()["a"] == "ब"
-    assert legacy.load_font_table()["status"] == "experimental"
+    assert legacy.load_font_table()["status"] == "tested"
     for call in (
         lambda: legacy.load_font_map("kantipur"),
         lambda: legacy.to_unicode("x", "himali"),
@@ -396,25 +403,25 @@ def test_text_that_is_already_devanagari_passes_through_unreported() -> None:
 
 
 def test_unmapped_characters_keep_their_place_and_their_offsets() -> None:
-    text = "g]kfn ¥ Ý € d]/f]"
+    text = "g]kfn ° Ý € d]/f]"
     result = convert_preeti(text)
-    assert result.text == "नेपाल ¥ Ý € मेरो"
-    assert result.unmapped == (UnmappedChar("¥", 6), UnmappedChar("Ý", 8), UnmappedChar("€", 10))
+    assert result.text == "नेपाल ° Ý € मेरो"
+    assert result.unmapped == (UnmappedChar("°", 6), UnmappedChar("Ý", 8), UnmappedChar("€", 10))
     assert all(text[item.offset] == item.char for item in result.unmapped)
-    assert result.unmapped_chars == ("¥", "Ý", "€")
+    assert result.unmapped_chars == ("°", "Ý", "€")
     assert not result.complete
     assert convert_preeti("g]kfn").complete
 
 
 def test_repeated_unmapped_characters_are_each_reported_once_per_use() -> None:
-    result = convert_preeti("¥s¥")
+    result = convert_preeti("°s°")
     assert [item.offset for item in result.unmapped] == [0, 2]
-    assert result.unmapped_chars == ("¥",)
+    assert result.unmapped_chars == ("°",)
 
 
 def test_unmapped_list_is_in_input_order_even_when_a_reph_fails() -> None:
-    result = convert_preeti("{ ¥ m")
-    assert [(item.char, item.offset) for item in result.unmapped] == [("{", 0), ("¥", 2), ("m", 4)]
+    result = convert_preeti("{ ° m")
+    assert [(item.char, item.offset) for item in result.unmapped] == [("{", 0), ("°", 2), ("m", 4)]
 
 
 def test_preeti_to_unicode_returns_just_the_text() -> None:
@@ -478,7 +485,7 @@ def test_self_consistency_sample(preeti: str, want: str) -> None:
     """Built from the table by the builder: shows consistency, not correctness."""
     result = convert_preeti(preeti)
     assert result.text == want
-    assert [item.char for item in result.unmapped] == [ch for ch in preeti if ch == "–"]
+    assert not result.unmapped
 
 
 # --- real samples: empty until a Preeti typist supplies them ------------------
@@ -503,7 +510,7 @@ def test_real_samples_file_explains_itself() -> None:
 
 
 def test_real_samples_convert_exactly() -> None:
-    """Passes while the file is empty; every real line added becomes a check."""
+    """Every real line in the file is a check."""
     failures = [
         f"{origin}: {preeti!r} gave {convert_preeti(preeti).text!r}, want {want!r}"
         for preeti, want, origin in _real_samples()
@@ -553,7 +560,7 @@ def test_normalise_false_skips_the_normaliser() -> None:
 # --- command line -------------------------------------------------------------
 
 
-def test_cli_converts_and_prints_the_experimental_note(
+def test_cli_converts_and_prints_the_status_note(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     assert main(["convert", "preeti", "g]kfn"]) == 0
@@ -565,23 +572,23 @@ def test_cli_converts_and_prints_the_experimental_note(
 def test_cli_quiet_hides_only_the_note(capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["convert", "preeti", "g]kfn", "--quiet"]) == 0
     assert capsys.readouterr() == ("नेपाल\n", "")
-    assert main(["convert", "preeti", "s ¥", "--quiet"]) == 0
+    assert main(["convert", "preeti", "s °", "--quiet"]) == 0
     captured = capsys.readouterr()
-    assert captured.out == "क ¥\n"
+    assert captured.out == "क °\n"
     assert captured.err == (
         "aksharkit: warning: 1 character(s) had no agreed Preeti entry "
-        "and were left unchanged: ¥ (U+00A5)\n"
+        "and were left unchanged: ° (U+00B0)\n"
     )
 
 
 def test_cli_report_lists_positions(capsys: pytest.CaptureFixture[str]) -> None:
-    assert main(["convert", "preeti", "sfo{qmd ¥ Ý m", "--quiet", "--report"]) == 0
+    assert main(["convert", "preeti", "sfo{qmd ° Ý m", "--quiet", "--report"]) == 0
     captured = capsys.readouterr()
-    assert captured.out == "कार्यक्रम ¥ Ý m\n"
+    assert captured.out == "कार्यक्रम ° Ý m\n"
     assert captured.err.splitlines() == [
         "aksharkit: warning: 3 character(s) had no agreed Preeti entry "
-        "and were left unchanged: ¥ (U+00A5) Ý (U+00DD) m (U+006D)",
-        "  line 1, column 9: ¥ (U+00A5)",
+        "and were left unchanged: ° (U+00B0) Ý (U+00DD) m (U+006D)",
+        "  line 1, column 9: ° (U+00B0)",
         "  line 1, column 11: Ý (U+00DD)",
         "  line 1, column 13: m (U+006D)",
         "aksharkit: summary: 10 character(s) to convert: 7 by agreed keys (70.0%), "
@@ -629,7 +636,7 @@ def test_cli_help_states_the_status(capsys: pytest.CaptureFixture[str]) -> None:
         main(["convert", "--help"])
     assert info.value.code == 0
     out = " ".join(capsys.readouterr().out.split())
-    assert "experimental" in out and "not yet checked against real Preeti documents" in out
+    assert "tested on real documents" in out and "not reviewed by a native reader" in out
 
 
 def test_sources_file_is_valid_and_attributed() -> None:
@@ -641,7 +648,7 @@ def test_sources_file_is_valid_and_attributed() -> None:
 
 
 def test_version_is_0_8_0() -> None:
-    assert aksharkit.__version__ == "0.8.0"
+    assert aksharkit.__version__ == "0.9.0"
     pyproject = (ROOT / "pyproject.toml").read_text("utf-8")
-    assert 'version = "0.8.0"' in pyproject
+    assert 'version = "0.9.0"' in pyproject
     assert 'license-files = ["LICENSE", "NOTICE"]' in pyproject

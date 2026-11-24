@@ -102,7 +102,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser(
         "convert",
-        help="Preeti legacy-font text or Word files to Unicode (experimental, unchecked key table)",
+        help="Preeti legacy-font text or Word files to Unicode and back (tested on real documents)",
         description=(
             "Convert text typed in the Preeti font to Unicode, or Unicode back to Preeti "
             "keys. Status: "
@@ -225,7 +225,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="leave out entries where two families agree but another table differs",
     )
-    p.add_argument("--quiet", action="store_true", help="do not print the experimental notice")
+    p.add_argument("--quiet", action="store_true", help="do not print the status notice")
 
     p = sub.add_parser(
         "translit",

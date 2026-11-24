@@ -499,7 +499,7 @@ function coverage(stats) {
     stats.words +
     " Nepali words written as Preeti keys (" +
     share +
-    "%). Each of them was converted back and gave the same text. The keys are one valid way to type it by this experimental table, not necessarily the way a typist would; nobody has yet looked at them in the Preeti font."
+    "%). Each of them was converted back and gave the same text. The keys are one valid way to type it by this table, not necessarily the way a typist would. The keys for a small sample were drawn in the Preeti font found in real documents and read by eye; yours were not."
   );
 }
 

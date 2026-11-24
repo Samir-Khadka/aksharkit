@@ -24,6 +24,14 @@ that has the key gives the same letter.
 letter before them, and the converter handles them in code, so they are not
 in the table.
 
+Since 0.9 the script also reads ``scripts/preeti_evidence.json``: what real
+Preeti documents show. A key the tables left open is ``settled`` when the
+glyph in the documents settles it, and every key is marked ``confirmed``
+(read by eye, and used in documents from at least three publishers),
+``seen`` (read by eye, fewer publishers) or ``never seen``. The tables decide
+what a key means; the documents only settle what the tables left open and
+say how far each entry has been checked.
+
 Run ``python scripts/compare_preeti_sources.py`` for the report,
 ``--write`` to regenerate the data file, ``--check`` to confirm the data
 file still matches the comparison (the test suite does this).
@@ -39,6 +47,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCES_FILE = ROOT / "scripts" / "preeti_sources.json"
+EVIDENCE_FILE = ROOT / "scripts" / "preeti_evidence.json"
 TABLE_FILE = ROOT / "src" / "aksharkit" / "data" / "font_preeti.json"
 
 #: Keys the converter treats as strokes, not letters.
@@ -47,11 +56,12 @@ STRUCTURAL_KEYS = frozenset({"m", "{"})
 #: Minimum number of independent families that must agree.
 QUORUM = 2
 
-STATUS = "experimental"
+STATUS = "tested"
 LABEL = (
-    "experimental — mapping agreed by at least {quorum} of {families} permissively-licensed "
-    "table families ({projects} projects), not yet checked against real Preeti documents "
-    "or by a native reader"
+    "tested on real documents — mapping agreed by at least {quorum} of {families} "
+    "permissively-licensed table families ({projects} projects) and checked by eye against "
+    "{documents} public Preeti documents from {publishers} publishers ({confirmed} keys "
+    "confirmed, {unseen} never seen); not reviewed by a native reader"
 )
 
 
@@ -59,6 +69,13 @@ def load_sources() -> dict[str, Any]:
     data = json.loads(SOURCES_FILE.read_text("utf-8"))
     if not isinstance(data, dict):
         raise ValueError("preeti_sources.json must hold an object")
+    return data
+
+
+def load_evidence() -> dict[str, Any]:
+    data = json.loads(EVIDENCE_FILE.read_text("utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError("preeti_evidence.json must hold an object")
     return data
 
 
@@ -103,10 +120,46 @@ def classify(data: dict[str, Any]) -> list[dict[str, Any]]:
     return records
 
 
-def build_table(data: dict[str, Any]) -> dict[str, Any]:
+def sight(keys: list[str], evidence: dict[str, Any]) -> dict[str, list[str]]:
+    """Sort ``keys`` by how far the documents bear them out."""
+    need = int(evidence["publishers_needed"])
+    seen: dict[str, Any] = evidence["keys"]
+    out: dict[str, list[str]] = {"confirmed": [], "seen": [], "never_seen": []}
+    for key in keys:
+        if key not in seen:
+            out["never_seen"].append(key)
+        elif int(seen[key]["publishers"]) >= need:
+            out["confirmed"].append(key)
+        else:
+            out["seen"].append(key)
+    return out
+
+
+def build_table(data: dict[str, Any], evidence: dict[str, Any] | None = None) -> dict[str, Any]:
     """Build the content of ``font_preeti.json`` from the comparison."""
+    if evidence is None:
+        evidence = load_evidence()
     records = classify(data)
     families = sorted({str(meta["family"]) for meta in data["sources"].values()})
+    settled: dict[str, Any] = evidence["settled"]
+    by_key = {rec["key"]: rec for rec in records}
+    for key in settled:
+        tier = by_key[key]["tier"] if key in by_key else "absent"
+        if tier not in ("disputed", "absent"):
+            raise ValueError(f"the documents may only settle a key the tables left open: {key!r}")
+    documents = {doc["id"]: doc for doc in evidence["documents"]}
+
+    def proof(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        return [
+            {
+                "publisher": documents[item["document"]]["name"],
+                "url": documents[item["document"]]["url"],
+                "page": item["page"],
+                "keys": item["keys"],
+                "reads": item["reads"],
+            }
+            for item in items
+        ]
 
     def entries(tier: str) -> dict[str, Any]:
         out: dict[str, Any] = {}
@@ -128,17 +181,42 @@ def build_table(data: dict[str, Any]) -> dict[str, Any]:
                 out[seq["keys"]] = {"to": seq["to"], "families": seq["families"]}
         return out
 
+    def from_documents(section: dict[str, Any]) -> dict[str, Any]:
+        out: dict[str, Any] = {}
+        for key in sorted(section):
+            item = section[key]
+            entry: dict[str, Any] = {"to": item["to"], "why": item["why"]}
+            if key in by_key:
+                entry["tables"] = by_key[key]["stated"]
+            entry["evidence"] = proof(item["evidence"])
+            out[key] = entry
+        return out
+
+    all_keys = sorted({rec["key"] for rec in records} | set(settled) | STRUCTURAL_KEYS)
+    checked = sight(all_keys, evidence)
+    publishers = sorted({doc["publisher"] for doc in evidence["documents"]})
     return {
         "status": STATUS,
         "font": "Preeti",
-        "label": LABEL.format(quorum=QUORUM, families=len(families), projects=len(data["sources"])),
+        "label": LABEL.format(
+            quorum=QUORUM,
+            families=len(families),
+            projects=len(data["sources"]),
+            documents=len(documents),
+            publishers=len(publishers),
+            confirmed=len(checked["confirmed"]),
+            unseen=len(checked["never_seen"]),
+        ),
         "note": (
-            "Made by scripts/compare_preeti_sources.py from scripts/preeti_sources.json. "
+            "Made by scripts/compare_preeti_sources.py from scripts/preeti_sources.json and "
+            "scripts/preeti_evidence.json. "
             "Families: A = nepali-unicoder + nepalikit (same rule list, counted once), "
             "B = preeti-unicode-converter, C = nepali-keyboard. 'mapping' needs two "
             "families and no dissent; 'majority' has two families and one dissenting "
             "table; 'unconfirmed' has one family only and is off by default; 'disputed' "
-            "is never used. 'm' and '{' are strokes handled in code. See docs/preeti.md."
+            "is never used; 'settled' holds keys the tables left open and the glyph in "
+            "real documents settles. 'm' and '{' are strokes handled in code. 'sight' "
+            "says which keys were read by eye in real documents. See docs/preeti.md."
         ),
         "sources": [
             {
@@ -152,11 +230,35 @@ def build_table(data: dict[str, Any]) -> dict[str, Any]:
             for name, meta in data["sources"].items()
         ],
         "read_on": data["read_on"],
+        "documents": [
+            {
+                "publisher": doc["name"],
+                "kind": doc["kind"],
+                "url": doc["url"],
+                "pages": doc["pages"],
+                "font": doc["font"],
+            }
+            for doc in evidence["documents"]
+        ],
+        "sight": {
+            "checked_on": evidence["checked_on"],
+            "method": evidence["method"],
+            "lines_read": evidence["lines_read_by_sight"],
+            "publishers": len(publishers),
+            "publishers_needed": evidence["publishers_needed"],
+            **checked,
+        },
         "mapping": entries("agreed"),
         "majority": entries("majority"),
         "unconfirmed": entries("single"),
-        "disputed": {rec["key"]: rec["stated"] for rec in records if rec["tier"] == "disputed"},
+        "disputed": {
+            rec["key"]: rec["stated"]
+            for rec in records
+            if rec["tier"] == "disputed" and rec["key"] not in settled
+        },
+        "settled": from_documents(settled),
         "sequences": sequences(True),
+        "settled_sequences": from_documents(evidence["sequences"]),
         "unconfirmed_sequences": sequences(False),
     }
 
@@ -174,6 +276,12 @@ def report(data: dict[str, Any]) -> str:
     lines.append(f"keys compared: {len(records)}")
     for tier in ("agreed", "majority", "single", "disputed"):
         lines.append(f"  {tier}: {counts.get(tier, 0)}")
+    table = build_table(data)
+    lines.append(f"  settled by documents: {len(table['settled'])} ({' '.join(table['settled'])})")
+    for name in ("confirmed", "seen", "never_seen"):
+        keys = table["sight"][name]
+        shown = " ".join(keys) if name != "confirmed" else ""
+        lines.append(f"  {name.replace('_', ' ')}: {len(keys)} {shown}".rstrip())
     without_a = sum(
         1
         for rec in records
