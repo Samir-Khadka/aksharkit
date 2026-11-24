@@ -1,8 +1,9 @@
 """aksharkit: typed, zero-dependency building blocks for Nepali text.
 
-Implemented: Unicode normalisation, numerals, number words in both
-directions, tokenisation, script detection, Bikram Sambat dates and date
-arithmetic (BS 2000-2083) and transliteration (a reversible IAST-style
+Implemented: Unicode normalisation, akshara (written syllable) segmentation,
+alphabetical sorting, numerals, number words in both directions, ordinals,
+tokenisation, script detection, Bikram Sambat dates with formatting, parsing
+and arithmetic (BS 2000-2083) and transliteration (a reversible IAST-style
 scheme and an approximate plain-ASCII one).
 Stubbed (raises :class:`DataNotVerifiedError`): legacy-font conversion, until
 its glyph table is verified.
@@ -11,6 +12,8 @@ its glyph table is verified.
 from __future__ import annotations
 
 from ._errors import DataNotVerifiedError
+from .akshara import Akshara, akshara_count, akshara_spans, aksharas, truncate
+from .collate import sort_key, sorted_nepali
 from .dates import (
     BSDate,
     BSDifference,
@@ -44,12 +47,19 @@ from .numerals import format_number, parse_number, to_ascii_digits, to_devanagar
 from .stopwords import STOPWORDS, is_stopword, remove_stopwords
 from .tokens import Token, sentences, tokenize, tokenize_spans
 from .translit import to_devanagari, to_roman
-from .words import currency_to_words, integer_to_words, number_to_words, parse_words
+from .words import (
+    currency_to_words,
+    integer_to_words,
+    number_to_words,
+    ordinal_to_words,
+    parse_words,
+)
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 __all__ = [
     "STOPWORDS",
+    "Akshara",
     "BSDate",
     "BSDifference",
     "DataNotVerifiedError",
@@ -61,6 +71,9 @@ __all__ = [
     "add_days",
     "add_months",
     "age",
+    "akshara_count",
+    "akshara_spans",
+    "aksharas",
     "bs_to_ad",
     "currency_to_words",
     "days_between",
@@ -77,6 +90,7 @@ __all__ = [
     "month_calendar",
     "normalize",
     "number_to_words",
+    "ordinal_to_words",
     "parse_bs",
     "parse_number",
     "parse_words",
@@ -85,6 +99,8 @@ __all__ = [
     "script_counts",
     "script_shares",
     "sentences",
+    "sort_key",
+    "sorted_nepali",
     "to_ascii_digits",
     "to_devanagari",
     "to_devanagari_digits",
@@ -93,4 +109,5 @@ __all__ = [
     "token_scripts",
     "tokenize",
     "tokenize_spans",
+    "truncate",
 ]

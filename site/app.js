@@ -25,7 +25,7 @@ const ASSET_QUERY = (function () {
   }
 })();
 const PACKAGE_DIR = "/home/pyodide/aksharkit_pkg";
-const TOOLS = ["normalize", "numbers", "words", "dates", "calendar", "datemath", "tokenize", "detect", "translit"];
+const TOOLS = ["normalize", "aksharas", "numbers", "words", "dates", "calendar", "datemath", "tokenize", "sort", "detect", "translit"];
 const MAX_LINK_LENGTH = 1800; // longer inputs are left out of the shareable link
 const DEBOUNCE_MS = 150;
 
@@ -171,6 +171,12 @@ function clearOutputs(tool) {
   if (tool === "detect") {
     byId("out-detect-tokens").replaceChildren();
   }
+  if (tool === "aksharas") {
+    byId("out-aksharas-units").replaceChildren();
+  }
+  if (tool === "sort") {
+    byId("out-sort-lines").replaceChildren();
+  }
   if (tool === "calendar") {
     byId("out-calendar-head").replaceChildren();
     byId("out-calendar-weeks").replaceChildren();
@@ -223,6 +229,33 @@ const RENDER = {
       r.changed
         ? "Changed: " + r.before + " characters in, " + r.after + " out."
         : "Already in canonical form; nothing changed."
+    );
+  },
+  aksharas: function (r) {
+    fill(
+      byId("out-aksharas-units"),
+      r.units
+        .filter(function (unit) {
+          return unit.text.trim() !== "";
+        })
+        .map(function (unit) {
+          return item("li", unit.text, "chip");
+        })
+    );
+    setOut(
+      "aksharas.count",
+      "(" + r.count + " aksharas, " + r.letters + " without spaces, from " + r.characters + " characters)"
+    );
+    setOut("aksharas.truncated", r.truncated.value, !r.truncated.ok);
+  },
+  sort: function (r) {
+    setOut("sort.text", r.text);
+    setOut("sort.count", "(" + r.count + (r.count === 1 ? " line)" : " lines)"));
+    fill(
+      byId("out-sort-lines"),
+      r.lines.map(function (line) {
+        return item("li", line, "");
+      })
     );
   },
   numbers: function (r) {
@@ -303,7 +336,12 @@ const RENDER = {
   },
   dates: function (r) {
     Object.keys(r).forEach(function (key) {
-      setOut("dates." + key, r[key]);
+      const row = r[key];
+      if (typeof row === "string") {
+        setOut("dates." + key, row);
+      } else {
+        setOut("dates." + key, row.value, !row.ok); // the pattern rows can fail alone
+      }
     });
   },
   tokenize: function (r) {
@@ -339,7 +377,9 @@ const RENDER = {
 };
 
 function update(tool, fromUser) {
-  if (fromUser) {
+  // The address describes the tab on screen. An edit that is still waiting out
+  // its debounce when another tab is opened must not put the old tab back.
+  if (fromUser && tool === currentTabName()) {
     writeState(tool);
   }
   if (!runPython) {

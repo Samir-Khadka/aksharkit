@@ -73,7 +73,50 @@ def _numbers(payload: dict[str, Any]) -> dict[str, Any]:
         "grouped_devanagari": _attempt(lambda: ak.format_number(value, devanagari=True)),
         "words": _attempt(lambda: ak.number_to_words(value)),
         "currency": _attempt(lambda: ak.currency_to_words(value, only=only)),
+        "ordinal": _attempt(lambda: _ordinal(str(payload.get("ordinal", "")))),
     }
+
+
+def _ordinal(text: str) -> str:
+    digits = ak.to_ascii_digits(text).strip()
+    if not digits.isdigit():
+        raise ValueError("type a whole number from 1 to 100")
+    return ak.ordinal_to_words(int(digits))
+
+
+def _aksharas(payload: dict[str, Any]) -> dict[str, Any]:
+    text = str(payload.get("text", ""))
+    limit = ak.to_ascii_digits(str(payload.get("limit", ""))).strip()
+    suffix = "…" if bool(payload.get("suffix", True)) else ""
+
+    def cut() -> str:
+        if not limit:
+            return text
+        if not limit.isdigit():
+            raise ValueError(f"the limit must be a whole number, not {limit!r}")
+        return ak.truncate(text, int(limit), suffix=suffix)
+
+    units = ak.akshara_spans(text)
+    return {
+        "units": [{"text": u.text, "start": u.start, "end": u.end} for u in units],
+        "count": len(units),
+        "letters": ak.akshara_count(text, skip_whitespace=True),
+        "characters": len(text),
+        "truncated": _attempt(cut),
+    }
+
+
+def _sort(payload: dict[str, Any]) -> dict[str, Any]:
+    lines = [line.strip() for line in str(payload.get("text", "")).splitlines()]
+    lines = [line for line in lines if line]
+    if bool(payload.get("unique", False)):
+        lines = list(dict.fromkeys(lines))
+    ordered = ak.sorted_nepali(
+        lines,
+        reverse=bool(payload.get("reverse", False)),
+        conjunct_letters=bool(payload.get("conjunct_letters", True)),
+    )
+    return {"text": "\n".join(ordered), "lines": ordered, "count": len(ordered)}
 
 
 def _dates(payload: dict[str, Any]) -> dict[str, Any]:
@@ -82,6 +125,13 @@ def _dates(payload: dict[str, Any]) -> dict[str, Any]:
     text = str(payload.get("text", "")).strip()
     if not text:
         raise ValueError("type a date as YYYY-MM-DD")
+    pattern = str(payload.get("pattern", ""))
+
+    def patterned(devanagari: bool) -> str:
+        if "%" not in pattern:
+            raise ValueError("a pattern needs at least one token, such as %Y")
+        return ak.format_bs(bs, pattern, devanagari=devanagari)
+
     if direction == "bs2ad":
         bs = ak.parse_bs(text)
         ad = ak.bs_to_ad(*bs, allow_disputed=allow)
@@ -102,6 +152,8 @@ def _dates(payload: dict[str, Any]) -> dict[str, Any]:
         "ad_long": f"{ad.day} {ad.strftime('%B')} {ad.year}, {ad.strftime('%A')}",
         "fiscal_year": ak.fiscal_year(bs),
         "fiscal_year_ne": ak.fiscal_year(bs, devanagari=True),
+        "pattern": _attempt(lambda: patterned(False)),
+        "pattern_ne": _attempt(lambda: patterned(True)),
     }
 
 
@@ -234,12 +286,14 @@ def _datemath(payload: dict[str, Any]) -> dict[str, Any]:
 TOOLS: dict[str, Callable[[dict[str, Any]], dict[str, Any]]] = {
     "info": _info,
     "normalize": _normalize,
+    "aksharas": _aksharas,
     "numbers": _numbers,
     "words": _words,
     "dates": _dates,
     "calendar": _calendar,
     "datemath": _datemath,
     "tokenize": _tokenize,
+    "sort": _sort,
     "detect": _detect,
     "translit": _translit,
 }

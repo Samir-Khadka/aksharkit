@@ -12,14 +12,22 @@
   2026, deployed page): it loaded, reported aksharkit 0.3.0 on Python 3.13.2,
   and every tab gave the expected output. The browser console was not
   inspected.
-- **Version 0.4.0 has not been seen with real Pyodide.** On 24 November 2026
-  the built page was loaded in headless Chromium at 360px and 1280px wide,
-  with Pyodide replaced by a stub that passed each call to the same Python
-  glue under CPython. In that run no tab scrolled the page sideways, no
-  button or input was under 44px, Copy and "Copy a link" worked and the link
-  reopened the same tab and input, and the console showed no errors. Real
-  phones, touch behaviour, other browsers, the error state and screen
-  readers have not been tested.
+- **Version 0.4.0 was checked once, on one desktop browser** (24 November
+  2026, deployed page): the new tabs, the copy buttons, the examples and a
+  shared link reopened after a reload all worked. Earlier the same day the
+  built page had been loaded in headless Chromium at 360px and 1280px wide
+  with Pyodide replaced by a stub. **It has not been tried on a real phone**;
+  touch behaviour, other browsers, the error state and screen readers are
+  untested too.
+- **Version 0.5.0 has not been opened in any browser.** The Aksharas and
+  Sort tabs, the ordinal and date-pattern rows and the address fix below are
+  covered only by the Node tests, which drive `app.js` against a fake DOM
+  with the Python glue run by CPython. Their layout has not been looked at
+  on any screen, at any width.
+- The address fix in 0.5 (an edit still waiting to run no longer puts the
+  previous tab back in the address after a tab click) was worked out from
+  the code and reproduced in the Node tests. It has not been confirmed in
+  the browser where the stale address was seen.
 - Copy needs the browser's clipboard API, which works only on HTTPS or
   localhost; without it the button says "Copy is not available".
 - A shared link holds the inputs in the address after `#`. Inputs that would
@@ -75,7 +83,17 @@
   projects are published separately, but they may share a common origin.
 - **Month and weekday names** were written from general knowledge and have not
   been reviewed by a native speaker. Only one spelling of each is offered.
-- `parse_bs` reads numeric dates only (`2083-08-07`, `२०८३/८/७`), not month names.
+- `parse_bs` reads numeric dates (`2083-08-07`, `२०८३/८/७`) and, from 0.5,
+  `year month day` or `day month year` with a month name (`२०८३ मंसिर ८`,
+  `8 Mangsir 2083`). It knows only the one spelling of each month that the
+  package writes: `जेष्ठ`, `मङ्सिर`, `पौष`, `Mangshir` and other variants are
+  refused. The year needs four digits. Month-first order (`Mangsir 8, 2083`)
+  is refused, as are abbreviated month names. A weekday may follow and is
+  checked against the date; a wrong one is an error.
+- `format_bs` patterns have ten tokens (`%Y %y %m %-m %B %d %-d %A %a %%`).
+  There is no padding control beyond these, no AD tokens and no time. `%a`
+  uses the unreviewed short weekday names. Any `style` containing `%` is
+  treated as a pattern, and an unknown token is an error.
 - **Arithmetic** (`add_days`, `add_months`, `difference`, `age`): a start or
   result inside the disputed month raises `DisputedDateError` unless
   `allow_disputed=True`; crossing it does not, because the total for the two
@@ -102,7 +120,9 @@
 
 ## Normaliser
 
-- `र्इ` typed for `ई` is not repaired.
+- `र्इ` typed for `ई` is repaired from 0.5. The rule assumes `र्` directly
+  before an independent `इ` is never intended; this was not checked against
+  a corpus. Other vowels typed the same way (`र्ई`, `र्उ`) are not touched.
 - A legacy-style short-i sign typed before its consonant is not reordered.
 - NFC decomposes `क़ ख़ ग़ ज़ ड़ ढ़ फ़ य़` (U+0958–095F) into letter + nukta. This is
   correct Unicode behaviour, but string lengths change.
@@ -124,8 +144,12 @@
 - Floats are converted through their shortest `repr`; pass strings or
   `Decimal` for money.
 - Non-strict `parse_number` accepts commas anywhere between digits (`1,2,3` → 123).
-- Ordinals (पहिलो, दोस्रो) and fractions (आधा, डेढ, साढे) are not supported,
-  in either direction.
+- **Ordinals** (0.5): `ordinal_to_words` covers 1 to 100 and gives one base
+  form. No source was consulted; 6 forms are listed by hand and 94 come from
+  a rule, of which the 32 for 59–70 and 79–98 (साठीऔँ, असीऔँ, नब्बेऔँ …) are
+  the least certain. No feminine, plural or oblique forms, nothing above
+  100, and `parse_words` does not read ordinals. See `docs/sources.md`.
+- Fractions (आधा, डेढ, साढे) are not supported, in either direction.
 - `parse_words` reads only whole spellings from the table and the listed
   alternatives. It does not correct typos, does not read digits mixed with
   words (`५ लाख`), and does not skip surrounding words: the text must be the
@@ -138,6 +162,27 @@
   single-न nineties are produced by a rule from the chosen spellings, not
   copied from a list. Some of the forms it produces may not be spellings
   anyone uses.
+
+## Aksharas
+
+- The split follows the writing, not the sound, so the count is not a spoken
+  syllable count. A final halant consonant is a unit of its own.
+- The rules are this project's own reading of the Unicode Devanagari block.
+  They have not been compared with another segmenter or with Unicode's
+  grapheme-cluster rules, and no native speaker has reviewed them.
+- Outside Devanagari the fallback is one code point plus combining marks:
+  emoji sequences and other Indic scripts' conjuncts are split.
+- Details: `docs/aksharas.md`.
+
+## Sorting
+
+- The order is one set of choices among several in use. It was checked
+  against no dictionary and is not claimed to match any. Where anusvara
+  goes, and whether `क्ष`, `त्र`, `ज्ञ` are letters, are the points most likely
+  to differ from what a reader expects.
+- Digit strings are compared digit by digit (`10` before `2`). Text is not
+  normalised before comparing.
+- Details: `docs/sorting.md`.
 
 ## Script detection
 

@@ -27,6 +27,7 @@ from .numerals import to_ascii_digits, to_devanagari_digits
 __all__ = [
     "BS_MONTHS",
     "BS_MONTHS_ROMAN",
+    "PATTERN_TOKENS",
     "WEEKDAYS",
     "WEEKDAYS_ROMAN",
     "BSDate",
@@ -285,20 +286,157 @@ def weekday_name(date: _dt.date | BSDate, *, roman: bool = False) -> str:
 
 
 _BS_PATTERN = re.compile(r"^\s*(\d{4})\s*[-/.]\s*(\d{1,2})\s*[-/.]\s*(\d{1,2})\s*$")
+_YEAR_TOKEN = re.compile(r"\d{4}")
+_DAY_TOKEN = re.compile(r"\d{1,2}")
+_YEAR_WORD = "साल"
+_DAY_WORD = "गते"
+_NAMED_FORMS = "'YYYY month D' or 'D month YYYY'"
+
+
+def _month_number(name: str) -> int | None:
+    """The month a name stands for; only the spellings in this module."""
+    if name in BS_MONTHS:
+        return BS_MONTHS.index(name) + 1
+    folded = name.casefold()
+    for number, roman in enumerate(BS_MONTHS_ROMAN, start=1):
+        if folded == roman.casefold():
+            return number
+    return None
+
+
+def _weekday_index(name: str) -> int | None:
+    if name in WEEKDAYS:
+        return WEEKDAYS.index(name)
+    folded = name.casefold()
+    for index, roman in enumerate(WEEKDAYS_ROMAN):
+        if folded == roman.casefold():
+            return index
+    return None
+
+
+def _parse_named(text: str) -> BSDate:
+    """Parse a date written with a month name. Raises rather than guesses."""
+
+    def fail(reason: str) -> ValueError:
+        return ValueError(f"not a BS date: {text!r} ({reason}); use YYYY-MM-DD or {_NAMED_FORMS}")
+
+    tokens = to_ascii_digits(text).replace(",", " ").split()
+    weekday = _weekday_index(tokens[-1]) if len(tokens) > 3 else None
+    weekday_text = tokens.pop() if weekday is not None else ""
+    # साल may follow the year and गते the day; nowhere else.
+    parts: list[str] = []
+    for token in tokens:
+        if token == _YEAR_WORD and parts and _YEAR_TOKEN.fullmatch(parts[-1]):
+            continue
+        if token == _DAY_WORD and parts and _DAY_TOKEN.fullmatch(parts[-1]):
+            continue
+        parts.append(token)
+    if len(parts) != 3:
+        raise fail("expected a year, a month name and a day")
+    first, name, last = parts
+    month = _month_number(name)
+    if month is None:
+        if _month_number(first) is not None or _month_number(last) is not None:
+            raise fail("the month name goes between the year and the day")
+        if name.isdigit():
+            raise fail("write numeric dates as YYYY-MM-DD")
+        raise fail(f"unknown month name {name!r}")
+    if _YEAR_TOKEN.fullmatch(first) and _DAY_TOKEN.fullmatch(last):
+        year, day = int(first), int(last)
+    elif _DAY_TOKEN.fullmatch(first) and _YEAR_TOKEN.fullmatch(last):
+        year, day = int(last), int(first)
+    else:
+        raise fail("the year needs four digits and the day one or two")
+    bs = BSDate(year, month, day)
+    cal = _require_valid(bs)
+    if weekday is not None:
+        # Inside the disputed span the weekday cannot be checked.
+        _check_disputed(cal, bs, False)
+        actual = (bs_to_ad(*bs).weekday() + 1) % 7
+        if actual != weekday:
+            raise ValueError(
+                f"BS {bs} is a {WEEKDAYS_ROMAN[actual]} ({WEEKDAYS[actual]}), not {weekday_text}"
+            )
+    return bs
 
 
 def parse_bs(text: str) -> BSDate:
-    """Parse ``YYYY-MM-DD`` (also ``/`` or ``.``; Devanagari digits allowed).
+    """Parse a BS date written with numbers or with a month name.
+
+    Accepted forms (Devanagari digits allowed everywhere):
+
+    * ``YYYY-MM-DD``, also with ``/`` or ``.``: ``2083-08-07``, ``२०८३/८/७``;
+    * year, month name, day: ``२०८३ मंसिर ८``, ``2083 Mangsir 8``;
+    * day, month name, year: ``8 Mangsir 2083``, ``८ मंसिर २०८३``.
+
+    Month names are the ones in :data:`BS_MONTHS` and
+    :data:`BS_MONTHS_ROMAN` (any letter case) and no other spelling. With a
+    month name, ``साल`` may follow the year, ``गते`` may follow the day, commas
+    are ignored, and a weekday name from :data:`WEEKDAYS` or
+    :data:`WEEKDAYS_ROMAN` may come last; it is checked against the date and
+    a wrong one raises ``ValueError``. The year must have four digits, so
+    ``8 Mangsir 83`` is refused rather than guessed.
 
     The result is checked against the table, so a day that does not exist
     raises :class:`DateRangeError`.
     """
     match = _BS_PATTERN.match(to_ascii_digits(text))
     if match is None:
+        if any(ch.isalpha() for ch in text):
+            return _parse_named(text)
         raise ValueError(f"not a BS date in YYYY-MM-DD form: {text!r}")
     bs = BSDate(*(int(part) for part in match.groups()))
     _require_valid(bs)
     return bs
+
+
+_PATTERN_TOKEN = re.compile(r"%(-?.|$)", re.DOTALL)
+#: The tokens :func:`format_bs` understands in a pattern.
+PATTERN_TOKENS: dict[str, str] = {
+    "%Y": "year, four digits (2083)",
+    "%y": "year, last two digits (83)",
+    "%m": "month number, two digits (08)",
+    "%-m": "month number without the leading zero (8)",
+    "%B": "month name (Mangsir, or मंसिर with devanagari=True)",
+    "%d": "day, two digits (07)",
+    "%-d": "day without the leading zero (7)",
+    "%A": "weekday name (Sombar, or सोमबार with devanagari=True)",
+    "%a": "short weekday name (Som, or सोम with devanagari=True)",
+    "%%": "a literal %",
+}
+
+
+def _format_pattern(bs: BSDate, pattern: str, devanagari: bool) -> str:
+    def digits(value: str) -> str:
+        return to_devanagari_digits(value) if devanagari else value
+
+    def replace(match: re.Match[str]) -> str:
+        token = match.group(0)
+        if token == "%Y":
+            return digits(f"{bs.year:04d}")
+        if token == "%y":
+            return digits(f"{bs.year % 100:02d}")
+        if token == "%m":
+            return digits(f"{bs.month:02d}")
+        if token == "%-m":
+            return digits(str(bs.month))
+        if token == "%d":
+            return digits(f"{bs.day:02d}")
+        if token == "%-d":
+            return digits(str(bs.day))
+        if token == "%B":
+            return month_name(bs.month, roman=not devanagari)
+        if token == "%A":
+            return weekday_name(bs, roman=not devanagari)
+        if token == "%a":
+            name = weekday_name(bs, roman=not devanagari)
+            return name.removesuffix("बार") if devanagari else name[:3]
+        if token == "%%":
+            return "%"
+        known = ", ".join(PATTERN_TOKENS)
+        raise ValueError(f"unknown token {token!r} in pattern {pattern!r}; use {known}")
+
+    return _PATTERN_TOKEN.sub(replace, pattern)
 
 
 def format_bs(
@@ -307,14 +445,22 @@ def format_bs(
     *,
     devanagari: bool = False,
 ) -> str:
-    """Format a BS date.
+    """Format a BS date with a named style or a pattern.
 
     ``style`` is ``"iso"`` (``2083-08-07``), ``"long"`` (``2083 Mangsir 7``) or
     ``"full"`` (long plus the weekday). With ``devanagari=True`` the digits and
     names are Nepali: ``२०८३ मंसिर ७, सोमबार``.
+
+    Any ``style`` containing ``%`` is a pattern instead; its tokens are listed
+    in :data:`PATTERN_TOKENS`. ``format_bs(d, "%-d %B %Y")`` gives
+    ``7 Mangsir 2083``, and with ``devanagari=True`` ``७ मंसिर २०८३``. Only the
+    tokens change with ``devanagari``; other text in the pattern is copied as
+    it is. An unknown token raises ``ValueError``.
     """
     bs = BSDate(*date)
     _require_valid(bs)
+    if "%" in style:
+        return _format_pattern(bs, style, devanagari)
     if style == "iso":
         out = str(bs)
     elif style in ("long", "full"):
@@ -322,7 +468,9 @@ def format_bs(
         if style == "full":
             out += f", {weekday_name(bs, roman=not devanagari)}"
     else:
-        raise ValueError(f"unknown style {style!r}; use 'iso', 'long' or 'full'")
+        raise ValueError(
+            f"unknown style {style!r}; use 'iso', 'long', 'full' or a pattern such as '%Y-%m-%d'"
+        )
     return to_devanagari_digits(out) if devanagari else out
 
 

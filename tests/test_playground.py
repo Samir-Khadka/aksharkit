@@ -53,12 +53,14 @@ STYLE = (SITE / "style.css").read_text("utf-8")
 #: The tools the page calls, in tab order. Preeti has a tab but no tool.
 PAGE_TOOLS = [
     "normalize",
+    "aksharas",
     "numbers",
     "words",
     "dates",
     "calendar",
     "datemath",
     "tokenize",
+    "sort",
     "detect",
     "translit",
 ]
@@ -160,10 +162,87 @@ def test_dates_both_directions() -> None:
         "ad_long": "23 November 2026, Monday",
         "fiscal_year": "2083/84",
         "fiscal_year_ne": "२०८३/८४",
+        "pattern": {"ok": True, "value": "7 Mangsir 2083, Sombar"},
+        "pattern_ne": {"ok": True, "value": "७ मंसिर २०८३, सोमबार"},
     }
-    assert result("dates", direction="ad2bs", text="2026-11-23") == expected
-    assert result("dates", direction="bs2ad", text="२०८३/८/७") == expected
-    assert result("dates", text=" २०२६-११-२३ ") == expected
+    pattern = "%-d %B %Y, %A"
+    assert result("dates", direction="ad2bs", text="2026-11-23", pattern=pattern) == expected
+    assert result("dates", direction="bs2ad", text="२०८३/८/७", pattern=pattern) == expected
+    assert result("dates", text=" २०२६-११-२३ ", pattern=pattern) == expected
+    for named in ("२०८३ मंसिर ७", "7 Mangsir 2083", "२०८३ साल मंसिर ७ गते, सोमबार"):
+        assert result("dates", direction="bs2ad", text=named, pattern=pattern) == expected
+
+
+def test_dates_pattern_rows_fail_alone() -> None:
+    for pattern in ("", "plain text", "%Q", "%"):
+        out = result("dates", text="2026-11-23", pattern=pattern)
+        assert out["bs_iso"] == "2083-08-07"
+        assert out["pattern"]["ok"] is False and out["pattern_ne"]["ok"] is False
+        assert out["pattern"]["value"]
+    out = result("dates", text="2026-11-23", pattern="%d/%m/%y (%a)")
+    assert out["pattern"] == {"ok": True, "value": "07/08/83 (Som)"}
+    assert out["pattern_ne"] == {"ok": True, "value": "०७/०८/८३ (सोम)"}
+    assert result("dates", text="2026-11-23")["pattern"]["ok"] is False  # no pattern sent
+
+
+def test_aksharas() -> None:
+    out = result("aksharas", text="नमस्ते संसार", limit="4", suffix=True)
+    assert out == {
+        "units": [
+            {"text": "न", "start": 0, "end": 1},
+            {"text": "म", "start": 1, "end": 2},
+            {"text": "स्ते", "start": 2, "end": 6},
+            {"text": " ", "start": 6, "end": 7},
+            {"text": "सं", "start": 7, "end": 9},
+            {"text": "सा", "start": 9, "end": 11},
+            {"text": "र", "start": 11, "end": 12},
+        ],
+        "count": 7,
+        "letters": 6,
+        "characters": 12,
+        "truncated": {"ok": True, "value": "नमस्ते…"},
+    }
+    assert [u["text"] for u in out["units"]] == aksharkit.aksharas("नमस्ते संसार")
+    assert result("aksharas", text="नमस्ते संसार", limit="४", suffix=False)["truncated"] == {
+        "ok": True,
+        "value": "नमस्ते ",
+    }
+    assert result("aksharas", text="नमस्ते", limit="")["truncated"]["value"] == "नमस्ते"
+    assert result("aksharas", text="नमस्ते")["truncated"]["value"] == "नमस्ते"
+    assert result("aksharas", text="नमस्ते", limit="0")["truncated"]["value"] == "…"
+    for bad in ("-1", "1.5", "two"):
+        row = result("aksharas", text="नमस्ते", limit=bad)["truncated"]
+        assert row["ok"] is False and "whole number" in row["value"]
+    assert result("aksharas") == {
+        "units": [],
+        "count": 0,
+        "letters": 0,
+        "characters": 0,
+        "truncated": {"ok": True, "value": ""},
+    }
+
+
+def test_sort() -> None:
+    text = "हात\nकमल\n\nज्ञान\n  क्षेत्र  \nकाम\nकमल"
+    out = result("sort", text=text)
+    assert out["lines"] == ["कमल", "कमल", "काम", "हात", "क्षेत्र", "ज्ञान"]
+    assert out["text"] == "\n".join(out["lines"])
+    assert out["count"] == 6
+    assert out["lines"] == aksharkit.sorted_nepali(["हात", "कमल", "ज्ञान", "क्षेत्र", "काम", "कमल"])
+    under = result("sort", text=text, conjunct_letters=False, unique=True)
+    assert under["lines"] == ["कमल", "काम", "क्षेत्र", "ज्ञान", "हात"]
+    assert result("sort", text=text, reverse=True)["lines"] == out["lines"][::-1]
+    assert result("sort") == {"text": "", "lines": [], "count": 0}
+    assert result("sort", text=" \n\n ")["count"] == 0
+
+
+def test_numbers_ordinal_row() -> None:
+    assert result("numbers", text="1", ordinal="5")["ordinal"] == {"ok": True, "value": "पाँचौँ"}
+    assert result("numbers", text="1", ordinal=" १०० ")["ordinal"]["value"] == "सयौँ"
+    for bad in ("", "0", "101", "1.5", "five", "-2"):
+        row = result("numbers", text="1", ordinal=bad)["ordinal"]
+        assert row["ok"] is False and row["value"], bad
+    assert result("numbers", text="1")["ordinal"]["ok"] is False
 
 
 @pytest.mark.parametrize(
@@ -455,15 +534,19 @@ def test_archive_works_alone_without_an_installed_package(built: Path, tmp_path:
         "import aksharkit; assert aksharkit.__file__.startswith(sys.argv[1]), aksharkit.__file__; "
         "sys.stdout.reconfigure(encoding='utf-8'); "
         "print(g.run('info', '{}')); print(g.run('dates', sys.argv[2])); "
-        "print(g.run('translit', sys.argv[3]))"
+        "print(g.run('translit', sys.argv[3])); print(g.run('aksharas', sys.argv[3])); "
+        "print(g.run('sort', sys.argv[4]))"
     )
     done = subprocess.run(
         [sys.executable, "-S", "-E", "-c", code, str(target),
-         json.dumps({"text": "2026-11-23"}), json.dumps({"text": "नेपाल"})],
+         json.dumps({"text": "2026-11-23"}), json.dumps({"text": "नेपाल"}),
+         json.dumps({"text": "ज्ञ\nक"})],
         capture_output=True, encoding="utf-8", check=False,
     )  # fmt: skip
     assert done.returncode == 0, done.stderr
-    info, date, roman = (json.loads(line) for line in done.stdout.splitlines())
+    info, date, roman, units, ordered = (json.loads(line) for line in done.stdout.splitlines())
+    assert units["result"]["count"] == 3
+    assert ordered["result"]["lines"] == ["क", "ज्ञ"]
     assert info["result"]["version"] == aksharkit.__version__
     assert date["result"]["bs_iso"] == "2083-08-07"
     assert roman["result"]["text"] == "nepāla"
@@ -525,6 +608,7 @@ def test_every_output_the_script_writes_has_a_place_on_the_page() -> None:
     row_tools = {
         "numbers": result("numbers", text="1"),
         "dates": result("dates", text="2026-11-23"),
+        "aksharas": {"truncated": None},
         "words": result("words", text="एक"),
         "datemath": result("datemath", text="2083-08-07"),
     }
@@ -534,6 +618,8 @@ def test_every_output_the_script_writes_has_a_place_on_the_page() -> None:
     for key in ("calendar.title", "calendar.span", "calendar.text"):
         assert key in outs
     for key in ("detect.script", "detect.shares", "detect.romanised"):
+        assert key in outs
+    for key in ("aksharas.count", "sort.text", "sort.count"):
         assert key in outs
     for key in re.findall(r'data-copy="([a-z_.]+)"', INDEX):
         assert key in outs, key
@@ -545,11 +631,16 @@ def test_every_output_the_script_writes_has_a_place_on_the_page() -> None:
 def test_every_result_can_be_copied() -> None:
     copies = set(re.findall(r'data-copy="([a-z_.]+)"', INDEX))
     outputs = re.findall(r'<output\b[^>]*data-out="([a-z_.]+)"', INDEX)
-    assert len(outputs) >= 30
+    assert len(outputs) >= 35
     # The calendar title and span are captions; the grid is copied as calendar.text.
     assert set(outputs) - copies == {"calendar.title", "calendar.span"}
     lists = re.findall(r'data-copy-list="([a-z-]+)"', INDEX)
-    assert sorted(lists) == ["out-detect-tokens", "out-tokenize-sentences", "out-tokenize-tokens"]
+    assert sorted(lists) == [
+        "out-aksharas-units",
+        "out-detect-tokens",
+        "out-tokenize-sentences",
+        "out-tokenize-tokens",
+    ]
     assert set(lists) <= set(_ids())
     for button in re.findall(r'<button type="button" class="copy"[^>]*>', INDEX):
         assert "aria-label=" in button, button
@@ -573,26 +664,47 @@ def test_examples_fill_real_inputs() -> None:
         ("dates", "in-dates"),
         ("calendar", "in-calendar"),
         ("datemath", "in-datemath"),
+        ("aksharas", "in-aksharas"),
+        ("sort", "in-sort"),
     ],
 )
 def test_examples_are_accepted_by_the_library(tool: str, target: str) -> None:
     values = re.findall(rf'data-example="{target}" data-value="([^"]+)"', INDEX)
     assert values
     for value in values:
-        assert call(tool, text=value)["ok"], (tool, value)
+        assert call(tool, text=value.replace("&#10;", "\n"))["ok"], (tool, value)
+
+
+def test_sort_examples_have_one_item_per_line() -> None:
+    values = re.findall(r'data-example="in-sort" data-value="([^"]+)"', INDEX)
+    assert len(values) == 3
+    differ = 0
+    for value in values:
+        lines = value.split("&#10;")
+        assert len(lines) >= 8
+        assert result("sort", text="\n".join(lines))["count"] == len(lines)
+        differ += sorted(lines) != aksharkit.sorted_nepali(lines)
+    assert differ >= 2  # most examples show what a code-point sort gets wrong
 
 
 def test_devanagari_output_is_marked_as_nepali() -> None:
     for tag in re.findall(r"<output\b[^>]*>", INDEX):
         key = re.search(r'data-out="([a-z_.]+)"', tag)
         assert key is not None
-        nepali = key.group(1).endswith(("_ne", "devanagari", ".words", ".currency", ".respelt"))
-        if nepali or key.group(1) == "normalize.text":
+        nepali = key.group(1).endswith(
+            ("_ne", "devanagari", ".words", ".currency", ".respelt", ".ordinal", ".truncated")
+        )
+        if nepali or key.group(1) in ("normalize.text", "sort.text"):
             assert 'lang="ne"' in tag, tag
     # Outputs whose script depends on the input get their lang from the script.
     assert 'setAttribute("lang", r.lang)' in APP
     assert 'chip.setAttribute("lang", "ne")' in APP
-    for list_id in ("out-tokenize-tokens", "out-tokenize-sentences"):
+    for list_id in (
+        "out-tokenize-tokens",
+        "out-tokenize-sentences",
+        "out-aksharas-units",
+        "out-sort-lines",
+    ):
         assert re.search(rf'id="{list_id}"[^>]*lang="ne"', INDEX)
 
 
@@ -600,6 +712,8 @@ def test_state_lives_in_the_address_and_nowhere_else() -> None:
     assert "history.replaceState" in APP
     assert "location.hash" in APP
     assert "hashchange" in APP
+    # An edit only rewrites the address while its own tab is on screen.
+    assert "if (fromUser && tool === currentTabName()) {" in APP
     for word in ("sessionStorage", "indexedDB", "document.cookie", "sendBeacon", "XMLHttpRequest"):
         assert word not in APP, word
     assert APP.count("fetch(") == 1  # only the package archive

@@ -2,21 +2,23 @@
 
 [![CI](https://github.com/Samir-Khadka/aksharkit/actions/workflows/ci.yml/badge.svg)](https://github.com/Samir-Khadka/aksharkit/actions/workflows/ci.yml)
 
-> **Status: pre-release (0.4.0).** Not yet published to PyPI.
+> **Status: pre-release (0.5.0).** Not yet published to PyPI.
 
 A small, typed, dependency-free Python toolkit for everyday Nepali text
-chores: cleaning Unicode, converting and formatting numbers, spelling numbers
-in words and reading them back, splitting text into words and sentences,
-telling scripts apart, converting dates between Bikram Sambat (BS) and AD and
-doing arithmetic on them, and writing Devanagari in Roman letters and back.
+chores: cleaning Unicode, splitting text into aksharas (written syllables),
+sorting in Devanagari alphabetical order, converting and formatting numbers,
+spelling numbers in words and reading them back, splitting text into words
+and sentences, telling scripts apart, converting dates between Bikram Sambat
+(BS) and AD, formatting and doing arithmetic on them, and writing Devanagari
+in Roman letters and back.
 
 ## Why aksharkit
 
 - **Zero runtime dependencies.** Standard library only.
 - **Typed.** Ships `py.typed`; the source, tests and playground glue pass
   `mypy --strict`.
-- **Tested.** 1,935 pytest tests passed on the last local run
-  (24 November 2026, Python 3.12), plus 14 Node tests of the playground
+- **Tested.** 2,217 pytest tests passed on the last local run
+  (24 November 2026, Python 3.12), plus 17 Node tests of the playground
   script. CI runs the suite on Python 3.10 to 3.13.
 - **Refuses rather than guesses.** Dates outside the checked calendar table,
   a disputed month, unreadable number words and the unverified Preeti table
@@ -34,10 +36,11 @@ and nothing you type is sent anywhere. Each result has a copy button, each
 tab has examples to tap, and "Copy a link to this result" puts what you typed
 in the address after `#`, which browsers do not send to the server.
 
-The 0.3.0 page was checked once in a desktop browser on 24 November 2026.
-The 0.4.0 page has only been checked for layout and wiring in a headless
-browser with the Python side stubbed; real phones and screen readers are
-untested, see [docs/known-issues.md](docs/known-issues.md).
+The 0.3.0 and 0.4.0 pages were each checked once in a desktop browser on
+24 November 2026. The parts added in 0.5.0 (Aksharas, Sort, ordinals, date
+patterns) have not been opened in a browser yet. Real phones and screen
+readers are untested for every version, see
+[docs/known-issues.md](docs/known-issues.md).
 
 ## The problem
 
@@ -86,18 +89,22 @@ No accuracy comparison with other packages has been made. None is claimed.
 
 | Module | Status | Notes |
 | --- | --- | --- |
-| `normalize` | Done | NFC, split vowels, duplicate signs, ZWJ/ZWNJ policy, whitespace, danda repair |
+| `normalize` | Done | NFC, split vowels, `र्इ` → `ई` (0.5), duplicate signs, ZWJ/ZWNJ policy, whitespace, danda repair |
+| `akshara` | Done (0.5), rules unreviewed | Splits text into written syllables with offsets; count; truncate without cutting a syllable. Orthographic, not phonetic. See [docs/aksharas.md](docs/aksharas.md) |
+| `collate` (sorting) | Done (0.5), order awaits native-speaker review | `sort_key`, `sorted_nepali`. One documented set of choices; dictionaries differ and no named dictionary is matched. See [docs/sorting.md](docs/sorting.md) |
 | `numerals` | Done | Devanagari ↔ ASCII digits, 3-2-2 grouping, parsing to `int`/`Decimal` |
 | `words` | Done, awaiting native-speaker review of spellings | 0 to 99,99,99,99,99,999; negatives, decimals, rupees and paisa |
+| `words.ordinal_to_words` | Done for 1–100 (0.5), awaiting native-speaker review | Base form only (पहिलो … सयौँ); no source consulted, all 100 forms listed in [docs/sources.md](docs/sources.md) |
 | `words.parse_words` (words → number) | Done (0.4), same table and range | Reads everything `number_to_words` and `currency_to_words` write, plus 47 listed alternative spellings; rejects anything else |
 | `detect` | Done (0.4) | Script of a character, token or text by Unicode range, with shares. Does **not** identify the language. `looks_romanised_nepali` is an unmeasured word-list heuristic |
 | `tokens` | Done | Word tokeniser with offsets, sentence splitter |
 | `stopwords` | Done, awaiting review | Short hand-written list |
 | `dates` (BS ↔ AD) | Done for BS 2000–2083 (14 April 1943 to 13 April 2027) | Five published tables compared; one month of 2062 is disputed and refused by default; names await review |
+| `dates` patterns and month names | Done (0.5), same range and guards | `format_bs(date, "%-d %B %Y")`; `parse_bs("२०८३ मंसिर ८")`. Only the package's own month spellings are read |
 | `dates` arithmetic | Done (0.4), same range and guards | `add_days`, `add_months`, `days_between`, `difference`, `age`, `month_calendar`, `format_month_calendar` |
 | `translit` | Done; `simple` spellings await native-speaker review | `iast`: exact and reversible. `simple`: plain ASCII, rule-based and approximate, especially Roman → Devanagari |
 | `legacy` (Preeti) | **Planned — raises `DataNotVerifiedError`** | Loader and API exist; glyph table is empty |
-| Browser playground (`site/`) | 0.3.0 is live and was checked once in a desktop browser (24 Nov 2026); 0.4.0 is deployed (24 Nov 2026) but has not yet been checked in a real browser | 0.4 adds Words to number, Calendar, Date maths and Detect tabs, copy buttons, examples and shareable links; Preeti shown as coming soon |
+| Browser playground (`site/`) | 0.4.0 is live and was checked once in a desktop browser on 24 Nov 2026, phone untested; the 0.5 additions have not been opened in a browser | 0.4 added Words to number, Calendar, Date maths and Detect tabs, copy buttons, examples and shareable links; 0.5 adds Aksharas and Sort tabs, ordinals and date patterns; Preeti shown as coming soon |
 | Spell check | Planned | Roadmap phase 5 |
 | JavaScript port | Planned | Roadmap phase 6 |
 
@@ -119,10 +126,23 @@ ak.format_number(1234567)  # '12,34,567'
 ak.format_number("1234567.5", devanagari=True)  # '१२,३४,५६७.५'
 ak.parse_number("१२,३४,५६७")  # 1234567
 
+ak.aksharas("नमस्ते")  # ['न', 'म', 'स्ते']
+ak.aksharas("विद्यार्थी")  # ['वि', 'द्या', 'र्थी']
+ak.akshara_count("काठमाडौँ उपत्यका")  # 9   (the space counts; skip_whitespace=True gives 8)
+ak.truncate("विद्यार्थीहरू विद्यालय गए", 6, suffix="…")  # 'विद्यार्थीहरू…'
+
+ak.sorted_nepali(["हात", "कमल", "ज्ञान", "क्षेत्र", "काम", "अंक", "अक", "आमा", "त्रिशूल", "तारा"])
+# ['अंक', 'अक', 'आमा', 'कमल', 'काम', 'तारा', 'हात', 'क्षेत्र', 'त्रिशूल', 'ज्ञान']
+ak.sorted_nepali(["हात", "क्षेत्र", "कमल", "ज्ञान"], conjunct_letters=False)
+# ['कमल', 'क्षेत्र', 'ज्ञान', 'हात']
+
 ak.number_to_words(125000)  # 'एक लाख पच्चिस हजार'
 ak.number_to_words("12.5")  # 'बाह्र दशमलव पाँच'
 ak.currency_to_words("1250.50", only=True)
 # 'एक हजार दुई सय पचास रुपैयाँ पचास पैसा मात्र'
+
+ak.ordinal_to_words(1)  # 'पहिलो'
+ak.ordinal_to_words(21)  # 'एक्काइसौँ'   (1 to 100; forms await native-speaker review)
 
 ak.parse_words("एक लाख पच्चिस हजार")  # 125000
 ak.parse_words("एक लाख पच्चीस हजार")  # 125000   (listed alternative spelling)
@@ -145,6 +165,10 @@ import datetime
 ak.ad_to_bs(datetime.date(2026, 11, 23))  # BSDate(year=2083, month=8, day=7)
 ak.bs_to_ad(2083, 8, 7)  # datetime.date(2026, 11, 23)
 ak.format_bs((2083, 8, 7), "full", devanagari=True)  # '२०८३ मंसिर ७, सोमबार'
+ak.format_bs((2083, 8, 8), "%-d %B %Y, %A", devanagari=True)  # '८ मंसिर २०८३, मङ्गलबार'
+ak.format_bs((2083, 8, 8), "%d/%m/%y (%a)")  # '08/08/83 (Man)'
+ak.parse_bs("२०८३ मंसिर ८")  # BSDate(year=2083, month=8, day=8)
+ak.parse_bs("8 Mangsir 2083")  # BSDate(year=2083, month=8, day=8)
 ak.fiscal_year(datetime.date(2026, 11, 23))  # '2083/84'
 
 ak.add_days((2083, 8, 7), 30)  # BSDate(year=2083, month=9, day=8)
@@ -170,6 +194,25 @@ reproduce customary spellings (काठमाडौँ gives `kathamadaun`, not
 and reading it back is a guess: `nepal` becomes नेपल, because a single `a`
 is always the short vowel. See [docs/transliteration.md](docs/transliteration.md).
 
+**Aksharas follow the writing, not the sound.** `नमस्ते` is `न`, `म`, `स्ते`,
+and a final halant consonant (`न्` in `श्रीमान्`) is a unit of its own. The rules
+are this project's own and are set out, with their limits, in
+[docs/aksharas.md](docs/aksharas.md).
+
+**The sort order is one set of choices.** Dictionaries differ on where
+anusvara goes and on whether `क्ष`, `त्र`, `ज्ञ` are letters of their own.
+[docs/sorting.md](docs/sorting.md) lists every choice made here. The order
+has not been checked against any dictionary and is not claimed to match one.
+
+**Ordinals are unreviewed.** `ordinal_to_words` covers 1 to 100 in one base
+form. Six forms are listed by hand and the rest come from a rule; no source
+was consulted. The forms for 59–70 and 79–98 (`साठीऔँ`, `असीऔँ` …) are the least
+certain.
+
+**Date patterns** use `%Y %y %m %-m %B %d %-d %A %a %%`; anything else after
+a `%` is an error. `parse_bs` reads a month name only in the spelling the
+package itself writes, and refuses two-digit years and month-first order.
+
 **`parse_words` is strict.** It reads the spellings in the package's table
 and the alternatives listed in [docs/sources.md](docs/sources.md), and raises
 `ValueError` naming the word it could not read. It does not correct typos and
@@ -193,6 +236,20 @@ $ aksharkit words 125000
 एक लाख पच्चिस हजार
 $ aksharkit words --currency --only 1250.50
 एक हजार दुई सय पचास रुपैयाँ पचास पैसा मात्र
+$ aksharkit words --ordinal 5
+पाँचौँ
+$ aksharkit aksharas नमस्ते --sep " | "
+न | म | स्ते
+$ aksharkit aksharas --count "काठमाडौँ उपत्यका"
+9
+$ aksharkit aksharas --truncate 6 --suffix … "विद्यार्थीहरू विद्यालय गए"
+विद्यार्थीहरू…
+$ printf 'हात\nकमल\nज्ञान\nक्षेत्र\nकाम\n' | aksharkit sort
+कमल
+काम
+हात
+क्षेत्र
+ज्ञान
 $ aksharkit number "एक लाख पच्चीस हजार"
 125000
 $ aksharkit number --group "बाह्र लाख पचास हजार"
@@ -212,6 +269,10 @@ $ aksharkit date --style full --devanagari 2026-11-23
 २०८३ मंसिर ७, सोमबार
 $ aksharkit date --to ad 2083-08-07
 2026-11-23
+$ aksharkit date --to ad "२०८३ मंसिर ८"
+2026-11-24
+$ aksharkit date 2026-11-24 --pattern "%-d %B %Y, %A" --devanagari
+८ मंसिर २०८३, मङ्गलबार
 $ aksharkit date --fiscal-year 2026-11-23
 2083/84
 $ aksharkit date --calendar 2083-08
@@ -254,6 +315,9 @@ Words to number is its own command, `aksharkit number`, rather than
 `words --reverse`: its input is text, and it takes `--devanagari` and
 `--group` for the number it prints. `--add-days`, `--add-months`, `--until`
 and `--age` take a BS date; `--calendar` columns are separated by tabs.
+`aksharkit aksharas` prints one akshara per line unless `--sep` is given;
+`aksharkit sort` reads one item per line from standard input (or from one
+argument holding the lines).
 
 Exit codes: `0` success, `2` bad input, `3` feature not available yet.
 
@@ -280,8 +344,10 @@ script runs in `.github/workflows/pages.yml`. If Node.js is installed,
 ## Further reading
 
 - [docs/normalisation.md](docs/normalisation.md) — exactly what `normalize` changes
+- [docs/aksharas.md](docs/aksharas.md) — the akshara rules and their limits
+- [docs/sorting.md](docs/sorting.md) — the sort order, choice by choice
 - [docs/transliteration.md](docs/transliteration.md) — both schemes, the exact rules, what `simple` gets wrong, spellings awaiting review
-- [docs/sources.md](docs/sources.md) — where the number words and the calendar table come from, spelling decisions, Preeti source research
+- [docs/sources.md](docs/sources.md) — where the number words and the calendar table come from, spelling decisions, the 100 ordinal forms for review, Preeti source research
 - [docs/known-issues.md](docs/known-issues.md) — current limits
 - [ROADMAP.md](ROADMAP.md)
 - [CHANGELOG.md](CHANGELOG.md)

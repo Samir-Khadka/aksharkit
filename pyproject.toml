@@ -4,14 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aksharkit"
-version = "0.4.0"
-description = "Typed, zero-dependency building blocks for Nepali text: normalisation, numerals, number words, tokenisation, Bikram Sambat dates, transliteration."
+version = "0.5.0"
+description = "Typed, zero-dependency building blocks for Nepali text: normalisation, akshara segmentation, sorting, numerals, number words, tokenisation, Bikram Sambat dates, transliteration."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "Samir Khadka" }]
-keywords = ["nepali", "devanagari", "nlp", "unicode", "numerals", "tokenizer", "bikram-sambat", "calendar", "transliteration"]
+keywords = ["nepali", "devanagari", "nlp", "unicode", "akshara", "syllable", "collation", "numerals", "tokenizer", "bikram-sambat", "calendar", "transliteration"]
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
     "Intended Audience :: Developers",

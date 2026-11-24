@@ -16,10 +16,13 @@ from .numerals import Number, to_decimal
 __all__ = [
     "ALTERNATIVE_SPELLINGS",
     "MAX_INTEGER",
+    "MAX_ORDINAL",
+    "ORDINALS_IRREGULAR",
     "UNITS",
     "currency_to_words",
     "integer_to_words",
     "number_to_words",
+    "ordinal_to_words",
     "parse_words",
 ]
 
@@ -141,6 +144,52 @@ def currency_to_words(value: Number, *, only: bool = False) -> str:
     if only:
         words = f"{words} {_ONLY}"
     return words
+
+
+# --- ordinals ---------------------------------------------------------------
+
+#: Largest ordinal :func:`ordinal_to_words` spells.
+MAX_ORDINAL = 100
+
+#: Ordinals that do not follow the regular rule. See docs/sources.md.
+ORDINALS_IRREGULAR: dict[int, str] = {
+    1: "पहिलो",
+    2: "दोस्रो",
+    3: "तेस्रो",
+    4: "चौथो",
+    6: "छैटौँ",
+    9: "नवौँ",
+}
+
+_ORDINAL_SIGN = "ौँ"  # after a consonant: सात -> सातौँ
+_ORDINAL_LETTER = "औँ"  # after a vowel sign: साठी -> साठीऔँ
+
+
+def _is_consonant(ch: str) -> bool:
+    return "\u0915" <= ch <= "\u0939"
+
+
+def ordinal_to_words(value: int) -> str:
+    """Spell an ordinal from 1 to 100 in Nepali: ``5`` -> ``"पाँचौँ"``.
+
+    1, 2, 3, 4, 6 and 9 have forms of their own (:data:`ORDINALS_IRREGULAR`).
+    Every other ordinal is the cardinal from :data:`UNITS` (``सय`` for 100)
+    plus the ending ``-औँ``: written as the sign ``ौँ`` on a final consonant
+    (``बिस`` -> ``बिसौँ``) and as the letter ``औँ`` after a final vowel sign
+    (``साठी`` -> ``साठीऔँ``).
+
+    Only this base form is given. It is the form used with a masculine
+    singular noun; the function says nothing about other inflections.
+    """
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise TypeError("ordinal_to_words expects an int")
+    if not 1 <= value <= MAX_ORDINAL:
+        raise ValueError(f"ordinals are implemented for 1 to {MAX_ORDINAL} only, not {value}")
+    if value in ORDINALS_IRREGULAR:
+        return ORDINALS_IRREGULAR[value]
+    cardinal = "सय" if value == MAX_ORDINAL else UNITS[value]
+    ending = _ORDINAL_SIGN if _is_consonant(cardinal[-1]) else _ORDINAL_LETTER
+    return cardinal + ending
 
 
 # --- words to numbers -------------------------------------------------------

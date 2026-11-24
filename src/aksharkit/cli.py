@@ -11,11 +11,13 @@ from collections.abc import Sequence
 
 from . import __version__, dates, detect, legacy
 from ._errors import DataNotVerifiedError
+from .akshara import akshara_count, akshara_spans, truncate
+from .collate import sorted_nepali
 from .normalize import normalize
 from .numerals import format_number, to_ascii_digits, to_devanagari_digits
 from .tokens import sentences, tokenize
 from .translit import SCHEMES, to_devanagari, to_roman
-from .words import currency_to_words, number_to_words, parse_words
+from .words import currency_to_words, number_to_words, ordinal_to_words, parse_words
 
 __all__ = ["build_parser", "main"]
 
@@ -52,6 +54,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("number", nargs="?")
     p.add_argument("--currency", action="store_true", help="rupees and paisa")
     p.add_argument("--only", action="store_true", help="append मात्र (with --currency)")
+    p.add_argument("--ordinal", action="store_true", help="first, second, ... (1 to 100)")
 
     p = sub.add_parser("number", help="read a number written in Nepali words")
     p.add_argument("text", nargs="?")
@@ -71,6 +74,30 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--sentences", action="store_true")
     p.add_argument("--json", action="store_true", help="print a JSON array")
 
+    p = sub.add_parser(
+        "aksharas",
+        help="split into aksharas (written syllables), one per line",
+    )
+    p.add_argument("text", nargs="?")
+    p.add_argument("--count", action="store_true", help="print the number of aksharas")
+    p.add_argument("--truncate", type=int, metavar="N", help="keep the first N aksharas")
+    p.add_argument("--suffix", default="", help="text to add after a cut (with --truncate)")
+    p.add_argument("--sep", metavar="TEXT", help="join with TEXT instead of one per line")
+    p.add_argument("--json", action="store_true", help="print text and offsets as JSON")
+
+    p = sub.add_parser(
+        "sort",
+        help="sort lines in Nepali alphabetical order (see docs/sorting.md)",
+    )
+    p.add_argument("text", nargs="?", help="lines to sort; '-' reads standard input")
+    p.add_argument("--reverse", action="store_true")
+    p.add_argument("--unique", action="store_true", help="drop repeated lines")
+    p.add_argument(
+        "--conjuncts-under-first",
+        action="store_true",
+        help="file क्ष, त्र, ज्ञ under क, त, ज instead of after ह",
+    )
+
     p = sub.add_parser("convert", help="legacy font to Unicode (not available yet)")
     p.add_argument("font", choices=legacy.SUPPORTED_FONTS)
     p.add_argument("text", nargs="?")
@@ -88,9 +115,18 @@ def build_parser() -> argparse.ArgumentParser:
         "date",
         help="convert a date between AD and BS (default: AD to BS; no DATE means today)",
     )
-    p.add_argument("date", nargs="?", help="YYYY-MM-DD; '-' reads standard input")
+    p.add_argument(
+        "date",
+        nargs="?",
+        help="YYYY-MM-DD ('-' reads standard input); a BS date may use a month name",
+    )
     p.add_argument("--to", choices=("bs", "ad"), default="bs", help="target calendar")
     p.add_argument("--style", choices=("iso", "long", "full"), default="iso")
+    p.add_argument(
+        "--pattern",
+        metavar="PATTERN",
+        help="format a BS result with tokens: %%Y %%y %%m %%-m %%B %%d %%-d %%A %%a %%%%",
+    )
     p.add_argument("--devanagari", action="store_true", help="Nepali digits and names")
     p.add_argument("--fiscal-year", action="store_true", help="print the fiscal year instead")
     p.add_argument("--calendar", metavar="YYYY-MM", help="print a BS month as a grid")
@@ -121,6 +157,13 @@ def _run(args: argparse.Namespace) -> str:
         return format_number(_read(args.number), devanagari=args.devanagari)
     if command == "words":
         number = _read(args.number)
+        if args.ordinal:
+            if args.currency or args.only:
+                raise ValueError("--ordinal cannot be combined with --currency or --only")
+            digits = to_ascii_digits(number).strip()
+            if not digits.isdigit():
+                raise ValueError(f"not a whole number: {number!r}")
+            return ordinal_to_words(int(digits))
         if args.currency:
             return currency_to_words(number, only=args.only)
         return number_to_words(number)
@@ -137,6 +180,16 @@ def _run(args: argparse.Namespace) -> str:
         if args.json:
             return json.dumps(items, ensure_ascii=False)
         return "\n".join(items)
+    if command == "aksharas":
+        return _run_aksharas(args)
+    if command == "sort":
+        lines = _read(args.text).splitlines()
+        if args.unique:
+            lines = list(dict.fromkeys(lines))
+        ordered = sorted_nepali(
+            lines, reverse=args.reverse, conjunct_letters=not args.conjuncts_under_first
+        )
+        return "\n".join(ordered)
     if command == "convert":
         return legacy.to_unicode(_read(args.text), args.font)
     if command == "translit":
@@ -145,6 +198,31 @@ def _run(args: argparse.Namespace) -> str:
     if command == "date":
         return _run_date(args)
     raise AssertionError(f"unhandled command {command!r}")  # pragma: no cover
+
+
+def _run_aksharas(args: argparse.Namespace) -> str:
+    text = _read(args.text)
+    if args.truncate is not None:
+        if args.count or args.json or args.sep is not None:
+            raise ValueError("--truncate cannot be combined with --count, --json or --sep")
+        return truncate(text, args.truncate, suffix=args.suffix)
+    if args.suffix:
+        raise ValueError("--suffix needs --truncate")
+    if args.count:
+        return str(akshara_count(text))
+    units = akshara_spans(text)
+    if args.json:
+        rows = [{"text": unit.text, "start": unit.start, "end": unit.end} for unit in units]
+        return json.dumps(rows, ensure_ascii=False)
+    separator = "\n" if args.sep is None else args.sep
+    return separator.join(unit.text for unit in units)
+
+
+def _format_bs(bs: dates.BSDate, args: argparse.Namespace) -> str:
+    style = args.style if args.pattern is None else args.pattern
+    if args.pattern is not None and "%" not in args.pattern:
+        raise ValueError(f"--pattern has no % token: {args.pattern!r}")
+    return dates.format_bs(bs, style, devanagari=args.devanagari)
 
 
 def _run_detect(args: argparse.Namespace) -> str:
@@ -198,7 +276,7 @@ def _run_date_tools(args: argparse.Namespace) -> str | None:
             bs = dates.add_months(bs, args.add_months, allow_disputed=allow)
         if args.add_days is not None:
             bs = dates.add_days(bs, args.add_days, allow_disputed=allow)
-        return dates.format_bs(bs, args.style, devanagari=args.devanagari)
+        return _format_bs(bs, args)
     end = dates.parse_bs(args.until) if args.until else dates.today_bs()
     gap = dates.difference(bs, end, allow_disputed=allow)
     if args.age:
@@ -214,6 +292,8 @@ def _run_date(args: argparse.Namespace) -> str:
     tool = _run_date_tools(args)
     if tool is not None:
         return tool
+    if args.pattern is not None and (args.to == "ad" or args.fiscal_year):
+        raise ValueError("--pattern formats BS dates only")
     if args.to == "ad":
         if args.date is None:
             raise ValueError("a BS date is required with --to ad")
@@ -239,7 +319,7 @@ def _run_date(args: argparse.Namespace) -> str:
         bs = dates.ad_to_bs(ad, allow_disputed=allow)
     if args.fiscal_year:
         return dates.fiscal_year(bs, devanagari=args.devanagari)
-    return dates.format_bs(bs, args.style, devanagari=args.devanagari)
+    return _format_bs(bs, args)
 
 
 def main(argv: Sequence[str] | None = None) -> int:

@@ -10,11 +10,12 @@ gives the same string as normalising once.
 | 2 | Remove invisible characters: zero-width space, word joiner, BOM, soft hyphen | |
 | 3 | Unicode NFC | `न` + nukta → `ऩ` |
 | 4 | Repair split vowels | `अ` + `ा` → `आ`; `ा` + `े` → `ो` |
-| 5 | Collapse an immediately repeated combining sign | `किि` → `कि` |
-| 6 | Whitespace: CRLF → LF, tabs and no-break spaces → space, runs collapsed, ends trimmed. Line breaks are kept | |
-| 7 | Danda repair | `छ|` → `छ।`; `।।` → `॥` |
+| 5 | Repair `र्इ` typed for `ई` (added in 0.5, see below) | `र्इश्वर` → `ईश्वर` |
+| 6 | Collapse an immediately repeated combining sign | `किि` → `कि` |
+| 7 | Whitespace: CRLF → LF, tabs and no-break spaces → space, runs collapsed, ends trimmed. Line breaks are kept | |
+| 8 | Danda repair | `छ|` → `छ।`; `।।` → `॥` |
 
-Steps 2 and 6 are skipped with `whitespace=False`; step 7 with `danda=False`.
+Steps 2 and 7 are skipped with `whitespace=False`; step 8 with `danda=False`.
 
 ## Joiner policies
 
@@ -31,6 +32,17 @@ sometimes meaningful: `र्‍य` (as in र्‍याल) needs its ZWJ.
 
 `अ+ा→आ`, `अ+ो→ओ`, `अ+ौ→औ`, `आ+े→ओ`, `आ+ै→औ`, `ए+े→ऐ`, `उ+ु→ऊ`,
 `ा+े→ो`, `ा+ै→ौ`, `ा+ॅ→ॉ`.
+
+## `र्इ` for `ई`
+
+`ई` is sometimes typed as `र` + virama + `इ`, which many fonts draw the same
+way (a reph over `इ`). `repair_reph_i` replaces that sequence with `ई`.
+
+It is left alone when the `र` is itself the second part of a conjunct
+(`क्र्इ`), or when a ZWJ or ZWNJ sits between the virama and the `इ`. The rule
+assumes that `र्` directly before an independent `इ` is never intended in
+Nepali text; that was not checked against a corpus. Call the other steps
+yourself if you need to keep such a sequence.
 
 ## What it deliberately leaves alone
 

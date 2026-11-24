@@ -259,3 +259,86 @@ Roman: the first three letters of the names already in the package (Aai,
 Som, Man, Bud, Bih, Shu, Sha). Devanagari: the names without बार (आइत, सोम,
 मङ्गल, बुध, बिही, शुक्र, शनि). Both are this project's own shortening and are
 unreviewed.
+
+## Ordinals 1–100 (`ordinal_to_words`, added in 0.5)
+
+**No source was consulted.** The forms below were written from general
+knowledge and by one rule, and every one of them needs a native speaker's
+eye before it is relied on.
+
+- Six forms are listed by hand: पहिलो (1), दोस्रो (2), तेस्रो (3), चौथो (4),
+  छैटौँ (6), नवौँ (9).
+- Every other form is the package's cardinal plus the ending: the sign `ौँ`
+  when the cardinal ends in a consonant (पाँच → पाँचौँ, दस → दसौँ, सय → सयौँ),
+  and the letter `औँ` when it ends in a vowel sign (साठी → साठीऔँ, असी →
+  असीऔँ, नब्बे → नब्बेऔँ). That second case covers 32 numbers, 59–70 and
+  79–98, and is the part least likely to be right: forms such as साठीऔँ,
+  सत्तरीऔँ, असीऔँ and नब्बेऔँ may well be written differently in practice.
+- The ending is spelt with candrabindu (`-औँ`), not anusvara (`-औं`).
+- Each form inherits the cardinal's spelling, so the open choices in
+  section 1 carry over (दसौँ rather than दशौँ, बिसौँ rather than बीसौँ,
+  उनान्सयौँ for 99).
+- Only this one base form is produced. Nothing is claimed about feminine,
+  plural or oblique forms (पहिली, पहिला and so on), and ordinals are not read
+  back by `parse_words`.
+
+| | | | | |
+| --- | --- | --- | --- | --- |
+| 1 पहिलो | 2 दोस्रो | 3 तेस्रो | 4 चौथो | 5 पाँचौँ |
+| 6 छैटौँ | 7 सातौँ | 8 आठौँ | 9 नवौँ | 10 दसौँ |
+| 11 एघारौँ | 12 बाह्रौँ | 13 तेह्रौँ | 14 चौधौँ | 15 पन्ध्रौँ |
+| 16 सोह्रौँ | 17 सत्रौँ | 18 अठारौँ | 19 उन्नाइसौँ | 20 बिसौँ |
+| 21 एक्काइसौँ | 22 बाइसौँ | 23 तेइसौँ | 24 चौबिसौँ | 25 पच्चिसौँ |
+| 26 छब्बिसौँ | 27 सत्ताइसौँ | 28 अट्ठाइसौँ | 29 उनन्तिसौँ | 30 तिसौँ |
+| 31 एकतिसौँ | 32 बत्तिसौँ | 33 तेत्तिसौँ | 34 चौँतिसौँ | 35 पैँतिसौँ |
+| 36 छत्तिसौँ | 37 सैँतिसौँ | 38 अठतिसौँ | 39 उनन्चालिसौँ | 40 चालिसौँ |
+| 41 एकचालिसौँ | 42 बयालिसौँ | 43 त्रिचालिसौँ | 44 चवालिसौँ | 45 पैँतालिसौँ |
+| 46 छयालिसौँ | 47 सतचालिसौँ | 48 अठचालिसौँ | 49 उनन्चासौँ | 50 पचासौँ |
+| 51 एकाउन्नौँ | 52 बाउन्नौँ | 53 त्रिपन्नौँ | 54 चवन्नौँ | 55 पचपन्नौँ |
+| 56 छपन्नौँ | 57 सन्ताउन्नौँ | 58 अन्ठाउन्नौँ | 59 उनन्साठीऔँ | 60 साठीऔँ |
+| 61 एकसट्ठीऔँ | 62 बयसट्ठीऔँ | 63 त्रिसट्ठीऔँ | 64 चौसट्ठीऔँ | 65 पैँसट्ठीऔँ |
+| 66 छयसट्ठीऔँ | 67 सतसट्ठीऔँ | 68 अठसट्ठीऔँ | 69 उनन्सत्तरीऔँ | 70 सत्तरीऔँ |
+| 71 एकहत्तरौँ | 72 बहत्तरौँ | 73 त्रिहत्तरौँ | 74 चौहत्तरौँ | 75 पचहत्तरौँ |
+| 76 छयहत्तरौँ | 77 सतहत्तरौँ | 78 अठहत्तरौँ | 79 उनासीऔँ | 80 असीऔँ |
+| 81 एकासीऔँ | 82 बयासीऔँ | 83 त्रियासीऔँ | 84 चौरासीऔँ | 85 पचासीऔँ |
+| 86 छयासीऔँ | 87 सतासीऔँ | 88 अठासीऔँ | 89 उनान्नब्बेऔँ | 90 नब्बेऔँ |
+| 91 एकान्नब्बेऔँ | 92 बयान्नब्बेऔँ | 93 त्रियान्नब्बेऔँ | 94 चौरान्नब्बेऔँ | 95 पन्चान्नब्बेऔँ |
+| 96 छयान्नब्बेऔँ | 97 सन्तान्नब्बेऔँ | 98 अन्ठान्नब्बेऔँ | 99 उनान्सयौँ | 100 सयौँ |
+
+## Alphabetical order (`sort_key`, added in 0.5)
+
+No dictionary or official rule was consulted. `docs/sorting.md` lists every
+choice. The ones most worth a native speaker's check:
+
+1. `क्ष`, `त्र`, `ज्ञ` as letters after `ह`, including in the middle of a word
+   (`कक्षा` after `कह…`), with `conjunct_letters=False` to file them under
+   `क`, `त`, `ज` instead.
+2. candrabindu, then anusvara, then visarga, each directly after the bare
+   syllable and before any following letter (`कँ < कं < कः < कक < का`).
+3. Anusvara is not treated as a nasal consonant (`अंक` and `अङ्क` sort apart).
+4. Conjuncts after every vowel sign of the same consonant (`कौ < क्या`,
+   `करा < कर्म`).
+5. Nukta letters with the plain letter, plain first.
+6. Digits, punctuation and Latin before Devanagari; digit strings compared
+   digit by digit.
+
+## Aksharas (`aksharas`, added in 0.5)
+
+The rules in `docs/aksharas.md` were written from the Unicode Devanagari
+block chart's structure, not from another segmenter. Choices to check: a
+final halant consonant is its own unit (श्री, मा, न्); spaces, digits and
+punctuation each count as one.
+
+## Date patterns and month-name parsing (added in 0.5)
+
+The tokens of `format_bs` patterns are this project's own small subset in
+the style of `strftime`. `%a` uses the short weekday names in the section
+above. `parse_bs` accepts only the month spellings the package writes, plus
+the particles साल after the year and गते after the day; the other spellings
+listed under "Month and weekday names" are refused, not guessed.
+
+## Normaliser: `र्इ` → `ई` (added in 0.5)
+
+The repair rests on this project's own reasoning that र + virama directly
+followed by the independent vowel इ has no other reading in Nepali text and
+is a common way of mistyping ई. It was not checked against a corpus.

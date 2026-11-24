@@ -19,6 +19,7 @@ __all__ = [
     "fix_joiners",
     "normalize",
     "normalize_whitespace",
+    "repair_reph_i",
     "strip_invisible",
 ]
 
@@ -45,6 +46,13 @@ _SPLIT_VOWELS: tuple[tuple[str, str], ...] = (
     ("\u093e\u0948", "\u094c"),  # ा + ै  -> ौ
     ("\u093e\u0945", "\u0949"),  # ा + ॅ  -> ॉ
 )
+
+# ``ई`` typed the typewriter way, as ``इ`` with a reph: र + virama + इ. A
+# virama before an independent vowel does not make a conjunct, so the
+# sequence has no reading of its own; it only looks like ``ई``. It is left
+# alone when the र is itself the tail of a conjunct (``क्र्इ``, which shows no
+# reph), and a joiner between the virama and the इ also keeps it apart.
+_REPH_I = re.compile("(?<!\u094d)(?<!\u094d[\u200c\u200d])\u0930\u094d\u0907")
 
 # Combining signs that never legitimately repeat: candrabindu, anusvara,
 # visarga, nukta, dependent vowels, virama, stress marks. Avagraha (U+093D)
@@ -74,6 +82,13 @@ def compose_split_vowels(text: str) -> str:
         if wrong in text:
             text = text.replace(wrong, right)
     return text
+
+
+def repair_reph_i(text: str) -> str:
+    """Replace ``र्इ`` (reph on ``इ``, an old way of typing ``ई``) with ``ई``."""
+    if "\u094d\u0907" not in text:
+        return text
+    return _REPH_I.sub("\u0908", text)
 
 
 def collapse_duplicate_marks(text: str) -> str:
@@ -152,7 +167,7 @@ def normalize(
     """Return ``text`` in aksharkit's canonical form.
 
     Steps, in order: joiner policy; invisible characters; NFC; split-vowel
-    repair; duplicate combining signs; whitespace; danda repair. Stray
+    repair; ``र्इ`` to ``ई``; duplicate combining signs; whitespace; danda repair. Stray
     characters are removed first so that they cannot hide a sequence from
     the later steps. The function is idempotent:
     ``normalize(normalize(x)) == normalize(x)``.
@@ -166,6 +181,7 @@ def normalize(
         text = strip_invisible(text)
     text = unicodedata.normalize("NFC", text)
     text = compose_split_vowels(text)
+    text = repair_reph_i(text)
     text = collapse_duplicate_marks(text)
     if whitespace:
         text = normalize_whitespace(text)

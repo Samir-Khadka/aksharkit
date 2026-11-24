@@ -1,5 +1,70 @@
 # Changelog
 
+## 0.5.0 — 24 November 2026
+
+Pushed and deployed to the playground on 24 November 2026. Not released on PyPI.
+
+### Added
+
+- **Aksharas** (`aksharkit.akshara`): `aksharas` splits text into written
+  syllables (`नमस्ते` → `न`, `म`, `स्ते`), keeping conjuncts, nukta, vowel signs,
+  candrabindu / anusvara / visarga and ZWJ / ZWNJ forms whole.
+  `akshara_spans` adds offsets, `akshara_count` counts, and `truncate`
+  shortens text without cutting inside one. Text outside Devanagari falls
+  back to one code point with its combining marks. Rules and limits:
+  `docs/aksharas.md`.
+- `aksharkit aksharas TEXT [--count] [--truncate N [--suffix S]] [--sep S] [--json]`.
+- **Alphabetical order** (`aksharkit.collate`): `sort_key` and
+  `sorted_nepali`. Vowels, consonants क to ह, then क्ष, त्र, ज्ञ (or, with
+  `conjunct_letters=False`, those three under क, त, ज). Every choice is
+  listed in `docs/sorting.md`. Dictionaries differ; the order is not claimed
+  to match any of them.
+- `aksharkit sort [--reverse] [--unique] [--conjuncts-under-first]`, lines in,
+  lines out.
+- **Date patterns**: `format_bs(date, "%-d %B %Y, %A")`. Tokens: `%Y %y %m
+  %-m %B %d %-d %A %a %%` (`dates.PATTERN_TOKENS`); an unknown token raises.
+  `aksharkit date --pattern`.
+- **Month names in `parse_bs`**: `२०८३ मंसिर ८`, `8 Mangsir 2083`, with
+  optional साल, गते and a weekday that is checked. Only the package's own
+  month spellings; two-digit years, month-first order and unknown names
+  raise. Range and disputed-month guards are unchanged.
+- **Ordinals 1–100**: `ordinal_to_words` (पहिलो, दोस्रो, तेस्रो, चौथो, पाँचौँ …),
+  `aksharkit words --ordinal`. One base form only. All 100 forms are listed
+  in `docs/sources.md` for review.
+- **Playground**: Aksharas and Sort tabs, an ordinal row under Numbers, a
+  pattern row under Dates (which now also takes a BS date with a month
+  name), each with examples, copy buttons and a place in the shared link.
+
+### Fixed
+
+- Normaliser: `र्इ` typed for `ई` is repaired (`र्इश्वर` → `ईश्वर`). It is left
+  alone when the र ends a conjunct or a joiner follows the virama.
+- Playground: after typing in one tab and clicking another, the address
+  could go back to the first tab when the pending edit ran. An edit now
+  rewrites the address only while its own tab is on screen.
+- README, ROADMAP and known issues said the 0.4.0 page had not been checked
+  in a real browser. It was, once, on a desktop on 24 November 2026; a
+  phone is still untested.
+
+### Not verified
+
+- **The 0.5.0 playground has not been opened in any browser**, on any
+  device, and not with real Pyodide. The Node tests drive `app.js` against
+  a fake DOM with the Python side run by CPython. The layout of the new
+  tabs and rows has not been seen at any width.
+- The address fix was reproduced only in those Node tests, not in the
+  browser where the problem was reported.
+- **No native speaker has reviewed the ordinals or the sort order**, and
+  neither was checked against a dictionary or any other source. The 32
+  ordinals for 59–70 and 79–98 (साठीऔँ, असीऔँ, नब्बेऔँ …) are the least certain.
+- The akshara rules are this project's reading of the Unicode Devanagari
+  block. They were not compared with another segmenter or with Unicode's
+  grapheme-cluster rules.
+- The `र्इ` repair assumes that sequence is never intended in Nepali text;
+  no corpus was checked.
+- Tests were run locally on Python 3.12 only. GitHub CI has not run on this
+  version.
+
 ## 0.4.0 — 24 November 2026
 
 Pushed and deployed to the playground on 24 November 2026. Not released on PyPI.
